@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Optional, Union
 from src.ingestion.officer_adapter import OfficerIngestionAdapter
@@ -57,6 +58,16 @@ class LiveTelemetryStream:
         except Exception as e:
             raise RuntimeError(f"Failed to launch C++ Officer Agent ({exe}): {e}")
 
+        def drain_stderr():
+            for line in process.stderr:
+                if on_stderr:
+                    on_stderr(line.rstrip("\n"))
+                else:
+                    print(f"[officer-agent] {line.rstrip(chr(10))}", file=sys.stderr)
+
+        stderr_thread = threading.Thread(target=drain_stderr, daemon=True)
+        stderr_thread.start()
+
         try:
             for line in process.stdout:
                 parsed = OfficerIngestionAdapter.parse_line(line)
@@ -70,3 +81,4 @@ class LiveTelemetryStream:
                 process.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 process.kill()
+            stderr_thread.join(timeout=2)

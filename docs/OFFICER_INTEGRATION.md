@@ -6,7 +6,7 @@
 
 This repository (`eyedetect`) is the **Central Detection, Correlation, and Automated Response Engine** for the Panopticon EDR / XDR Capstone Project.
 
-It is designed to connect directly with the **Windows Kernel Telemetry Agent** ([`sokhiaryan/officer`](https://github.com/sokhiaryan/officer)), written in **C++20**.
+It is designed to connect directly with the **Windows Kernel Telemetry Agent** ([`Panopticon-Co/panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent), internally named "Officer"), written in **C++20**.
 
 ---
 
@@ -119,4 +119,10 @@ Run the automated integration tests anytime:
 ```bash
 pytest -v tests/test_officer_integration.py
 ```
-*(Tests cover Schema 0.2 parsing, entity ID extraction, process tree ancestry tracking, and live threat detection).*
+*(Tests cover Schema 0.2 parsing, entity ID extraction, process tree ancestry tracking, and live threat detection using fixture/sample NDJSON — no C++ build required.)*
+
+To additionally test against a real, compiled `officer-agent.exe` artifact (spawning it as a subprocess and reading its stdout, the same code path Option 3 above uses), set `OFFICER_AGENT_BIN` and run:
+```bash
+OFFICER_AGENT_BIN=/path/to/officer-agent.exe pytest -v tests/test_officer_artifact_integration.py
+```
+This proves the artifact-consumption boundary (the binary launches, the pipe is read, the process exits cleanly) works. It does **not** prove real ETW/Sysmon telemetry content is correct — that requires running on an elevated Windows session with Sysmon installed, which is validated separately on real hardware, not by this test.
