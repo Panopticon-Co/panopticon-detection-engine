@@ -80,6 +80,12 @@ def main():
         help="Path to C++ officer-agent.exe binary",
     )
     parser.add_argument(
+        "--officer-source",
+        choices=["etw", "sysmon", "all"],
+        default="all",
+        help="Collector source to request from the C++ Officer Agent subprocess",
+    )
+    parser.add_argument(
         "--officer-ndjson",
         type=str,
         default=None,
@@ -181,9 +187,11 @@ def main():
 
     # 3. Setup Telemetry Stream
     if args.officer:
-        print(f"[*] 🚀 Spawning C++ Officer Agent subprocess: '{args.officer_bin}'")
-        event_stream = LiveTelemetryStream.stream_from_officer_process(args.officer_bin)
-        stream_name = f"Live C++ Officer Agent ({args.officer_bin})"
+        print(f"[*] 🚀 Spawning C++ Officer Agent subprocess: '{args.officer_bin}' (source={args.officer_source})")
+        event_stream = LiveTelemetryStream.stream_from_officer_process(
+            args.officer_bin, source=args.officer_source
+        )
+        stream_name = f"Live C++ Officer Agent ({args.officer_bin}, source={args.officer_source})"
     elif args.officer_ndjson:
         officer_path = Path(args.officer_ndjson)
         if not officer_path.exists():
