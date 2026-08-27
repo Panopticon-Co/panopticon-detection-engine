@@ -23,3 +23,11 @@ env/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Local run output — real alerts / captured telemetry from a live or demo run.
+# Never commit these; committed sample telemetry lives under samples/ only.
+/alerts.ndjson
+/*.alerts.ndjson
+/_e2e_*.ndjson
+/officer_capture*.ndjson
+*.log
