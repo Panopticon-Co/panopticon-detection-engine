@@ -126,9 +126,9 @@ def main():
     )
     parser.add_argument(
         "--auto-remediate",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Execute automated threat remediation, process killing, file quarantine, persistence reversal, account lockouts, and cloud key revocations",
+        help="Execute automated threat remediation, process killing, file quarantine, persistence reversal, account lockouts, and cloud key revocations (use --no-auto-remediate to disable)",
     )
 
     args = parser.parse_args()
