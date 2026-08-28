@@ -129,3 +129,10 @@ def test_fsync_path_runs(tmp_path):
         w.write(_Alert(3))
         w.flush()
     assert len(_lines(out)) == 3
+
+
+def test_rejects_a_directory_path(tmp_path):
+    # An operator pointing --output-file at a directory should get a clear
+    # error at construction, not a raw PermissionError from deep in open().
+    with pytest.raises(IsADirectoryError):
+        IncrementalAlertWriter(tmp_path)
