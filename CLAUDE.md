@@ -42,7 +42,15 @@ python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.e
 python src/main.py --mitre-matrix --audit-taxonomy
 ```
 
-There is no server mode — this is a CLI batch/streaming tool with no listening port, no HTTP API, and no database.
+There is no server mode — this is a CLI batch/streaming tool with no listening port, no HTTP API, and no database *server* (V2's spool is a local SQLite file).
+
+```bash
+# V2 continuous streaming: bounded queue -> SQLite spool -> incremental alerts,
+# with delivery retry, restart recovery, health/metrics, clean shutdown.
+python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.exe \
+  --reliable --spool-db spool/panopticon-v2.db --output-file alerts.ndjson \
+  --duration 30 --health-file health.json --metrics-file metrics.prom
+```
 
 ## Architecture
 
@@ -51,7 +59,8 @@ Pipeline (`src/main.py` wires this together): load YAML rules from `rules/` -> b
 - `src/ingestion/` — `officer_adapter.py` (`OfficerIngestionAdapter`, `SCHEMA_VERSION = "0.2"`) normalizes the Officer agent's JSON (`event`/`process`/`parent`/`user`/`host`/`source`/`agent` blocks) into this engine's internal event dict. `live_stream.py` (`LiveTelemetryStream`) supports either reading an NDJSON file line-by-line (auto-detecting the Officer schema) or spawning `officer-agent.exe` as a subprocess and reading its stdout pipe. Full field-level contract: `docs/OFFICER_INTEGRATION.md`.
 - `src/evaluator/`, `src/rules/` — rule loading (`pyyaml`) and pydantic-based schema validation (`src/rules/schema.py`).
 - `src/correlation/` — process tree building, multi-hop correlation graph, risk scoring.
-- `src/alerting/` — `Alert` model and formatters.
+- `src/alerting/` — `Alert` model and formatters. `Alert.from_detection_result` derives a **deterministic** `alert_id` (hash of `rule_id | event_id | host_id | timestamp | evidence-keys`) so replays / V2 restart-recovery don't emit duplicates.
+- `src/reliability/` — **V2** opt-in streaming pipeline (see `docs/V2_RELIABILITY.md`): `queue.py` (bounded ingestion queue), `spool.py` (`AlertSpool`, SQLite WAL, delivery lifecycle + migration), `retry.py` (bounded backoff), `alert_sink.py` (`IncrementalAlertWriter`, append-safe + torn-tail repair + dedup), `health.py`, `metrics.py`, `pipeline.py` (`StreamingPipeline`). Reached with `--reliable`; `src/pipeline_core.py::DetectionRun` holds the per-event detection logic shared by the legacy loop and the pipeline. Does **not** change Schema 0.2 or the `alerts.ndjson` boundary.
 - `src/remediation/` — see below; also `src/network/`, `src/cloud/`, `src/identity/`, `src/threat_intel/`, `src/mitre/` for domain-specific detection logic.
 - `rules/` — 84 YAML rule files (verified count, matches README's "84+ MITRE Rules" claim), organized by category (`process/`, `identity/`, `persistence/`, `privilege_escalation/`, `network/`, `malware/`, `credential_access/`, `web_api/`, `cloud/`, `lateral_movement/`, `defense_evasion/`, `exfiltration/`, `collection/`, `file/`, `initial_access/`). Custom Sigma/Wazuh-inspired format: `id`, `level` (0-16), `logic: {all/any/none}` conditions, `active_response`, `mitre: {tactic, technique}`, `compliance` tags.
 - `samples/` — NDJSON attack simulations per domain, plus `officer_live_sample.ndjson` (real Schema 0.2 shape) and a MITRE Navigator layer JSON.
