@@ -9,5 +9,5 @@ Summary of the detection rule, correlation engine, or remediation improvements.
 
 ## Checklist
 - [ ] Tests added / updated under `tests/`
-- [ ] All 43 engine unit tests passing (`pytest tests/`)
+- [ ] All 151 engine unit tests passing (`pytest tests/`)
 - [ ] Adheres to Panopticon event schema

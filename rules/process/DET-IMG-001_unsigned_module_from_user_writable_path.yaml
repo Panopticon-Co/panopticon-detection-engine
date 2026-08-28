@@ -1,0 +1,52 @@
+id: DET-IMG-001
+name: Unsigned Module Loaded From a User-Writable Path
+description: >-
+  Detects a process loading an unsigned DLL/module out of a user-writable
+  directory (Temp / AppData / Downloads / ProgramData). Legitimate modules load
+  from signed images under Windows or Program Files; an unsigned load from a
+  world-writable path is a common side-loading / staged-payload pattern.
+  V3 image-load-telemetry demonstration rule (Sysmon EID 7).
+version: 1
+status: enabled
+event_type: image_load
+
+logic:
+  all:
+    - field: image.is_signed
+      operator: equals
+      value: false
+    - any:
+        - field: image.path
+          operator: contains
+          value: "\\AppData\\Local\\Temp\\"
+        - field: image.path
+          operator: contains
+          value: "\\AppData\\Roaming\\"
+        - field: image.path
+          operator: contains
+          value: "\\Downloads\\"
+        - field: image.path
+          operator: contains
+          value: "\\ProgramData\\"
+
+severity: high
+confidence: 0.75
+
+evidence:
+  - image.path
+  - image.is_signed
+  - image.signature_status
+  - image.sha256
+  - process.name
+  - process.pid
+  - process.process_guid
+
+mitre:
+  tactic: Defense Evasion
+  technique: T1574.002
+  name: "Hijack Execution Flow: DLL Side-Loading"
+
+tags:
+  - attack.defense_evasion
+  - image_load
+  - side_loading

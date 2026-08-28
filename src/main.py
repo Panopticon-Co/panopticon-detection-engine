@@ -90,7 +90,7 @@ def main():
         "--officer-ndjson",
         type=str,
         default=None,
-        help="Ingest Panopticon Schema 0.2 NDJSON telemetry collected from C++ Officer Agent",
+        help="Ingest Panopticon Schema (0.1/0.2/0.3) NDJSON telemetry collected from the C++ Officer Agent",
     )
     parser.add_argument(
         "--output-format",

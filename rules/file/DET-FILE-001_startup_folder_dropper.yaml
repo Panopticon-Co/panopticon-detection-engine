@@ -1,0 +1,38 @@
+id: DET-FILE-001
+name: File Written to Startup Folder
+description: >-
+  Detects a process creating a file inside a per-user or all-users Startup
+  folder. Anything placed there runs at logon, so this is a common, low-noise
+  persistence primitive. V3 file-telemetry demonstration rule (Sysmon EID 11).
+version: 1
+status: enabled
+event_type: file_create
+
+logic:
+  any:
+    - field: file.path
+      operator: contains
+      value: "\\Start Menu\\Programs\\Startup\\"
+    - field: file.path
+      operator: contains
+      value: "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\"
+
+severity: high
+confidence: 0.8
+
+evidence:
+  - file.path
+  - file.operation
+  - process.name
+  - process.pid
+  - process.process_guid
+
+mitre:
+  tactic: Persistence
+  technique: T1547.001
+  name: "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"
+
+tags:
+  - attack.persistence
+  - file
+  - startup_folder
