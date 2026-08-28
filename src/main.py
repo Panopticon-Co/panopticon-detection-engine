@@ -49,6 +49,7 @@ from src.remediation.engine import EndpointRemediationEngine
 from src.remediation.ransomware_shield import RansomwareShield
 from src.rules.loader import RuleLoader
 from src.threat_intel.ioc_lookup import ThreatIntelEngine
+from src.pipeline_core import DetectionRun, _print_alert, _print_remediation
 
 
 def main():
@@ -130,6 +131,33 @@ def main():
         default=True,
         help="Execute automated threat remediation, process killing, file quarantine, persistence reversal, account lockouts, and cloud key revocations (use --no-auto-remediate to disable)",
     )
+
+    # -- V2 reliable streaming pipeline (opt-in; the default path is unchanged V1) --
+    v2 = parser.add_argument_group("V2 reliability")
+    v2.add_argument(
+        "--reliable",
+        action="store_true",
+        help="Run the continuous V2 pipeline: bounded ingestion queue -> detection "
+        "-> SQLite durable spool -> incremental alerts.ndjson, with retry, "
+        "health/metrics and restart recovery. Pending alerts from a prior crashed "
+        "run are redelivered on start.",
+    )
+    v2.add_argument("--spool-db", default="spool/panopticon-v2.db",
+                    help="Path to the SQLite alert-delivery spool (created if absent)")
+    v2.add_argument("--queue-capacity", type=int, default=1024, help="Bounded ingestion queue size")
+    v2.add_argument("--queue-overflow", choices=["block", "drop_newest", "drop_oldest"],
+                    default="block",
+                    help="Behaviour when the queue is full (rejects are always counted, never silent)")
+    v2.add_argument("--max-events", type=int, default=None,
+                    help="Stop cleanly after processing this many events (V2 streaming)")
+    v2.add_argument("--duration", type=float, default=None,
+                    help="Stop cleanly after this many seconds (V2 streaming)")
+    v2.add_argument("--retry-max-attempts", type=int, default=5,
+                    help="Max alert delivery attempts before an alert goes terminal 'dead'")
+    v2.add_argument("--retry-base-delay", type=float, default=1.0,
+                    help="Base seconds for the bounded exponential delivery-retry backoff")
+    v2.add_argument("--health-file", default=None, help="Write a JSON health snapshot here on exit")
+    v2.add_argument("--metrics-file", default=None, help="Write Prometheus-text metrics here on exit")
 
     args = parser.parse_args()
 
@@ -214,341 +242,134 @@ def main():
     print("[*] ⚡ Automated Playbooks: Process Termination, File Quarantine, Account Lockout")
     print(f"[*] 📡 Processing Security Telemetry: {stream_name}\n")
 
-    events_count = 0
-    atomic_alerts_count = 0
-    threshold_alerts_count = 0
-    beacon_alerts_count = 0
-    port_scan_alerts_count = 0
-    ransomware_shield_alerts = 0
-    identity_threat_alerts = 0
-    cloud_threat_alerts = 0
-    enterprise_campaign_alerts = 0
-    incident_alerts_count = 0
-    risk_breach_alerts_count = 0
-    active_responses_count = 0
-    remediations_executed = 0
-    all_generated_alerts = []
+    # 4. Detection driver -- one code path shared by the legacy loop and the V2
+    #    streaming pipeline, so their per-event behaviour cannot drift.
+    run = DetectionRun(
+        evaluator=evaluator,
+        threshold_engine=threshold_engine,
+        correlation_engine=correlation_engine,
+        risk_scorer=risk_scorer,
+        beacon_detector=beacon_detector,
+        port_scan_detector=port_scan_detector,
+        ransomware_shield=ransomware_shield,
+        identity_engine=identity_engine,
+        cloud_engine=cloud_engine,
+        enterprise_graph=enterprise_graph,
+        remediation_engine=remediation_engine,
+        auto_remediate=args.auto_remediate,
+        emit=lambda alert: _print_alert(alert, args.output_format, story_mode=args.story),
+        emit_remediation=lambda report: _print_remediation(report, story_mode=args.story),
+    )
 
-    for event in event_stream:
-        events_count += 1
-        host_id = event.get("host_id") or event.get("cloud", {}).get("account_id") or "UNKNOWN_HOST"
-        ts = event.get("timestamp", "")
+    if args.reliable:
+        _run_streaming_pipeline(args, run, event_stream)
+    else:
+        for event in event_stream:
+            run.process_event(event)
+        if args.output_file:
+            out_path = Path(args.output_file)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as f:
+                for alt in run.all_alerts:
+                    f.write(AlertFormatter.to_ndjson(alt) + "\n")
+            print(f"\n[+] Saved {len(run.all_alerts)} alert log(s) to: {out_path.resolve()}")
 
-        # A. Evaluate Atomic & Threat Intel Rules
-        results = evaluator.evaluate_event(event)
-        for res in results:
-            atomic_alerts_count += 1
-            alert = Alert.from_detection_result(res)
-            all_generated_alerts.append(alert)
-
-            if alert.active_response:
-                active_responses_count += 1
-
-            _print_alert(alert, args.output_format, story_mode=args.story)
-
-            # Record in Enterprise Attack Graph
-            dest_host = event.get("network", {}).get("destination_ip") or event.get("target_host")
-            if dest_host:
-                campaign = enterprise_graph.record_attack_step(
-                    source_id=host_id,
-                    source_type="ENDPOINT",
-                    target_id=dest_host,
-                    target_type="ENDPOINT",
-                    pivot_mechanism=res.rule.name,
-                    rule_id=res.rule.id,
-                    timestamp=ts,
-                    details={"user": event.get("user", {}).get("name")},
-                )
-                if campaign:
-                    enterprise_campaign_alerts += 1
-                    ent_alert = Alert(
-                        alert_id=campaign.incident_id,
-                        rule_id="CORR-ENT-001",
-                        title=f"[ENTERPRISE CAMPAIGN] {campaign.title}",
-                        description=f"Multi-hop lateral movement pivot path identified: {' -> '.join(campaign.lateral_pivot_path)}",
-                        level=16,
-                        severity="critical",
-                        confidence=campaign.confidence,
-                        host_id=campaign.root_cause_asset,
-                        timestamp=ts,
-                        event_id=event.get("event_id"),
-                        evidence={"pivot_chain": campaign.lateral_pivot_path, "root_cause_asset": campaign.root_cause_asset},
-                        active_response={"action": "ENTERPRISE_ISOLATE_PIVOT_PATH", "isolated_assets": campaign.lateral_pivot_path},
-                        mitre_tactic="Lateral Movement",
-                        mitre_technique="T1021",
-                        tags=["attack.enterprise_campaign", "multi_hop_pivot", "cross_domain"],
-                    )
-                    all_generated_alerts.append(ent_alert)
-                    _print_alert(ent_alert, args.output_format, story_mode=args.story)
-
-                    if args.auto_remediate:
-                        rem_report = remediation_engine.remediate_enterprise_campaign(campaign)
-                        if rem_report.actions_executed:
-                            remediations_executed += len(rem_report.actions_executed)
-                            _print_remediation(rem_report, story_mode=args.story)
-
-            # Automated Threat Remediation (Level >= 11 or explicit critical)
-            if args.auto_remediate and res.rule.level >= 11:
-                rem_report = remediation_engine.remediate_threat(
-                    rule_id=res.rule.id,
-                    threat_name=res.rule.name,
-                    event=event,
-                    custom_action=res.rule.active_response,
-                )
-                if rem_report.actions_executed:
-                    remediations_executed += len(rem_report.actions_executed)
-                    _print_remediation(rem_report, story_mode=args.story)
-
-            # Update Host Threat Meter
-            risk_incident = risk_scorer.record_detection(
-                host_id=host_id,
-                rule_id=res.rule.id,
-                rule_name=res.rule.name,
-                level=res.rule.level,
-                timestamp=ts,
-                summary=res.rule.description,
-            )
-            if risk_incident:
-                risk_breach_alerts_count += 1
-                all_generated_alerts.append(risk_incident)
-                _print_alert(risk_incident, args.output_format, story_mode=args.story)
-
-            # Ingest into Multi-Event Correlation Engine
-            incidents = correlation_engine.ingest_detection(res)
-            for inc in incidents:
-                incident_alerts_count += 1
-                inc_alert = inc.to_alert()
-                all_generated_alerts.append(inc_alert)
-                _print_alert(inc_alert, args.output_format, story_mode=args.story)
-
-        # B. Evaluate Cloud & Workload Threat Engine
-        cloud_matches = cloud_engine.inspect_cloud_event(event)
-        for cm in cloud_matches:
-            cloud_threat_alerts += 1
-            c_alert = Alert(
-                alert_id=f"ALT-CLOUD-{events_count}",
-                rule_id="DET-CLOUD-001",
-                title=f"[CLOUD THREAT] {cm.threat_type}",
-                description=f"Cloud anomaly detected on {cm.cloud_provider} account '{cm.account_or_project_id}' for resource '{cm.resource_id}'.",
-                level=15,
-                severity="critical",
-                confidence=cm.confidence,
-                host_id=cm.account_or_project_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=cm.evidence,
-                active_response={"action": cm.remediation_required, "target_resource": cm.resource_id},
-                mitre_tactic="Exfiltration" if "Storage" in cm.threat_type else "Persistence",
-                mitre_technique="T1530" if "Storage" in cm.threat_type else "T1098.001",
-                tags=["attack.cloud", f"cloud.{cm.cloud_provider.lower()}", "workload_security"],
-            )
-            all_generated_alerts.append(c_alert)
-            _print_alert(c_alert, args.output_format, story_mode=args.story)
-
-            if args.auto_remediate:
-                rem_report = remediation_engine.remediate_cloud_threat(cm)
-                if rem_report.actions_executed:
-                    remediations_executed += len(rem_report.actions_executed)
-                    _print_remediation(rem_report, story_mode=args.story)
-
-        # C. Evaluate ITDR & Identity Analytics Engine (UEBA)
-        id_matches = identity_engine.ingest_identity_event(event)
-        for idm in id_matches:
-            identity_threat_alerts += 1
-            id_alert = Alert(
-                alert_id=f"ALT-ID-{events_count}",
-                rule_id="DET-IDENT-001",
-                title=f"[IDENTITY THREAT] {idm.threat_type}",
-                description=f"Compromised identity indicator detected for user '{idm.username}'.",
-                level=14,
-                severity="critical",
-                confidence=idm.confidence,
-                host_id=idm.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=idm.evidence,
-                active_response={"action": idm.remediation_required, "target_user": idm.username},
-                mitre_tactic="Credential Access",
-                mitre_technique="T1110",
-                tags=["attack.credential_access", "attack.initial_access", "identity_threat", "ueba"],
-            )
-            all_generated_alerts.append(id_alert)
-            _print_alert(id_alert, args.output_format, story_mode=args.story)
-
-            if args.auto_remediate:
-                rem_report = remediation_engine.remediate_identity_threat(idm)
-                if rem_report.actions_executed:
-                    remediations_executed += len(rem_report.actions_executed)
-                    _print_remediation(rem_report, story_mode=args.story)
-
-        # D. Evaluate Ransomware Shield & Canary Tripwires
-        canary_match = ransomware_shield.inspect_file_event(event)
-        if canary_match:
-            ransomware_shield_alerts += 1
-            canary_alert = Alert(
-                alert_id=f"ALT-RANS-{events_count}",
-                rule_id="DET-RANS-001",
-                title=f"[RANSOMWARE SHIELD] {canary_match.threat_type}",
-                description=f"Immediate threat detected: Process '{canary_match.process_name}' (PID: {canary_match.pid}) breached ransomware protection tripwire.",
-                level=16,
-                severity="critical",
-                confidence=canary_match.confidence,
-                host_id=canary_match.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=canary_match.evidence,
-                active_response={"action": "TERMINATE_PROCESS", "target_pid": canary_match.pid, "isolate_host": True},
-                mitre_tactic="Impact",
-                mitre_technique="T1486",
-                tags=["attack.impact", "ransomware_shield", "canary_tripwire"],
-            )
-            all_generated_alerts.append(canary_alert)
-            _print_alert(canary_alert, args.output_format, story_mode=args.story)
-
-            if args.auto_remediate:
-                rem_report = remediation_engine.remediate_threat(
-                    rule_id="DET-RANS-001",
-                    threat_name=canary_match.threat_type,
-                    event=event,
-                    custom_action="ISOLATE_HOST",
-                )
-                if rem_report.actions_executed:
-                    remediations_executed += len(rem_report.actions_executed)
-                    _print_remediation(rem_report, story_mode=args.story)
-
-        # E. Evaluate C2 Beaconing Periodic Engine
-        beacon_match = beacon_detector.ingest_connection(event)
-        if beacon_match:
-            beacon_alerts_count += 1
-            ar_action = ActiveResponseEngine.resolve_action(
-                level=14,
-                event=event,
-                custom_action="BLOCK_FIREWALL_IP",
-                reason=f"Periodic C2 Beaconing confirmed to {beacon_match.destination_ip}:{beacon_match.destination_port} (Interval: {beacon_match.mean_interval_seconds}s)",
-            )
-            if ar_action:
-                active_responses_count += 1
-
-            beacon_alert = Alert(
-                alert_id=f"ALT-BCN-{events_count}",
-                rule_id="DET-NET-004",
-                title="[BEHAVIORAL C2 BEACON] Automated Periodic Heartbeat Detected",
-                description=f"Identified consistent outbound beaconing to {beacon_match.destination_ip}:{beacon_match.destination_port} (Mean interval: {beacon_match.mean_interval_seconds}s, CV: {beacon_match.coefficient_of_variation}).",
-                level=14,
-                severity="critical",
-                confidence=beacon_match.confidence,
-                host_id=beacon_match.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=beacon_match.evidence,
-                active_response=ar_action.to_dict() if ar_action else None,
-                mitre_tactic="Command and Control",
-                mitre_technique="T1071.001",
-                tags=["attack.command_and_control", "c2_beaconing", "heartbeat_analysis"],
-            )
-            all_generated_alerts.append(beacon_alert)
-            _print_alert(beacon_alert, args.output_format, story_mode=args.story)
-
-        # F. Evaluate Lateral Port Scanner & Subnet Sweeper
-        scan_matches = port_scan_detector.ingest_connection(event)
-        for sm in scan_matches:
-            port_scan_alerts_count += 1
-            scan_alert = Alert(
-                alert_id=f"ALT-SCAN-{events_count}",
-                rule_id="DET-NET-005",
-                title=f"[RECONNAISSANCE] {sm.scan_type}",
-                description=f"Host initiated rapid network probes ({sm.target_summary}) within {sm.time_window_seconds}s.",
-                level=12,
-                severity="high",
-                confidence=0.92,
-                host_id=sm.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=sm.evidence,
-                active_response=None,
-                mitre_tactic="Discovery",
-                mitre_technique="T1046",
-                tags=["attack.discovery", "lateral_reconnaissance", "port_scan"],
-            )
-            all_generated_alerts.append(scan_alert)
-            _print_alert(scan_alert, args.output_format, story_mode=args.story)
-
-        # G. Evaluate Frequency & Threshold Rules
-        thresh_matches = threshold_engine.ingest_event(event)
-        for tm in thresh_matches:
-            threshold_alerts_count += 1
-            ar_action = ActiveResponseEngine.resolve_action(
-                level=tm.rule.level,
-                event=event,
-                custom_action=tm.rule.active_response,
-                reason=f"Threshold rule [{tm.rule.id}] triggered: {tm.event_count} events in {tm.timeframe_seconds}s",
-            )
-            if ar_action:
-                active_responses_count += 1
-
-            thresh_alert = Alert(
-                alert_id=f"ALT-TH-{tm.rule.id}",
-                rule_id=tm.rule.id,
-                title=f"[FREQUENCY THRESHOLD] {tm.rule.name}",
-                description=tm.rule.description,
-                level=tm.rule.level,
-                severity=tm.rule.severity,
-                confidence=tm.rule.confidence,
-                host_id=tm.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=tm.evidence,
-                active_response=ar_action.to_dict() if ar_action else None,
-                mitre_tactic=tm.rule.mitre_tactic,
-                mitre_technique=tm.rule.mitre_technique,
-                tags=["attack.impact", "ransomware", "threshold_trigger"],
-            )
-            all_generated_alerts.append(thresh_alert)
-            _print_alert(thresh_alert, args.output_format, story_mode=args.story)
-    # Save to output file if specified
-    if args.output_file:
-        out_path = Path(args.output_file)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as f:
-            for alt in all_generated_alerts:
-                f.write(AlertFormatter.to_ndjson(alt) + "\n")
-        print(f"\n[+] Saved {len(all_generated_alerts)} alert log(s) to: {out_path.resolve()}")
-
-    # Generate Plain-English Executive Story Mode
     if args.story:
-        print("\n" + StoryModeFormatter.render_story_timeline(all_generated_alerts, remediation_engine.action_history))
+        print("\n" + StoryModeFormatter.render_story_timeline(run.all_alerts, remediation_engine.action_history))
 
     print("\n" + "=" * 80)
-    print("📋 FINAL INCIDENT & DEFENSE SUMMARY")
+    print("\U0001F4CB FINAL INCIDENT & DEFENSE SUMMARY")
     print("=" * 80)
-    print(f" • Total Telemetry Events Ingested : {events_count}")
-    print(f" • Cyber Attacks Intercepted       : {atomic_alerts_count}")
-    print(f" • Cloud & Workload Threats Defended: {cloud_threat_alerts}")
-    print(f" • Identity & Account Attacks Foiled: {identity_threat_alerts}")
-    print(f" • Ransomware Canary Traps Sprung  : {ransomware_shield_alerts} (Host Saved)")
-    print(f" • Automated Auto-Fixes Executed   : {remediations_executed} (All Threats Neutralized)")
-    print(f" • System Protection Health Status : 100% SECURE / FULLY PROTECTED")
+    print(f" \u2022 Total Telemetry Events Ingested : {run.events_count}")
+    print(f" \u2022 Cyber Attacks Intercepted       : {run.atomic_alerts_count}")
+    print(f" \u2022 Cloud & Workload Threats Defended: {run.cloud_threat_alerts}")
+    print(f" \u2022 Identity & Account Attacks Foiled: {run.identity_threat_alerts}")
+    print(f" \u2022 Ransomware Canary Traps Sprung  : {run.ransomware_shield_alerts} (Host Saved)")
+    print(f" \u2022 Automated Auto-Fixes Executed   : {run.remediations_executed} (All Threats Neutralized)")
+    print(f" \u2022 System Protection Health Status : 100% SECURE / FULLY PROTECTED")
     print("=" * 80)
 
 
-def _print_alert(alert: Alert, fmt: str, story_mode: bool = False):
-    if story_mode:
-        return
-    if fmt == "console":
-        print(AlertFormatter.to_console(alert))
-    elif fmt == "json":
-        print(AlertFormatter.to_json(alert))
-    elif fmt == "ndjson":
-        print(AlertFormatter.to_ndjson(alert))
+def _run_streaming_pipeline(args, run, event_stream):
+    """V2 path: bounded queue -> detection -> SQLite alert spool -> incremental
+    alerts.ndjson, with delivery retry, health/metrics and restart recovery."""
+    from src.ingestion.officer_adapter import OfficerIngestionAdapter
+    from src.reliability import (
+        AlertSpool,
+        BoundedEventQueue,
+        HealthState,
+        IncrementalAlertWriter,
+        Metrics,
+        OverflowPolicy,
+        RetryPolicy,
+        StreamingPipeline,
+    )
 
+    spool_path = Path(args.spool_db).expanduser()
+    spool = AlertSpool(
+        spool_path,
+        retry_policy=RetryPolicy(
+            max_attempts=args.retry_max_attempts, base_delay=args.retry_base_delay
+        ),
+    )
+    queue = BoundedEventQueue(
+        capacity=args.queue_capacity, overflow=OverflowPolicy(args.queue_overflow)
+    )
+    metrics = Metrics()
+    health = HealthState()
 
-def _print_remediation(report, story_mode: bool = False):
-    if story_mode:
-        return
-    print("  \033[92m⚡ [AUTO-FIX APPLIED / SYSTEM RESTORED]\033[0m")
-    for act in report.actions_executed:
-        print(f"      -> Action : {act.action_type:<28} | Target: {act.target_entity} | Status: {act.status}")
-    print("=" * 80)
+    # Streaming needs a persistent sink file; default it if --output-file absent.
+    out_path = Path(args.output_file).expanduser() if args.output_file else Path("alerts.ndjson")
+    writer = IncrementalAlertWriter(out_path)
+
+    def detect(event):
+        # The spool stores whatever the stream yields. A raw Schema 0.2 Officer
+        # record (nested "event" object) recovered from the spool is normalized
+        # just-in-time; events the live stream already normalized pass through.
+        if isinstance(event, dict) and isinstance(event.get("event"), dict):
+            if OfficerIngestionAdapter.is_officer_event(event):
+                event = OfficerIngestionAdapter.transform_officer_event(event)
+        return run.process_event(event)
+
+    pipeline = StreamingPipeline(
+        spool=spool,
+        writer=writer,
+        detection_fn=detect,
+        queue=queue,
+        metrics=metrics,
+        health=health,
+        max_events=args.max_events,
+        duration_seconds=args.duration,
+    )
+
+    print(
+        f"[*] V2 streaming pipeline  spool={spool_path}  sink={out_path}  "
+        f"queue={args.queue_capacity}/{args.queue_overflow}  "
+        f"retry<={args.retry_max_attempts}"
+        + (f"  max_events={args.max_events}" if args.max_events else "")
+        + (f"  duration={args.duration}s" if args.duration else "")
+    )
+
+    result = None
+    try:
+        result = pipeline.run(event_stream)
+    except KeyboardInterrupt:  # pragma: no cover - interactive only
+        pipeline.request_stop("keyboard_interrupt")
+    finally:
+        health_text = health.render_text(queue=queue, spool=spool, metrics=metrics)
+        if args.health_file:
+            health.write_json(args.health_file, queue=queue, spool=spool, metrics=metrics)
+        if args.metrics_file:
+            mp = Path(args.metrics_file).expanduser()
+            mp.parent.mkdir(parents=True, exist_ok=True)
+            mp.write_text(metrics.render_prometheus(), encoding="utf-8")
+        writer.close()
+        spool.close()
+
+    if result is not None:
+        print(f"\n[+] V2 pipeline result: {result.to_dict()}")
+        print(f"[+] Alerts written to: {out_path.resolve()}  ({writer.count} line(s))")
+    print("\n" + health_text)
 
 
 if __name__ == "__main__":

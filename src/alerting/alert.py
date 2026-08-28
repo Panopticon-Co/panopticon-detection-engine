@@ -1,11 +1,35 @@
 """Alert definitions and data structures with Wazuh 0-16 levels and Active Response."""
 
+import hashlib
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from src.evaluator.engine import DetectionResult
 from src.alerting.active_response import ActiveResponseAction, ActiveResponseEngine
+
+
+def _stable_alert_id(rule_id: str, event: Dict[str, Any], evidence: Dict[str, Any]) -> str:
+    """Deterministic ``ALT-XXXXXXXX`` id for a (rule, event) detection.
+
+    Re-processing the same event under the same rule yields the same id, so the
+    V2 pipeline's dedup (spool + alert file) recognises a replayed/recovered
+    alert instead of emitting it twice. Falls back to a random id only when the
+    event carries nothing stable to key on.
+    """
+    parts = [
+        str(rule_id),
+        str(event.get("event_id") or event.get("event", {}).get("id") or ""),
+        str(event.get("host_id") or ""),
+        str(event.get("timestamp") or ""),
+    ]
+    if not any(parts[1:]):
+        # nothing stable about this event -> keep V1's random behaviour
+        parts.append(uuid.uuid4().hex)
+    else:
+        parts.append(",".join(sorted(str(k) for k in (evidence or {}))))
+    digest = hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()
+    return "ALT-" + digest[:8].upper()
 
 
 @dataclass
@@ -45,7 +69,7 @@ class Alert:
         )
 
         return cls(
-            alert_id=f"ALT-{uuid.uuid4().hex[:8].upper()}",
+            alert_id=_stable_alert_id(rule.id, event, result.matched_evidence),
             rule_id=rule.id,
             title=rule.name,
             description=rule.description,

@@ -31,3 +31,11 @@ Desktop.ini
 /_e2e_*.ndjson
 /officer_capture*.ndjson
 *.log
+
+# V2 reliability runtime state (never source)
+/spool/
+*.db
+*.db-wal
+*.db-shm
+/health.json
+/metrics.prom
