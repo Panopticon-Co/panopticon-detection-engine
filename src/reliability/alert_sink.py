@@ -52,6 +52,10 @@ class IncrementalAlertWriter:
         dedupe: bool = True,
     ) -> None:
         self.path = Path(path).expanduser()
+        if self.path.is_dir():
+            raise IsADirectoryError(
+                f"--output-file must be a writable file path, not a directory: {self.path}"
+            )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._fsync = fsync
         self._fsync_every = max(1, int(fsync_every))
