@@ -8,19 +8,29 @@ detection engine representation.
 import json
 from typing import Any, Dict, Optional
 
+from src.ingestion import telemetry as _telemetry
+
 
 class OfficerIngestionAdapter:
-    """Adapts C++ Officer Panopticon Schema 0.2 events into eyedetect's detection pipeline."""
+    """Adapts C++ Officer Panopticon events (Schema 0.1 / 0.2 / 0.3) into eyedetect's pipeline.
+
+    Process telemetry keeps its original, well-tested transform. The non-process
+    telemetry families introduced in Schema 0.3 (network / file / registry /
+    image_load) are dispatched to :mod:`src.ingestion.telemetry`, which shares
+    the same identity/context scaffolding -- one contract, five families.
+    """
 
     SCHEMA_VERSION = "0.2"
+    SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3")
 
     @classmethod
     def is_officer_event(cls, raw: Dict[str, Any]) -> bool:
-        """Checks if the incoming JSON dictionary conforms to Panopticon Schema 0.2 or 0.1."""
+        """Checks if the incoming JSON dictionary conforms to Panopticon Schema 0.1-0.3."""
         if not isinstance(raw, dict):
             return False
-        # Schema 0.2 check
-        if raw.get("schema_version") in ("0.2", "0.1") and ("event" in raw or "source" in raw):
+        if raw.get("schema_version") in cls.SUPPORTED_SCHEMA_VERSIONS and (
+            "event" in raw or "source" in raw
+        ):
             return True
         # Duck-typing check for Panopticon event structure
         return "event" in raw and "process" in raw and "source" in raw
@@ -32,6 +42,12 @@ class OfficerIngestionAdapter:
         Preserves all raw source facts while normalizing field aliases so that all 84+ detection
         rules can evaluate conditions with O(1) performance.
         """
+        # Schema 0.3: non-process telemetry families dispatch to the shared
+        # family normalizer. Process telemetry (0.1/0.2/0.3) keeps this path.
+        category = (raw.get("event", {}) or {}).get("category", "process")
+        if category in _telemetry.TELEMETRY_FAMILIES and category != "process":
+            return _telemetry.normalize(raw)
+
         event_obj = raw.get("event", {})
         proc_obj = raw.get("process", {})
         parent_obj = proc_obj.get("parent", {})
