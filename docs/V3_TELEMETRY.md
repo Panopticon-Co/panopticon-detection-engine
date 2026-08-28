@@ -79,10 +79,35 @@ minimal, deterministic demonstration rules were added for the rest:
 ## 9. Live validation
 
 Requires the Officer agent running elevated on a real Windows host with Sysmon
-(see `panopticon-agent/docs/V3_TELEMETRY.md` section 8), piped into
-`python src/main.py --officer --officer-bin <path> --reliable`. **Not
-live-verified in this cycle.** `samples/v3/mixed_families_sample.ndjson` is
-clearly marked SYNTHETIC and is not evidence of live capture.
+configured for the V3 Event IDs (see `panopticon-agent/docs/V3_TELEMETRY.md`
+section 8 and `panopticon-agent/docs/sysmon/`).
+
+The engine has **no stdin-pipe ingestion**. There are two supported paths:
+
+* `--officer --officer-bin <path>\officer-agent.exe --officer-source sysmon` —
+  the engine spawns `officer-agent.exe` as a managed subprocess and reads its
+  stdout, then shuts it down cleanly on stop; or
+* `--officer-ndjson <file>` — ingest an NDJSON file previously captured from
+  `officer-agent.exe` stdout.
+
+Both combine with `--reliable` (V2 pipeline). Example:
+
+```
+python src/main.py --rules rules --officer --officer-bin <path>\officer-agent.exe \
+  --officer-source sysmon --reliable --spool-db spool/v3.db \
+  --output-file alerts.ndjson --no-auto-remediate --duration 60
+```
+
+**Live-verified:** completed on Windows 11 (build 26220, x64, elevated, Sysmon
+v15.21). 385 real Sysmon-derived events across all five families flowed through
+this engine and the unchanged V2 pipeline: 385 processed, 0 failed, 0 dropped,
+30 alerts persisted/delivered, spool clean; `DET-NET-001`, `DET-FILE-001`,
+`DET-IMG-001` and `DET-PROC-011` all fired on real telemetry. Registry
+telemetry (EID 12/13) was live-verified including the metadata-only guarantee
+(`registry.value_data` never populated); firing `DET-PERS-001` live was
+intentionally out of scope because it requires writing a real persistence key.
+`samples/v3/mixed_families_sample.ndjson` remains SYNTHETIC and is not evidence
+of live capture.
 
 ## 10-11. Limitations / known issues
 
