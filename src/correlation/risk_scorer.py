@@ -4,6 +4,7 @@ Aggregates individual low/medium/high anomaly events per Host and User.
 Raises a composite Host Compromise Incident when accumulated threat points cross the threshold.
 """
 
+import hashlib
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -91,8 +92,11 @@ class EntityRiskScorer:
             ],
         }
 
+        # Deterministic id: one host-compromise alert per host per breach, so a
+        # replay / restart recognises it instead of emitting a duplicate.
+        _key = f"CORR-RISK-001|{profile.host_id}|{profile.current_score}|{len(profile.event_timeline)}"
         return Alert(
-            alert_id=f"RISK-{uuid.uuid4().hex[:8].upper()}",
+            alert_id="RISK-" + hashlib.sha1(_key.encode("utf-8")).hexdigest()[:8].upper(),
             rule_id="CORR-RISK-001",
             title=f"[HOST COMPROMISE THREAT METER] Critical Threat Accumulation on {profile.host_id}",
             description=f"Host risk score breached threshold ({profile.current_score}/100) across {len(profile.event_timeline)} security events.",
