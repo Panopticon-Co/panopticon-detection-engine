@@ -1,12 +1,60 @@
 """Live Telemetry Streaming Pipeline for C++ Officer Agent and External Sensors."""
 
 import json
+import os
+import signal
 import subprocess
 import sys
 import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Optional, Union
 from src.ingestion.officer_adapter import OfficerIngestionAdapter
+
+_OFFICER_ETW_SESSION = "Panopticon-Officer-Process"
+
+
+def _stop_orphan_etw_session():
+    """Best-effort `logman stop <session> -ets` -- a harmless no-op if the agent
+    already tore its ETW session down, or if we are not on Windows. Guarantees a
+    hard-killed agent never leaves an orphan kernel trace session."""
+    if os.name != "nt":
+        return
+    try:
+        subprocess.run(
+            ["logman", "stop", _OFFICER_ETW_SESSION, "-ets"],
+            capture_output=True, timeout=10, check=False,
+        )
+    except Exception:
+        pass
+
+
+def _shutdown_officer(process):
+    """Stop the Officer subprocess cleanly: a console CTRL_BREAK first so its
+    handler tears down the ETW consumer + Sysmon subscription, then escalate to
+    terminate() then kill(); finally sweep any orphan ETW session."""
+    if process.poll() is not None:
+        return  # already exited (clean Ctrl+C, EOF, or its own error)
+    graceful = False
+    try:
+        process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+    except Exception:
+        pass
+    try:
+        process.wait(timeout=6)
+        graceful = True
+    except subprocess.TimeoutExpired:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                pass
+    if not graceful:
+        _stop_orphan_etw_session()
+
 
 
 class LiveTelemetryStream:
@@ -54,6 +102,7 @@ class LiveTelemetryStream:
                 bufsize=1,
                 encoding="utf-8",
                 errors="replace",
+                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0),
             )
         except Exception as e:
             raise RuntimeError(f"Failed to launch C++ Officer Agent ({exe}): {e}")
@@ -76,9 +125,5 @@ class LiveTelemetryStream:
         except KeyboardInterrupt:
             pass
         finally:
-            process.terminate()
-            try:
-                process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            _shutdown_officer(process)
             stderr_thread.join(timeout=2)
