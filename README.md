@@ -1,38 +1,38 @@
-# 👁️ eyedetect — Enterprise Cyber Threat Detection & Automated Response Engine
+# eyedetect — Enterprise Cyber Threat Detection & Automated Response Engine
 
-[![CI](https://github.com/Adityasingh230058/eyedetect/actions/workflows/ci.yml/badge.svg)](https://github.com/Adityasingh230058/eyedetect/actions/workflows/ci.yml)
+[![CI](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml)
 [![Python: 3.9+](https://img.shields.io/badge/Python-3.9%20|%203.10%20|%203.11%20|%203.12-brightgreen.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 43 Passed](https://img.shields.io/badge/Tests-43%20Passed%20(100%25)-success.svg)](tests/)
+[![Tests: 151 Passed](https://img.shields.io/badge/Tests-151%20passed%2C%202%20skipped-success.svg)](tests/)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-12%2F12%20Tactics%20Covered-orange.svg)](rules/)
-[![Project Status](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)](#-project-status--research-disclaimer)
+[![Project Status](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)](#project-status)
 
 A detection and automated response system (EDR / XDR) built from scratch in Python to catch and stop cyber threats across endpoints, user identities, networks, and cloud environments.
 
 ---
 
-## 📌 Project Status (Capstone WIP)
+## Project Status
 
-> **Hey there!** This is my university capstone project. I am actively building, testing, and refining it, so it is a working prototype under active development.
-> 
-> * All 43 unit tests and the core detection rules are working and tested.
-> * Integrated with our team's C++ Windows Kernel Endpoint Agent ([`officer`](https://github.com/sokhiaryan/officer)) via Panopticon Schema 0.2.
-> * Since I'm actively pushing updates, testing new detection ideas, and refactoring things, you might occasionally run into minor quirks or environment-specific warnings depending on your Python/OS setup.
-> * This is an academic research & learning project, not a commercial enterprise product.
-> 
-> If you find any bugs or have suggestions to make it better, feel free to open an issue!
+> This is a working prototype under active development.
+>
+> * All 151 unit tests (plus 2 skipped) and the core detection rules pass.
+> * Integrated with the team's C++ Windows kernel endpoint agent ([`officer` / `panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent)) via Panopticon Schema 0.3 (the ingestion adapter also accepts Schema 0.1 / 0.2).
+> * Interfaces and detection rules are still evolving between milestones; environment-specific warnings may appear depending on the Python/OS setup.
+> * This is a research and educational project, not a commercial product.
+>
+> Issues and suggestions are welcome via the issue tracker.
 
 ---
 
-## 🔗 C++ Endpoint Agent Integration (`officer` + `eyedetect`)
+## C++ Endpoint Agent Integration (`officer` + `eyedetect`)
 
-`eyedetect` connects directly to our team's Windows Endpoint Agent ([`officer`](https://github.com/sokhiaryan/officer) developed by Sokhiaryan in C++20).
+`eyedetect` connects directly to our team's Windows Endpoint Agent ([`officer` / `panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent), built in C++20).
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                 Windows Endpoint Host                       │
 │                                                             │
-│  ┌────────────────────────┐      Panopticon Schema 0.2      │
+│  ┌────────────────────────┐      Panopticon Schema 0.3      │
 │  │   C++ Officer Agent    │ ─── (NDJSON Pipe Stream) ─────► │
 │  │  (`officer-agent.exe`) │     (ETW Kernel + Sysmon)       │
 │  └────────────────────────┘                                 │
@@ -41,7 +41,7 @@ A detection and automated response system (EDR / XDR) built from scratch in Pyth
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │           Python Detection Engine (`eyedetect`)        │ │
 │  │                                                        │ │
-│  │  1. `OfficerIngestionAdapter` (Schema 0.2 Normalizer)  │ │
+│  │  1. `OfficerIngestionAdapter` (Schema 0.3 Normalizer)  │ │
 │  │  2. `ProcessTree` Lineage Tracker                      │ │
 │  │  3. `RuleEvaluator` (84+ Detection Rules)              │ │
 │  │  4. `EntityRiskScorer` & MITRE ATT&CK Matrix           │ │
@@ -50,7 +50,7 @@ A detection and automated response system (EDR / XDR) built from scratch in Pyth
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### ⚡ Live Interactive Pipeline Demo:
+### Live Interactive Pipeline Demo
 Run the live terminal visualizer to see real-time C++ kernel telemetry streaming into the detection engine and auto-remediation playbooks:
 ```bash
 python scripts/demo_edr_pipeline.py
@@ -65,15 +65,15 @@ python src/main.py --rules rules --officer-ndjson samples/officer_live_sample.nd
 python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.exe
 ```
 
-> 📖 **Full Integration Specs**: See [**`docs/OFFICER_INTEGRATION.md`**](docs/OFFICER_INTEGRATION.md) for the complete data contract, field mappings, and developer architecture.
+> **Full Integration Specs**: See [**`docs/OFFICER_INTEGRATION.md`**](docs/OFFICER_INTEGRATION.md) for the complete data contract, field mappings, and developer architecture.
 
 ---
 
-## 🧪 How to Test & Verify (Step-by-Step Guide)
+## How to Test & Verify
 
 Follow these steps to set up, test, and evaluate `eyedetect` on any Windows, macOS, or Linux environment:
 
-### 📋 Prerequisites
+### Prerequisites
 * Python 3.9, 3.10, 3.11, or newer installed.
 * Git installed.
 
@@ -82,8 +82,8 @@ Follow these steps to set up, test, and evaluate `eyedetect` on any Windows, mac
 ### Step 1: Clone the Repository
 Open PowerShell or your system terminal and clone the repository:
 ```bash
-git clone https://github.com/Adityasingh230058/eyedetect.git
-cd eyedetect
+git clone https://github.com/Panopticon-Co/panopticon-detection-engine.git
+cd panopticon-detection-engine
 ```
 
 ---
@@ -95,7 +95,7 @@ pip install -r requirements.txt
 ```
 *(Dependencies: `pydantic`, `pyyaml`, `pytest`)*
 
-> 💡 **Windows Tip**: If `python` opens the Microsoft Store or shows an alias error, run using your direct Python path (e.g., `py -m pip install -r requirements.txt` or `& "C:\Users\<user>\anaconda3\python.exe"`).
+> **Windows Tip**: If `python` opens the Microsoft Store or shows an alias error, run using your direct Python path (e.g., `py -m pip install -r requirements.txt` or `& "C:\Users\<user>\anaconda3\python.exe"`).
 
 ---
 
@@ -104,7 +104,7 @@ Run the automated test suite to verify math algorithms, deobfuscators, process t
 ```bash
 pytest -v tests/
 ```
-* **Expected Result**: `43 passed in ~5s` (100% pass rate across all 9 test modules).
+* **Expected Result**: `151 passed, 2 skipped` (across all test modules).
 
 ---
 
@@ -114,9 +114,9 @@ Run the full-spectrum enterprise threat simulation to observe detection cards an
 python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
 ```
 * **What You Will See**:
-  * 🔴 **Threat Detection Cards**: Clearly explains what the attacker attempted in human-readable terms.
-  * 🛡️ **Automated Defense**: Real-time process termination, file quarantine to encrypted vaults, account lockouts, and cloud access key revocations.
-  * 📊 **Executive Summary**: Final tally of intercepted attacks and containment actions.
+  * **Threat Detection Cards**: Clearly explains what the attacker attempted in human-readable terms.
+  * **Automated Defense**: Real-time process termination, file quarantine to encrypted vaults, account lockouts, and cloud access key revocations.
+  * **Executive Summary**: Final tally of intercepted attacks and containment actions.
 
 ---
 
@@ -128,15 +128,15 @@ python src/main.py --mitre-matrix --audit-taxonomy
 
 ---
 
-## 🎯 Additional Dedicated Test Scenarios
+## Additional Dedicated Test Scenarios
 
-### 👤 Identity & Active Directory UEBA Simulation
+### Identity & Active Directory UEBA Simulation
 Simulate and detect account brute-force attacks, distributed password spraying, and Kerberoasting:
 ```bash
 python src/main.py --rules rules --telemetry samples/identity_threat_simulation.ndjson
 ```
 
-### 🌐 Enterprise Multi-Hop Cross-Domain Lateral Movement
+### Enterprise Multi-Hop Cross-Domain Lateral Movement
 Simulate and track an attacker moving laterally from a phished laptop across servers to a Domain Controller and Cloud:
 ```bash
 python src/main.py --rules rules --telemetry samples/enterprise_cloud_attack_simulation.ndjson
@@ -144,12 +144,12 @@ python src/main.py --rules rules --telemetry samples/enterprise_cloud_attack_sim
 
 ---
 
-## 🛡️ Core Capabilities & Architecture
+## Core Capabilities & Architecture
 
 | Subsystem | Threat Vectors Detected | Automated Defense Action |
 | :--- | :--- | :--- |
 | **Endpoint / EDR** | Process Injection, BYOVD Drivers, LSASS Dumps, SAM Dumps, Wipers, LOLBAS | `KILL_PROCESS_TREE`, `QUARANTINE_FILE` |
-| **C++ Agent Ingest** | Windows ETW Kernel Process Starts & Sysmon Event Subscriptions (Schema 0.2) | `KILL_PROCESS_TREE`, `QUARANTINE_FILE` |
+| **C++ Agent Ingest** | Windows ETW Kernel Process Starts & Sysmon Event Subscriptions (Schema 0.3) | `KILL_PROCESS_TREE`, `QUARANTINE_FILE` |
 | **Ransomware Shield** | Decoy Canary file tripwires, Mass extension changes | `ISOLATE_HOST`, `TERMINATE_PROCESS` |
 | **Identity / ITDR** | Brute Force, Password Spraying, DCSync, Kerberoasting, Golden Ticket | `LOCK_USER_ACCOUNT`, `REVOKE_SESSIONS` |
 | **Network / NDR** | C2 Periodic Beaconing (Jitter CV ≤ 0.22), DNS Tunneling, DGA, Port Scans | `BLOCK_FIREWALL_IP`, `ISOLATE_HOST` |
@@ -158,7 +158,7 @@ python src/main.py --rules rules --telemetry samples/enterprise_cloud_attack_sim
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 ```text
 eyedetect/
 ├── rules/                    # 84 YAML-based Sigma/Wazuh detection rules
@@ -172,7 +172,7 @@ eyedetect/
 ├── src/
 │   ├── ingestion/            # Telemetry stream readers & C++ Officer adapter
 │   │   ├── event_reader.py   # Streaming NDJSON reader
-│   │   ├── officer_adapter.py# Panopticon Schema 0.2 ingestion adapter
+│   │   ├── officer_adapter.py# Panopticon Schema 0.3 ingestion adapter
 │   │   └── live_stream.py    # Subprocess & live socket stream manager
 │   ├── evaluator/            # Core matching & condition engine
 │   ├── correlation/          # Process tree, graph correlation & risk scorer
@@ -184,11 +184,11 @@ eyedetect/
 │   ├── alerting/             # Plain-English alert cards & active response
 │   └── main.py               # Master CLI entrypoint
 ├── samples/                  # Attack simulations & live Officer NDJSON captures
-└── tests/                    # 43 automated pytest unit tests (100% passing)
+└── tests/                    # 151 automated pytest unit tests (100% passing, +2 skipped)
 ```
 
 ---
 
-## 📜 License
+## License
 
 Distributed under the **MIT License**. See `LICENSE` for more information.
