@@ -44,7 +44,7 @@ def test_latency_and_uptime():
         m.observe_latency(v)
     lat = m.snapshot()["processing_latency_seconds"]
     assert lat["count"] == 5 and lat["min"] == pytest.approx(0.01) and lat["max"] == pytest.approx(0.05)
-    time.sleep(0.01)
+    time.sleep(0.02)
     assert m.uptime_seconds >= 0.01
 
 

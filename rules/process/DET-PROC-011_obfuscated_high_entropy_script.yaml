@@ -1,7 +1,7 @@
 id: DET-PROC-011
 name: High-Entropy Obfuscated Script Execution (Zero-Day Anomaly Detection)
-description: Detects command-line executions exhibiting abnormal Shannon Entropy (> 4.3) indicative of encrypted shellcode or obfuscated Base64 payloads.
-version: 1
+description: Detects command-line executions exhibiting abnormal Shannon Entropy (> 4.5) indicative of encrypted shellcode or obfuscated Base64 payloads, while excluding benign script file invocations.
+version: 2
 status: enabled
 event_type: process_create
 
@@ -23,7 +23,12 @@ logic:
 
     - field: process.command_line
       operator: entropy_greater_than
-      value: 4.3
+      value: 4.5
+
+  none:
+    - field: process.command_line
+      operator: regex
+      value: "(?i)[-/]f(?:ile)?\\s+.*\\.ps1"
 
 evidence:
   - process.name
