@@ -129,7 +129,14 @@ def main():
         "--auto-remediate",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Execute automated threat remediation, process killing, file quarantine, persistence reversal, account lockouts, and cloud key revocations (use --no-auto-remediate to disable)",
+        help=(
+            "Run the simulated remediation playbook (process-kill, file-quarantine, "
+            "persistence-reversal, lockout, and key-revocation bookkeeping entries) for "
+            "detected threats. This records recommended actions and their rationale; it "
+            "does not execute any of them against a real endpoint (no subprocess/os.kill/"
+            "winreg/socket calls are made regardless of this flag or --dry-run). "
+            "Use --no-auto-remediate to disable even the simulation."
+        ),
     )
 
     # -- V2 reliable streaming pipeline (opt-in; the default path is unchanged V1) --
