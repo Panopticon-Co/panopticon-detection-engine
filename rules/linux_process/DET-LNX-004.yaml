@@ -1,0 +1,42 @@
+id: DET-LNX-004
+name: Cron-Based Persistence via Crontab Modification
+description: >-
+  Detects direct edits to the system-wide crontab (crontab -e, or a shell
+  redirection appending an entry to /etc/crontab or /etc/cron.d), a common
+  Linux persistence mechanism that survives reboots and re-executes on a
+  schedule without requiring a systemd unit or startup script.
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  any:
+    - all:
+        - field: process.name
+          operator: equals
+          value: crontab
+        - field: process.command_line
+          operator: contains
+          value: "-e"
+    - field: process.command_line
+      operator: regex
+      value: ">>?\\s*/etc/cron"
+
+severity: high
+confidence: 0.75
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - parent.name
+
+mitre:
+  tactic: Persistence
+  technique: T1053.003
+  name: "Scheduled Task/Job: Cron"
+
+tags:
+  - attack.persistence
+  - linux
+  - cron

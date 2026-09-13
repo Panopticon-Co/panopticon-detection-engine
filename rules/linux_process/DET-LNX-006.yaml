@@ -1,0 +1,43 @@
+id: DET-LNX-006
+name: Remote Script Executed via Pipe to Shell
+description: >-
+  Detects the classic "curl | bash" / "wget -O- | sh" ingress pattern: a
+  download tool's output piped directly into a shell interpreter, executing
+  a remote script without ever writing it to disk first. Widely used by
+  installer one-liners and, identically, by malware droppers -- this rule
+  fires on the shape of the command line regardless of intent.
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  all:
+    - any:
+        - field: process.command_line
+          operator: contains
+          value: curl
+        - field: process.command_line
+          operator: contains
+          value: wget
+    - field: process.command_line
+      operator: regex
+      value: "\\|\\s*(sudo\\s+)?(bash|sh|dash|zsh)\\b"
+
+severity: high
+confidence: 0.70
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - parent.name
+
+mitre:
+  tactic: Command and Control
+  technique: T1105
+  name: Ingress Tool Transfer
+
+tags:
+  - attack.command_and_control
+  - linux
+  - pipe_to_shell

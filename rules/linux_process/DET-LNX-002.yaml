@@ -1,0 +1,51 @@
+id: DET-LNX-002
+name: Interactive Shell Spawned by a Web Server Process
+description: >-
+  Detects a shell (sh/bash/dash) spawned directly by a web server or
+  application server process (apache2, httpd, nginx, php-fpm, uwsgi,
+  gunicorn). A web server has no legitimate reason to launch an interactive
+  shell; this is the canonical process-tree signature of a webshell or a
+  successful remote-code-execution exploit against the web application.
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  all:
+    - field: process.name
+      operator: in
+      value:
+        - sh
+        - bash
+        - dash
+    - field: parent.name
+      operator: in
+      value:
+        - apache2
+        - httpd
+        - nginx
+        - php-fpm
+        - php-fpm7
+        - php-fpm8
+        - uwsgi
+        - gunicorn
+
+severity: critical
+confidence: 0.85
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - parent.name
+  - parent.pid
+
+mitre:
+  tactic: Initial Access
+  technique: T1190
+  name: "Exploit Public-Facing Application"
+
+tags:
+  - attack.initial_access
+  - linux
+  - webshell
