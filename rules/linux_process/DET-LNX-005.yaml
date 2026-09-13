@@ -1,0 +1,38 @@
+id: DET-LNX-005
+name: SSH authorized_keys Tampering
+description: >-
+  Detects a shell command appending an entry to an SSH authorized_keys file
+  (e.g. echo "ssh-rsa AAAA..." >> ~/.ssh/authorized_keys), the standard way
+  an attacker plants durable, password-free SSH access on a compromised
+  Linux host after gaining an initial foothold.
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  all:
+    - field: process.command_line
+      operator: contains
+      value: authorized_keys
+    - field: process.command_line
+      operator: regex
+      value: ">>?\\s*.*authorized_keys"
+
+severity: critical
+confidence: 0.80
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - parent.name
+
+mitre:
+  tactic: Persistence
+  technique: T1098.004
+  name: "Account Manipulation: SSH Authorized Keys"
+
+tags:
+  - attack.persistence
+  - linux
+  - ssh

@@ -1,0 +1,38 @@
+id: DET-LNX-003
+name: LD_PRELOAD Library Injection via Process Command Line
+description: >-
+  Detects a process launched with LD_PRELOAD set inline on its own command
+  line (e.g. LD_PRELOAD=/tmp/evil.so ./victim), forcing the dynamic linker
+  to load an attacker-controlled shared object before any other library.
+  A common technique for userland rootkits, credential interception, and
+  defense evasion (hiding files/processes from ps, ls, netstat).
+version: 1
+status: enabled
+event_type: process_create
+
+logic:
+  all:
+    - field: process.command_line
+      operator: contains
+      value: "LD_PRELOAD="
+
+severity: high
+confidence: 0.80
+
+evidence:
+  - process.name
+  - process.command_line
+  - process.pid
+  - process.executable
+  - parent.name
+
+mitre:
+  tactic: Defense Evasion
+  technique: T1574.006
+  name: "Hijack Execution Flow: Dynamic Linker Hijacking"
+
+tags:
+  - attack.defense_evasion
+  - attack.persistence
+  - linux
+  - ld_preload
