@@ -23,6 +23,16 @@ class ProcessNode:
     parent_guid: Optional[str] = None
     host_id: str = "UNKNOWN"
     start_time: Optional[str] = None
+    # Opaque, OS-native process-creation value from Schema 0.4's
+    # process.start_time_ticks -- distinct from start_time above, which is
+    # the event's wall-clock timestamp. Only the originating host's own
+    # agent may interpret this value's magnitude; here it exists purely so a
+    # correlation rule that fires on an event other than this process's own
+    # creation (e.g. a later network/file event, or a rule referencing an
+    # ancestor) can still recover a PID-reuse-safe KILL_PROCESS target via
+    # get_node(process_guid). See
+    # panopticon-response-engine/docs/adr/002-terminate-process-start-time-threading.md.
+    start_time_ticks: Optional[int] = None
     end_time: Optional[str] = None
     is_alive: bool = True
     children_guids: List[str] = field(default_factory=list)
@@ -72,6 +82,7 @@ class ProcessTree:
             parent_guid=parent_guid,
             host_id=host_id,
             start_time=event.get("timestamp"),
+            start_time_ticks=proc.get("start_time_ticks"),
             is_alive=True,
         )
 
