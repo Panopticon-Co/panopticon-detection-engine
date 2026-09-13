@@ -88,5 +88,29 @@ class ActiveResponseEngine:
                 target_guid=guid,
                 reason=reason or f"Emergency containment triggered for critical Level {level} event",
             )
+        # COLLECT_PROCESS_INFO/COLLECT_NETWORK_CONNECTIONS are read-only,
+        # AUTO_SAFE actions in the closed 7-action contract (see
+        # panopticon-contracts/docs/CONTRACT.md) -- unlike the branches above,
+        # no severity level auto-fires them here: only a rule that explicitly
+        # opts in via its own YAML `active_response:` field (the same
+        # custom_action mechanism TERMINATE_PROCESS/BLOCK_FIREWALL_IP already
+        # use) produces one, since inventing a new severity heuristic for an
+        # evidence-collection action is a rule-authoring decision, not
+        # something this engine should default on its own.
+        elif custom_action == "COLLECT_PROCESS_INFO":
+            return ActiveResponseAction(
+                action="COLLECT_PROCESS_INFO",
+                host_id=host_id,
+                target_pid=pid,
+                target_guid=guid,
+                target_start_time_ticks=start_time_ticks,
+                reason=reason or f"Automated process evidence collection for Level {level} event",
+            )
+        elif custom_action == "COLLECT_NETWORK_CONNECTIONS":
+            return ActiveResponseAction(
+                action="COLLECT_NETWORK_CONNECTIONS",
+                host_id=host_id,
+                reason=reason or f"Automated network connection snapshot for Level {level} event",
+            )
 
         return None
