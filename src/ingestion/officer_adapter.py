@@ -134,6 +134,18 @@ class OfficerIngestionAdapter:
                 "user_sid": user_sid,
                 "file_hash": sha256_hash,
                 "sha256": sha256_hash,
+                # Opaque, OS-native process-creation token (already part of
+                # the canonical event.schema.json's nullableStartTimeTicks
+                # field on both Windows and Linux agents). Must be passed
+                # through unchanged -- ActiveResponseEngine.resolve_action
+                # reads it straight off this dict to populate
+                # target_start_time_ticks, and response_engine.
+                # translate_recommendation fails closed on a missing value
+                # rather than ever re-deriving or guessing one. Previously
+                # silently omitted here, so a KILL_PROCESS recommendation
+                # computed from a live-ingested officer event always failed
+                # closed even for a process the agent had actually observed.
+                "start_time_ticks": proc_obj.get("start_time_ticks"),
             },
             "parent": {
                 "entity_id": parent_obj.get("entity_id"),

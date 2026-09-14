@@ -101,17 +101,33 @@ def test_schema_0_4_linux_agent_event_is_recognized_and_normalized_without_duck_
     assert tele.is_panopticon_event(event) is True
     transformed = OfficerIngestionAdapter.transform_officer_event(event)
     assert transformed["process"]["pid"] == 4242
-    # KNOWN GAP (not part of this schema-version fix, reported separately):
-    # transform_officer_event's normalized "process" dict does not carry
-    # start_time_ticks through from the raw officer event -- only the
-    # preserved "_raw_officer_event" copy still has it. This means a real,
-    # live KILL_PROCESS recommendation computed from a raw wire event ingested
-    # through the actual HTTP -> worker.py -> transform_officer_event path
-    # would lose PID-reuse-safety data that the TRUE-PRODUCTION-E2E tests
-    # (which call run.process_event on an already-normalized, non-officer-
-    # shaped event and never go through this function) do not exercise.
-    assert "start_time_ticks" not in transformed["process"]
+    assert transformed["process"]["start_time_ticks"] == 123456789
     assert transformed["_raw_officer_event"]["process"]["start_time_ticks"] == 123456789
+
+
+def test_transform_officer_event_preserves_start_time_ticks_exactly():
+    # This is the live-ingest identity property: a real KILL_PROCESS
+    # recommendation is only ever safely computed if process.start_time_ticks
+    # survives POST /api/v1/ingest -> DetectionWorker._normalize ->
+    # transform_officer_event unchanged. Asserts exact value equality, not
+    # merely "is not None" -- a silently-mutated value would be just as
+    # dangerous as a dropped one.
+    event = _linux_agent_schema_0_4_event()
+    event["process"]["start_time_ticks"] = 133_012_345_670_000_321
+    transformed = OfficerIngestionAdapter.transform_officer_event(event)
+    assert transformed["process"]["start_time_ticks"] == 133_012_345_670_000_321
+
+
+def test_transform_officer_event_preserves_missing_start_time_ticks_as_none():
+    # An event whose originating collector never observed a start time (the
+    # existing, pre-fix contract semantic: nullableStartTimeTicks) must
+    # normalize to None, not 0 or a synthesized value -- resolve_action and
+    # translate_recommendation both already treat None as "fail closed,"
+    # and this test locks that in rather than inventing a new rule.
+    event = _linux_agent_schema_0_4_event()
+    del event["process"]["start_time_ticks"]
+    transformed = OfficerIngestionAdapter.transform_officer_event(event)
+    assert transformed["process"]["start_time_ticks"] is None
 
 
 def test_category_of_falls_back_to_process_for_unknown():
