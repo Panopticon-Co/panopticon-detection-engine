@@ -96,3 +96,62 @@ def test_quarantine_file_does_not_auto_fire_on_severity_alone() -> None:
     for level in (12, 13, 14, 16):
         action = ActiveResponseEngine.resolve_action(level=level, event=event, custom_action=None)
         assert action is None or action.action != "QUARANTINE_FILE"
+
+
+def test_unsupported_active_response_fails_closed_even_at_isolate_host_severity() -> None:
+    # Regression for a real bug: the ISOLATE_HOST branch used to read
+    # `custom_action == "ISOLATE_HOST" or level >= 14`, so ANY unsupported
+    # active_response string (e.g. a stale/aspirational rule value like
+    # REVOKE_USER_SESSIONS) on a level >= 14 rule silently resolved to a real
+    # ISOLATE_HOST recommendation instead of failing closed -- the exact
+    # opposite of "fail-closed unknown action behavior". The branch is now
+    # gated on `custom_action is None`, so an explicit unsupported request
+    # must return None at every severity level, not just below 14.
+    event = {"host_id": "host-1", "process": {"pid": 4242, "process_guid": "guid-1"}}
+    for unsupported in (
+        "REVOKE_USER_SESSIONS",
+        "TERMINATE_POD_WORKLOAD",
+        "LOCK_USER_ACCOUNT",
+        "FORCE_PASSWORD_RESET",
+        "REVOKE_CLOUD_ACCESS_KEY",
+        "RESTRICT_BUCKET_PERMISSIONS",
+        "BLOCK_FIREWALL_IP",
+    ):
+        for level in (13, 14, 15, 16):
+            assert (
+                ActiveResponseEngine.resolve_action(
+                    level=level, event=event, custom_action=unsupported
+                )
+                is None
+            ), f"{unsupported} at level {level} must fail closed, not resolve to any action"
+
+
+def test_quarantine_file_and_collect_actions_are_not_shadowed_by_isolate_host_severity() -> None:
+    # Companion regression: before the fix above, a rule that explicitly
+    # requested QUARANTINE_FILE/COLLECT_PROCESS_INFO/COLLECT_NETWORK_CONNECTIONS
+    # at level >= 14 would have been silently overridden to ISOLATE_HOST,
+    # because that branch was checked first and did not require
+    # custom_action to be unset. Each explicit request must still resolve to
+    # itself, not to ISOLATE_HOST, at every severity level.
+    event = {
+        "host_id": "host-1",
+        "process": {"pid": 4242, "process_guid": "guid-1", "start_time_ticks": 123456789},
+        "file": {"path": "/etc/rc.local"},
+    }
+    for level in (13, 14, 15, 16):
+        for custom_action in ("QUARANTINE_FILE", "COLLECT_PROCESS_INFO", "COLLECT_NETWORK_CONNECTIONS"):
+            action = ActiveResponseEngine.resolve_action(level=level, event=event, custom_action=custom_action)
+            assert action is not None
+            assert action.action == custom_action
+
+
+def test_isolate_host_severity_default_is_unaffected_when_no_active_response_is_set() -> None:
+    # The legitimate severity-driven default -- a rule with NO active_response
+    # field at all, at level >= 14 -- must still auto-resolve to ISOLATE_HOST
+    # exactly as before; only explicit, unsupported requests must now fail
+    # closed instead of being silently substituted.
+    event = {"host_id": "host-1", "process": {"pid": 4242, "process_guid": "guid-1"}}
+    for level in (14, 15, 16):
+        action = ActiveResponseEngine.resolve_action(level=level, event=event, custom_action=None)
+        assert action is not None
+        assert action.action == "ISOLATE_HOST"
