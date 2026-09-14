@@ -39,3 +39,12 @@ Desktop.ini
 *.db-shm
 /health.json
 /metrics.prom
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
+
+# Local alert/spool output
+alerts.ndjson
+spool/
