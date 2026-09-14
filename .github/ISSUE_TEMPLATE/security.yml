@@ -1,0 +1,14 @@
+name: Security Vulnerability
+description: Do not report security vulnerabilities here
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please do not report security vulnerabilities through public GitHub issues.**
+
+        Instead, report privately via GitHub Security Advisories:
+        https://github.com/Panopticon-Co/panopticon-detection-engine/security/advisories/new
+
+        See [SECURITY.md](../../SECURITY.md) for details. This template exists only to redirect
+        you — submitting it will not open a security report.

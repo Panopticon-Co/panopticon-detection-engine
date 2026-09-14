@@ -1,194 +1,261 @@
-# eyedetect — Enterprise Cyber Threat Detection & Automated Response Engine
+# eyedetect — Panopticon Detection Engine
 
 [![CI](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml)
-[![Python: 3.9+](https://img.shields.io/badge/Python-3.9%20|%203.10%20|%203.11%20|%203.12-brightgreen.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 151 Passed](https://img.shields.io/badge/Tests-151%20passed%2C%202%20skipped-success.svg)](tests/)
-[![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-12%2F12%20Tactics%20Covered-orange.svg)](rules/)
-[![Project Status](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)](#project-status)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-brightgreen.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests: 173 passed, 2 skipped](https://img.shields.io/badge/Tests-173%20passed%2C%202%20skipped-success.svg)](tests/)
+[![Project Status: Active Development](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)](#project-status)
 
-A detection and automated response system (EDR / XDR) built from scratch in Python to catch and stop cyber threats across endpoints, user identities, networks, and cloud environments.
+`eyedetect` is the rule-based detection, correlation, and behavioral (UEBA) engine of the
+**Panopticon** EDR/XDR capstone platform. It ingests normalized endpoint telemetry, evaluates it
+against a library of MITRE ATT&CK-mapped YAML rules, correlates related events into multi-stage
+attack chains, and produces alerts with **recommended** response actions.
 
----
-
-## Project Status
-
-> This is a working prototype under active development.
->
-> * All 151 unit tests (plus 2 skipped) and the core detection rules pass.
-> * Integrated with the team's C++ Windows kernel endpoint agent ([`officer` / `panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent)) via Panopticon Schema 0.3 (the ingestion adapter also accepts Schema 0.1 / 0.2).
-> * Interfaces and detection rules are still evolving between milestones; environment-specific warnings may appear depending on the Python/OS setup.
-> * This is a research and educational project, not a commercial product.
->
-> Issues and suggestions are welcome via the issue tracker.
+This is a capstone/research security project, not a commercial product. Read the
+[Project status](#project-status) and [Detection vs. execution boundary](#detection-vs-execution-boundary)
+sections before relying on any claim here.
 
 ---
 
-## C++ Endpoint Agent Integration (`officer` + `eyedetect`)
+## Table of contents
 
-`eyedetect` connects directly to our team's Windows Endpoint Agent ([`officer` / `panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent), built in C++20).
+- [Project status](#project-status)
+- [Architecture role](#architecture-role)
+- [Key capabilities](#key-capabilities)
+- [Repository structure](#repository-structure)
+- [Detection rules](#detection-rules)
+- [Detection vs. execution boundary](#detection-vs-execution-boundary)
+- [Dependencies](#dependencies)
+- [Install](#install)
+- [Run tests](#run-tests)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Integration with other Panopticon repositories](#integration-with-other-panopticon-repositories)
+- [Known limitations](#known-limitations)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Project status
+
+This is a working prototype under active development, built for a capstone project:
+
+- The rule evaluator, correlation engine, and UEBA/behavioral components are real and covered by
+  an automated test suite (`173 passed, 2 skipped` as of this writing — run `pytest -v tests/` to
+  reproduce; see [CI](.github/workflows/ci.yml) for the authoritative command).
+- It ingests telemetry produced by the team's Windows endpoint agent
+  ([`panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent), internally "Officer")
+  via the `OfficerIngestionAdapter`, which accepts Panopticon Schema 0.1–0.3 NDJSON, either from a
+  file or by spawning `officer-agent.exe` as a subprocess.
+- Interfaces and rules are still evolving between milestones. Treat this README, not marketing
+  copy elsewhere, as the source of truth for what is actually implemented.
+
+## Architecture role
+
+`eyedetect` sits between the endpoint agents and the response layer in the Panopticon pipeline:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                 Windows Endpoint Host                       │
-│                                                             │
-│  ┌────────────────────────┐      Panopticon Schema 0.3      │
-│  │   C++ Officer Agent    │ ─── (NDJSON Pipe Stream) ─────► │
-│  │  (`officer-agent.exe`) │     (ETW Kernel + Sysmon)       │
-│  └────────────────────────┘                                 │
-│                                                             │
-│                             ▼                               │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │           Python Detection Engine (`eyedetect`)        │ │
-│  │                                                        │ │
-│  │  1. `OfficerIngestionAdapter` (Schema 0.3 Normalizer)  │ │
-│  │  2. `ProcessTree` Lineage Tracker                      │ │
-│  │  3. `RuleEvaluator` (84+ Detection Rules)              │ │
-│  │  4. `EntityRiskScorer` & MITRE ATT&CK Matrix           │ │
-│  │  5. Active Response / Process Termination Playbooks    │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+Endpoint Agents            Detection Engine             Response Engine        Manager
+(panopticon-agent,    ->   (this repo: rules,      ->   (translates          ->  (authorization,
+ panopticon-linux-         correlation, UEBA,           recommendations to       dispatch,
+ agent)                    alerts + recommended         a closed command         lifecycle, audit)
+                           response actions)             set)
 ```
 
-### Live Interactive Pipeline Demo
-Run the live terminal visualizer to see real-time C++ kernel telemetry streaming into the detection engine and auto-remediation playbooks:
-```bash
-python scripts/demo_edr_pipeline.py
+- It never executes response actions itself and never talks to endpoints directly.
+- It never imports agent or response-engine source; the only integration surfaces are the
+  Panopticon event schema (consumed) and the `ActiveResponseAction` recommendation vocabulary
+  (produced).
+
+## Key capabilities
+
+- **Rule evaluator** (`src/evaluator/`) — matches structured telemetry against declarative YAML
+  detection rules (boolean logic trees, field extraction, MITRE ATT&CK tagging).
+- **Correlation engine** (`src/correlation/correlation_engine.py`) — links related events keyed by
+  process PID into multi-stage attack chains (e.g. LOLBAS download-then-egress).
+- **Process tree / lineage tracking** (`src/correlation/process_tree.py`).
+- **Identity / UEBA analytics** (`src/identity/`) — behavioral and statistical detections such as
+  brute force, password spraying, and anomalous authentication patterns.
+- **Network heuristics** (`src/network/`) — beaconing-interval and port-scan detectors.
+- **Threat intel lookups** (`src/threat_intel/`) — in-memory IOC hash/IP matching.
+- **Alerting** (`src/alerting/`) — human-readable alert generation and `ActiveResponseAction`
+  recommendation resolution (`src/alerting/active_response.py`).
+- **Reliability pipeline (opt-in, `--reliable`)** (`src/reliability/`) — bounded ingestion queue,
+  SQLite durable spool, retry, and health/metrics for continuous streaming runs.
+
+## Repository structure
+
+```text
+eyedetect/
+├── rules/               # Custom YAML detection rules (not Sigma-format), grouped by MITRE tactic
+│   ├── cloud/, credential_access/, defense_evasion/, exfiltration/, file/,
+│   │   identity/, initial_access/, lateral_movement/, linux_process/, malware/,
+│   │   network/, persistence/, privilege_escalation/, process/, web_api/, collection/
+├── src/
+│   ├── ingestion/        # NDJSON readers and the Officer (Schema 0.1-0.3) adapter
+│   ├── evaluator/        # Rule matching / condition engine
+│   ├── correlation/      # Process tree + multi-stage correlation
+│   ├── identity/         # UEBA / identity threat analytics
+│   ├── network/          # Beaconing + port-scan detectors
+│   ├── threat_intel/     # In-memory IOC lookups
+│   ├── alerting/         # Alert generation + active-response recommendation resolution
+│   ├── remediation/      # Simulated remediation bookkeeping (see boundary section below)
+│   ├── reliability/      # Opt-in V2 durable streaming pipeline
+│   └── main.py           # CLI entrypoint
+├── samples/               # Sample/simulated NDJSON telemetry for local runs and demos
+├── scripts/                # Developer/demo scripts
+├── docs/                  # Integration and architecture docs (see OFFICER_INTEGRATION.md)
+└── tests/                 # pytest suite
 ```
 
-### Ingesting Live Telemetry from the C++ Agent:
-```bash
-# Ingest live C++ Officer agent telemetry stream
-python src/main.py --rules rules --officer-ndjson samples/officer_live_sample.ndjson
+## Detection rules
 
-# Or attach directly to the compiled officer-agent.exe binary
-python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.exe
+The `rules/` directory currently contains **92 YAML rule files** across 16 MITRE-tactic-aligned
+categories (verify with `find rules -name "*.yaml" | wc -l`). Each rule is a custom, project-defined
+YAML document (`logic`, `evidence`, `mitre`, `compliance`, optional `active_response` fields) —
+**not** the Sigma rule format, despite superficial similarity.
+
+## Detection vs. execution boundary
+
+**`eyedetect` detects and recommends. It never executes a response action itself.**
+
+- `src/alerting/active_response.py` resolves a detection into an `ActiveResponseAction`
+  recommendation (e.g. `TERMINATE_PROCESS`, `ISOLATE_HOST`, `BLOCK_FIREWALL_IP`,
+  `COLLECT_PROCESS_INFO`, `COLLECT_NETWORK_CONNECTIONS`). This is a recommendation record, not a
+  command execution.
+- `src/remediation/engine.py` produces simulated remediation bookkeeping entries
+  (`RemediationReport`, status `SUCCESS`/`SIMULATED`) describing what a downstream system *could*
+  do. It does not call `subprocess`, `os.kill`, `winreg`, or any socket API — this is true
+  regardless of the `--dry-run` or `--auto-remediate` flags. There is no code path in this
+  repository that terminates a process, quarantines a file, locks an account, or modifies a live
+  endpoint.
+- Real, authorized execution — if and when it happens — is the job of
+  [`panopticon-response-engine`](https://github.com/Panopticon-Co/panopticon-response-engine) and
+  [`panopticon-manager`](https://github.com/Panopticon-Co/panopticon-manager), which own policy,
+  authorization tiers, and command dispatch.
+
+## Dependencies
+
+From `requirements.txt`:
+
+```text
+pyyaml>=6.0.1
+pydantic>=2.0.0
+pytest>=8.0.0
 ```
 
-> **Full Integration Specs**: See [**`docs/OFFICER_INTEGRATION.md`**](docs/OFFICER_INTEGRATION.md) for the complete data contract, field mappings, and developer architecture.
+No HTTP framework, database driver, or message queue is a dependency — this is a CLI batch/streaming
+tool, not a network service.
 
----
+## Install
 
-## How to Test & Verify
-
-Follow these steps to set up, test, and evaluate `eyedetect` on any Windows, macOS, or Linux environment:
-
-### Prerequisites
-* Python 3.9, 3.10, 3.11, or newer installed.
-* Git installed.
-
----
-
-### Step 1: Clone the Repository
-Open PowerShell or your system terminal and clone the repository:
 ```bash
 git clone https://github.com/Panopticon-Co/panopticon-detection-engine.git
 cd panopticon-detection-engine
-```
-
----
-
-### Step 2: Install Dependencies
-Install the required lightweight packages:
-```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate    |    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
-*(Dependencies: `pydantic`, `pyyaml`, `pytest`)*
 
-> **Windows Tip**: If `python` opens the Microsoft Store or shows an alias error, run using your direct Python path (e.g., `py -m pip install -r requirements.txt` or `& "C:\Users\<user>\anaconda3\python.exe"`).
+## Run tests
 
----
+The authoritative command is the one CI runs (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
-### Step 3: Run the Automated Engine Test Suite
-Run the automated test suite to verify math algorithms, deobfuscators, process trees, and detection logic:
 ```bash
 pytest -v tests/
 ```
-* **Expected Result**: `151 passed, 2 skipped` (across all test modules).
 
----
+CI also runs the master simulation as a smoke test:
 
-### Step 4: Run the Master Cyber Attack Simulation
-Run the full-spectrum enterprise threat simulation to observe detection cards and automated auto-remediation playbooks in real time:
 ```bash
 python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
 ```
-* **What You Will See**:
-  * **Threat Detection Cards**: Clearly explains what the attacker attempted in human-readable terms.
-  * **Automated Defense**: Real-time process termination, file quarantine to encrypted vaults, account lockouts, and cloud access key revocations.
-  * **Executive Summary**: Final tally of intercepted attacks and containment actions.
 
----
+## Usage
 
-### Step 5: Audit MITRE ATT&CK & Taxonomy Compliance
-Generate full terminal heatmaps and audit scorecards verifying coverage across all 12 MITRE Enterprise tactics and 14 cybersecurity threat domains:
+Run the engine against sample/simulated telemetry:
+
+```bash
+python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
+```
+
+Ingest NDJSON captured from the Officer agent, or attach to a live `officer-agent.exe` process:
+
+```bash
+python src/main.py --rules rules --officer-ndjson samples/officer_live_sample.ndjson
+python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.exe
+```
+
+Disable even the simulated remediation bookkeeping:
+
+```bash
+python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson --no-auto-remediate
+```
+
+MITRE ATT&CK coverage and taxonomy audit:
+
 ```bash
 python src/main.py --mitre-matrix --audit-taxonomy
 ```
 
----
+See [`docs/OFFICER_INTEGRATION.md`](docs/OFFICER_INTEGRATION.md) for the full Schema field mapping
+and ingestion contract.
 
-## Additional Dedicated Test Scenarios
+## Configuration
 
-### Identity & Active Directory UEBA Simulation
-Simulate and detect account brute-force attacks, distributed password spraying, and Kerberoasting:
-```bash
-python src/main.py --rules rules --telemetry samples/identity_threat_simulation.ndjson
-```
+- `--rules <dir>` — path to a rule directory (defaults to `rules/`).
+- `--telemetry <file>` / `--officer-ndjson <file>` / `--officer --officer-bin <path>` — telemetry
+  source selection.
+- `--auto-remediate` / `--no-auto-remediate` — toggle simulated remediation bookkeeping (default:
+  on; never executes anything regardless of this flag).
+- `--reliable`, `--spool-db`, `--queue-capacity` — opt-in V2 durable streaming pipeline (bounded
+  queue, SQLite spool, retry). The default path (V1) is unaffected.
 
-### Enterprise Multi-Hop Cross-Domain Lateral Movement
-Simulate and track an attacker moving laterally from a phished laptop across servers to a Domain Controller and Cloud:
-```bash
-python src/main.py --rules rules --telemetry samples/enterprise_cloud_attack_simulation.ndjson
-```
+Run `python src/main.py --help` for the full, current flag list — it is the source of truth over
+any list here.
 
----
+## Integration with other Panopticon repositories
 
-## Core Capabilities & Architecture
+- [`panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent) — Windows endpoint agent
+  ("Officer"); produces the Schema 0.x NDJSON this engine ingests.
+- [`panopticon-linux-agent`](https://github.com/Panopticon-Co/panopticon-linux-agent) — Linux
+  endpoint agent counterpart.
+- [`panopticon-response-engine`](https://github.com/Panopticon-Co/panopticon-response-engine) —
+  translates this engine's `ActiveResponseAction` recommendations onto a closed set of 7 typed
+  response commands.
+- [`panopticon-manager`](https://github.com/Panopticon-Co/panopticon-manager) — orchestrates
+  authorization, dispatch, lifecycle, and audit for response commands.
+- [`panopticon-contracts`](https://github.com/Panopticon-Co/panopticon-contracts) — canonical
+  JSON-schema wire contracts shared across repos.
+- [Panopticon-Co organization](https://github.com/Panopticon-Co) — all repositories.
 
-| Subsystem | Threat Vectors Detected | Automated Defense Action |
-| :--- | :--- | :--- |
-| **Endpoint / EDR** | Process Injection, BYOVD Drivers, LSASS Dumps, SAM Dumps, Wipers, LOLBAS | `KILL_PROCESS_TREE`, `QUARANTINE_FILE` |
-| **C++ Agent Ingest** | Windows ETW Kernel Process Starts & Sysmon Event Subscriptions (Schema 0.3) | `KILL_PROCESS_TREE`, `QUARANTINE_FILE` |
-| **Ransomware Shield** | Decoy Canary file tripwires, Mass extension changes | `ISOLATE_HOST`, `TERMINATE_PROCESS` |
-| **Identity / ITDR** | Brute Force, Password Spraying, DCSync, Kerberoasting, Golden Ticket | `LOCK_USER_ACCOUNT`, `REVOKE_SESSIONS` |
-| **Network / NDR** | C2 Periodic Beaconing (Jitter CV ≤ 0.22), DNS Tunneling, DGA, Port Scans | `BLOCK_FIREWALL_IP`, `ISOLATE_HOST` |
-| **Cloud & Workload** | AWS IAM Backdoor Keys, S3 Public Leaks, Kubernetes Container Escape | `REVOKE_ACCESS_KEY`, `RESTRICT_BUCKET` |
-| **Enterprise Graph** | Multi-hop lateral pivot chains across endpoints and cloud | `ENTERPRISE_ISOLATE_PIVOT_PATH` |
+## Known limitations
 
----
+- `COLLECT_PROCESS_INFO` and `COLLECT_NETWORK_CONNECTIONS` active-response recommendations are not
+  wired into every rule: of the 92 rule files in `rules/`, 55 currently declare an `active_response`
+  field (verified via `grep -rl active_response rules/`). Rules without this field produce a
+  detection/alert but no response recommendation.
+- Correlation and UEBA are heuristic/statistical, not machine-learned models; do not describe them
+  as "AI-powered."
+- No HTTP API, database, or message queue — this is a single-process CLI tool. Multi-agent /
+  horizontal scaling (queueing, distributed workers) is a later roadmap phase, not implemented here.
+- Remediation is simulated bookkeeping only (see [boundary section](#detection-vs-execution-boundary)).
+- Officer integration has been exercised against recorded/sample NDJSON in this repo's tests; a
+  live end-to-end run against a running `officer-agent.exe` on real Windows process creation should
+  be validated separately before treating the pipeline as fully proven.
 
-## Repository Structure
-```text
-eyedetect/
-├── rules/                    # 84 YAML-based Sigma/Wazuh detection rules
-│   ├── cloud/                # AWS, GCP, and Kubernetes rules
-│   ├── identity/             # Active Directory & authentication rules
-│   ├── network/              # DNS, C2, and port scanning rules
-│   ├── persistence/          # Registry, services, and scheduled tasks
-│   ├── privilege_escalation/ # UAC bypass, token impersonation, BYOVD
-│   ├── process/              # Office spawns, LSASS dump, LOLBAS, injection
-│   └── malware/              # Droppers, wipers, ransomware canaries
-├── src/
-│   ├── ingestion/            # Telemetry stream readers & C++ Officer adapter
-│   │   ├── event_reader.py   # Streaming NDJSON reader
-│   │   ├── officer_adapter.py# Panopticon Schema 0.3 ingestion adapter
-│   │   └── live_stream.py    # Subprocess & live socket stream manager
-│   ├── evaluator/            # Core matching & condition engine
-│   ├── correlation/          # Process tree, graph correlation & risk scorer
-│   ├── identity/             # ITDR & UEBA analytics
-│   ├── network/              # Beaconing jitter & port scan detectors
-│   ├── cloud/                # AWS, GCP & Kubernetes engines
-│   ├── remediation/          # Automated process killing & quarantine
-│   ├── threat_intel/         # In-memory IOC hash & IP blacklists
-│   ├── alerting/             # Plain-English alert cards & active response
-│   └── main.py               # Master CLI entrypoint
-├── samples/                  # Attack simulations & live Officer NDJSON captures
-└── tests/                    # 151 automated pytest unit tests (100% passing, +2 skipped)
-```
+## Security
 
----
+See [`SECURITY.md`](SECURITY.md) for how to report a vulnerability. Please use private
+[GitHub Security Advisories](https://github.com/Panopticon-Co/panopticon-detection-engine/security/advisories/new)
+rather than public issues.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+Distributed under the MIT License. See [`LICENSE`](LICENSE).

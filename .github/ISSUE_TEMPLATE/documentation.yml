@@ -1,0 +1,26 @@
+name: Documentation
+description: Report inaccurate, missing, or unclear documentation
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping keep the docs accurate!
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      placeholder: README.md, docs/OFFICER_INTEGRATION.md, a specific rule file, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's wrong or missing?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix
+    validations:
+      required: false
