@@ -10,6 +10,7 @@ from panopticon_detection.evaluator.operators import (
     op_starts_with,
 )
 from panopticon_detection.rules.loader import RuleLoader
+from panopticon_detection.rules.schema import Condition, LogicNode, Rule
 
 
 def test_operators_basic():
@@ -78,3 +79,43 @@ def test_end_to_end_detection_evaluation():
     assert res.matched_evidence["process.name"] == "powershell.exe"
     assert res.matched_evidence["parent.name"] == "winword.exe"
     assert "-encodedcommand" in res.matched_evidence["process.command_line"]
+
+
+def test_one_broken_rule_does_not_disable_other_candidate_rules_for_the_same_event():
+    # Regression for a real reliability gap: evaluate_event used to have no
+    # per-rule exception isolation, so one rule raising (e.g. an invalid
+    # regex pattern) aborted the whole loop and silently withheld every
+    # other candidate rule's verdict on that same event -- a broken rule
+    # could blind unrelated rules of the same event_type indefinitely.
+    broken_rule = Rule(
+        id="DET-BROKEN-001",
+        name="Deliberately broken rule",
+        event_type="process_create",
+        logic=LogicNode(all=[Condition(field="process.name", operator="regex", value="[")]),
+    )
+    healthy_rule = Rule(
+        id="DET-HEALTHY-001",
+        name="Always matches powershell",
+        event_type="process_create",
+        logic=LogicNode(all=[Condition(field="process.name", operator="equals", value="powershell.exe")]),
+    )
+    evaluator = RuleEvaluator([broken_rule, healthy_rule])
+    event = {
+        "event_id": "evt-broken-001",
+        "event_type": "process_create",
+        "process": {"name": "powershell.exe", "pid": 1},
+    }
+
+    results = evaluator.evaluate_event(event)
+
+    matched_ids = [r.rule.id for r in results]
+    assert "DET-HEALTHY-001" in matched_ids
+    assert "DET-BROKEN-001" not in matched_ids
+    assert evaluator.rule_errors.get("DET-BROKEN-001") == 1
+
+    # A second event confirms the broken rule keeps failing in isolation
+    # (observable, not a one-shot fluke) without ever taking the healthy
+    # rule down with it.
+    results2 = evaluator.evaluate_event(event)
+    assert "DET-HEALTHY-001" in [r.rule.id for r in results2]
+    assert evaluator.rule_errors.get("DET-BROKEN-001") == 2

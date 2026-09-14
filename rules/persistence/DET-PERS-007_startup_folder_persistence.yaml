@@ -1,0 +1,43 @@
+id: DET-PERS-007
+name: Persistence via Startup Folder File Placement
+description: Detects executable files (.exe, .vbs, .bat, .ps1, .lnk) written to user or system Startup directories to execute on user logon.
+version: 1
+status: enabled
+event_type: file_create
+
+level: 13
+severity: high
+confidence: 0.92
+
+active_response: QUARANTINE_FILE
+
+logic:
+  any:
+    - field: file.path
+      operator: contains
+      value: "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+    - field: file.path
+      operator: contains
+      value: "/etc/init.d/"
+    - field: file.path
+      operator: contains
+      value: "/etc/rc.local"
+
+evidence:
+  - process.name
+  - file.path
+  - process.user
+
+mitre:
+  tactic: Persistence
+  technique: T1547.001
+  name: "Boot or Logon Autostart Execution: Startup Folder"
+
+compliance:
+  - PCI-DSS_10.6
+  - NIST_800-53_SI-4
+
+tags:
+  - attack.persistence
+  - startup_folder
+  - autostart
