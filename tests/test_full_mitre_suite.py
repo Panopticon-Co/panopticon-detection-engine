@@ -1,10 +1,8 @@
 """Unit and integration tests for Full 100% MITRE ATT&CK Matrix Coverage and Modifiers."""
 
-import pytest
-from src.rules.loader import RuleLoader
-from src.mitre.attack import MitreMatrixNavigator
-from src.evaluator.modifiers import FieldModifierPipeline
-from src.evaluator.engine import RuleEvaluator
+from panopticon_detection.evaluator.modifiers import FieldModifierPipeline
+from panopticon_detection.mitre.attack import MitreMatrixNavigator
+from panopticon_detection.rules.loader import RuleLoader
 
 
 def test_100_percent_mitre_tactic_coverage():

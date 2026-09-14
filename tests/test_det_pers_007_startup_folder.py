@@ -8,8 +8,8 @@ telemetry never produces, which made it unreachable through the actual
 ingest path even though tests could still fire it by calling
 RuleEvaluator.evaluate_event directly with a hand-built "file_write" event.
 These tests exercise the corrected, real event_type."""
-from src.evaluator.engine import RuleEvaluator
-from src.rules.loader import RuleLoader
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.rules.loader import RuleLoader
 
 
 def _evaluator():

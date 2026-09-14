@@ -1,261 +1,107 @@
-# eyedetect — Panopticon Detection Engine
+# panopticon-detection-engine
 
-[![CI](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Panopticon-Co/panopticon-detection-engine/actions/workflows/ci.yml)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-brightgreen.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests: 173 passed, 2 skipped](https://img.shields.io/badge/Tests-173%20passed%2C%202%20skipped-success.svg)](tests/)
-[![Project Status: Active Development](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)](#project-status)
+Detection, correlation and alerting engine for the **Panopticon&Co** EDR
+platform. Ingests endpoint telemetry, evaluates it against YAML rules,
+reconstructs multi-stage attacks from a provenance graph, and emits alerts.
 
-`eyedetect` is the rule-based detection, correlation, and behavioral (UEBA) engine of the
-**Panopticon** EDR/XDR capstone platform. It ingests normalized endpoint telemetry, evaluates it
-against a library of MITRE ATT&CK-mapped YAML rules, correlates related events into multi-stage
-attack chains, and produces alerts with **recommended** response actions.
+The engine **detects and recommends. It never executes a response.** Response
+actions — the closed seven-action set, its approval tiers and its dispatch —
+live in [`panopticon-response-engine`](https://github.com/Panopticon-Co/panopticon-response-engine)
+and [`panopticon-manager`](https://github.com/Panopticon-Co/panopticon-manager).
 
-This is a capstone/research security project, not a commercial product. Read the
-[Project status](#project-status) and [Detection vs. execution boundary](#detection-vs-execution-boundary)
-sections before relying on any claim here.
+## Where it sits
 
----
-
-## Table of contents
-
-- [Project status](#project-status)
-- [Architecture role](#architecture-role)
-- [Key capabilities](#key-capabilities)
-- [Repository structure](#repository-structure)
-- [Detection rules](#detection-rules)
-- [Detection vs. execution boundary](#detection-vs-execution-boundary)
-- [Dependencies](#dependencies)
-- [Install](#install)
-- [Run tests](#run-tests)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Integration with other Panopticon repositories](#integration-with-other-panopticon-repositories)
-- [Known limitations](#known-limitations)
-- [Security](#security)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Project status
-
-This is a working prototype under active development, built for a capstone project:
-
-- The rule evaluator, correlation engine, and UEBA/behavioral components are real and covered by
-  an automated test suite (`173 passed, 2 skipped` as of this writing — run `pytest -v tests/` to
-  reproduce; see [CI](.github/workflows/ci.yml) for the authoritative command).
-- It ingests telemetry produced by the team's Windows endpoint agent
-  ([`panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent), internally "Officer")
-  via the `OfficerIngestionAdapter`, which accepts Panopticon Schema 0.1–0.3 NDJSON, either from a
-  file or by spawning `officer-agent.exe` as a subprocess.
-- Interfaces and rules are still evolving between milestones. Treat this README, not marketing
-  copy elsewhere, as the source of truth for what is actually implemented.
-
-## Architecture role
-
-`eyedetect` sits between the endpoint agents and the response layer in the Panopticon pipeline:
-
-```text
-Endpoint Agents            Detection Engine             Response Engine        Manager
-(panopticon-agent,    ->   (this repo: rules,      ->   (translates          ->  (authorization,
- panopticon-linux-         correlation, UEBA,           recommendations to       dispatch,
- agent)                    alerts + recommended         a closed command         lifecycle, audit)
-                           response actions)             set)
+```
+Windows / Linux endpoint
+  -> panopticon-agent ("Officer") / panopticon-linux-agent
+  -> POST /api/v1/ingest            (panopticon-manager)
+  -> THIS ENGINE                    (vendored at vendor/eyedetect)
+  -> alerts + response recommendations
+  -> panopticon-response-engine     (translate -> tier -> analyst approval)
+  -> panopticon-console
 ```
 
-- It never executes response actions itself and never talks to endpoints directly.
-- It never imports agent or response-engine source; the only integration surfaces are the
-  Panopticon event schema (consumed) and the `ActiveResponseAction` recommendation vocabulary
-  (produced).
+It also runs standalone against NDJSON telemetry, which is how the samples and
+CI smoke tests exercise it.
 
-## Key capabilities
-
-- **Rule evaluator** (`src/evaluator/`) — matches structured telemetry against declarative YAML
-  detection rules (boolean logic trees, field extraction, MITRE ATT&CK tagging).
-- **Correlation engine** (`src/correlation/correlation_engine.py`) — links related events keyed by
-  process PID into multi-stage attack chains (e.g. LOLBAS download-then-egress).
-- **Process tree / lineage tracking** (`src/correlation/process_tree.py`).
-- **Identity / UEBA analytics** (`src/identity/`) — behavioral and statistical detections such as
-  brute force, password spraying, and anomalous authentication patterns.
-- **Network heuristics** (`src/network/`) — beaconing-interval and port-scan detectors.
-- **Threat intel lookups** (`src/threat_intel/`) — in-memory IOC hash/IP matching.
-- **Alerting** (`src/alerting/`) — human-readable alert generation and `ActiveResponseAction`
-  recommendation resolution (`src/alerting/active_response.py`).
-- **Reliability pipeline (opt-in, `--reliable`)** (`src/reliability/`) — bounded ingestion queue,
-  SQLite durable spool, retry, and health/metrics for continuous streaming runs.
-
-## Repository structure
-
-```text
-eyedetect/
-├── rules/               # Custom YAML detection rules (not Sigma-format), grouped by MITRE tactic
-│   ├── cloud/, credential_access/, defense_evasion/, exfiltration/, file/,
-│   │   identity/, initial_access/, lateral_movement/, linux_process/, malware/,
-│   │   network/, persistence/, privilege_escalation/, process/, web_api/, collection/
-├── src/
-│   ├── ingestion/        # NDJSON readers and the Officer (Schema 0.1-0.3) adapter
-│   ├── evaluator/        # Rule matching / condition engine
-│   ├── correlation/      # Process tree + multi-stage correlation
-│   ├── identity/         # UEBA / identity threat analytics
-│   ├── network/          # Beaconing + port-scan detectors
-│   ├── threat_intel/     # In-memory IOC lookups
-│   ├── alerting/         # Alert generation + active-response recommendation resolution
-│   ├── remediation/      # Simulated remediation bookkeeping (see boundary section below)
-│   ├── reliability/      # Opt-in V2 durable streaming pipeline
-│   └── main.py           # CLI entrypoint
-├── samples/               # Sample/simulated NDJSON telemetry for local runs and demos
-├── scripts/                # Developer/demo scripts
-├── docs/                  # Integration and architecture docs (see OFFICER_INTEGRATION.md)
-└── tests/                 # pytest suite
-```
-
-## Detection rules
-
-The `rules/` directory currently contains **92 YAML rule files** across 16 MITRE-tactic-aligned
-categories (verify with `find rules -name "*.yaml" | wc -l`). Each rule is a custom, project-defined
-YAML document (`logic`, `evidence`, `mitre`, `compliance`, optional `active_response` fields) —
-**not** the Sigma rule format, despite superficial similarity.
-
-## Detection vs. execution boundary
-
-**`eyedetect` detects and recommends. It never executes a response action itself.**
-
-- `src/alerting/active_response.py` resolves a detection into an `ActiveResponseAction`
-  recommendation (e.g. `TERMINATE_PROCESS`, `ISOLATE_HOST`, `BLOCK_FIREWALL_IP`,
-  `COLLECT_PROCESS_INFO`, `COLLECT_NETWORK_CONNECTIONS`). This is a recommendation record, not a
-  command execution.
-- `src/remediation/engine.py` produces simulated remediation bookkeeping entries
-  (`RemediationReport`, status `SUCCESS`/`SIMULATED`) describing what a downstream system *could*
-  do. It does not call `subprocess`, `os.kill`, `winreg`, or any socket API — this is true
-  regardless of the `--dry-run` or `--auto-remediate` flags. There is no code path in this
-  repository that terminates a process, quarantines a file, locks an account, or modifies a live
-  endpoint.
-- Real, authorized execution — if and when it happens — is the job of
-  [`panopticon-response-engine`](https://github.com/Panopticon-Co/panopticon-response-engine) and
-  [`panopticon-manager`](https://github.com/Panopticon-Co/panopticon-manager), which own policy,
-  authorization tiers, and command dispatch.
-
-## Dependencies
-
-From `requirements.txt`:
-
-```text
-pyyaml>=6.0.1
-pydantic>=2.0.0
-pytest>=8.0.0
-```
-
-No HTTP framework, database driver, or message queue is a dependency — this is a CLI batch/streaming
-tool, not a network service.
-
-## Install
+## Quick start
 
 ```bash
-git clone https://github.com/Panopticon-Co/panopticon-detection-engine.git
-cd panopticon-detection-engine
-python -m venv .venv
-# Windows: .venv\Scripts\activate    |    macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
+pytest -q
+
+# Replay agent-shaped telemetry and show the provenance graph it built
+panopticon-detect --rules rules \
+  --officer-ndjson samples/officer_live_sample.ndjson --graph-stats
 ```
 
-## Run tests
+Requires Python 3.10+. Dependencies are `pyyaml` and `pydantic` — nothing else.
 
-The authoritative command is the one CI runs (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+## How correlation works
+
+Multi-stage detection is a **graph query**, not a list of hardcoded rule
+sequences.
+
+1. **Identity.** Every event is joined to the process that caused it by
+   `(host_id, pid, timestamp)`, resolved through per-PID time intervals. This
+   is PID-reuse-safe and works across all five telemetry families — which an
+   `entity_id`-keyed index cannot, because the agent derives that id with a
+   different formula for process events than for everything else.
+2. **Graph.** Each event becomes one timestamped edge between typed entities:
+   processes, files, sockets, registry keys, modules.
+3. **Tags.** A rule match is written onto the edge its event created, so the
+   detection becomes part of the graph's structure.
+4. **Campaigns.** A match on a terminal tactic (Impact, Exfiltration, C2,
+   Credential Access, Lateral Movement) anchors a backward traversal. The walk
+   only ever steps to edges at or before the time reached so far — nothing can
+   be caused by its own future. Every tagged edge it reaches is a stage of the
+   same campaign, whichever process it happened in.
+
+Because stages are found rather than enumerated, a chain spanning several
+processes — a dropper spawning a loader spawning a beacon — correlates without
+anyone writing a rule for that specific sequence.
+
+The traversal also names the campaign's **root** process, which is what makes a
+`TERMINATE_PROCESS` recommendation actionable: the root's node carries the
+`start_time_ticks` the agent observed, and without that token the response
+engine correctly refuses to build a `KILL_PROCESS` command.
+
+## Layout
+
+| Path | Role |
+|---|---|
+| `panopticon_detection/provenance/` | Identity resolution, temporal graph, tagging, campaign traversal |
+| `panopticon_detection/evaluator/` | Rule matching, operators, deobfuscation, entropy, thresholds |
+| `panopticon_detection/rules/` | YAML rule loading and pydantic validation |
+| `panopticon_detection/behavioral/` | C2 beaconing, port scans, DNS/DGA, ransomware tripwires |
+| `panopticon_detection/ingestion/` | Agent schema adapters and telemetry streams |
+| `panopticon_detection/reliability/` | Bounded queue, SQLite spool, retry, health, metrics |
+| `panopticon_detection/alerting/` | Alert model and formatters |
+| `rules/` | 54 rules, all firing on telemetry the agents emit |
+
+## Rules
+
+`scripts/check_rule_sourcing.py` fails CI if any rule targets an `event_type`
+the normalizer cannot produce. A rule that can never fire is not coverage, it
+is a claim, so 38 such rules were deleted rather than carried.
 
 ```bash
-pytest -v tests/
+python scripts/check_rule_sourcing.py
 ```
 
-CI also runs the master simulation as a smoke test:
+## Current limitations
 
-```bash
-python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
-```
+Stated plainly rather than left for a reader to discover:
 
-## Usage
-
-Run the engine against sample/simulated telemetry:
-
-```bash
-python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
-```
-
-Ingest NDJSON captured from the Officer agent, or attach to a live `officer-agent.exe` process:
-
-```bash
-python src/main.py --rules rules --officer-ndjson samples/officer_live_sample.ndjson
-python src/main.py --rules rules --officer --officer-bin path/to/officer-agent.exe
-```
-
-Disable even the simulated remediation bookkeeping:
-
-```bash
-python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson --no-auto-remediate
-```
-
-MITRE ATT&CK coverage and taxonomy audit:
-
-```bash
-python src/main.py --mitre-matrix --audit-taxonomy
-```
-
-See [`docs/OFFICER_INTEGRATION.md`](docs/OFFICER_INTEGRATION.md) for the full Schema field mapping
-and ingestion contract.
-
-## Configuration
-
-- `--rules <dir>` — path to a rule directory (defaults to `rules/`).
-- `--telemetry <file>` / `--officer-ndjson <file>` / `--officer --officer-bin <path>` — telemetry
-  source selection.
-- `--auto-remediate` / `--no-auto-remediate` — toggle simulated remediation bookkeeping (default:
-  on; never executes anything regardless of this flag).
-- `--reliable`, `--spool-db`, `--queue-capacity` — opt-in V2 durable streaming pipeline (bounded
-  queue, SQLite spool, retry). The default path (V1) is unaffected.
-
-Run `python src/main.py --help` for the full, current flag list — it is the source of truth over
-any list here.
-
-## Integration with other Panopticon repositories
-
-- [`panopticon-agent`](https://github.com/Panopticon-Co/panopticon-agent) — Windows endpoint agent
-  ("Officer"); produces the Schema 0.x NDJSON this engine ingests.
-- [`panopticon-linux-agent`](https://github.com/Panopticon-Co/panopticon-linux-agent) — Linux
-  endpoint agent counterpart.
-- [`panopticon-response-engine`](https://github.com/Panopticon-Co/panopticon-response-engine) —
-  translates this engine's `ActiveResponseAction` recommendations onto a closed set of 7 typed
-  response commands.
-- [`panopticon-manager`](https://github.com/Panopticon-Co/panopticon-manager) — orchestrates
-  authorization, dispatch, lifecycle, and audit for response commands.
-- [`panopticon-contracts`](https://github.com/Panopticon-Co/panopticon-contracts) — canonical
-  JSON-schema wire contracts shared across repos.
-- [Panopticon-Co organization](https://github.com/Panopticon-Co) — all repositories.
-
-## Known limitations
-
-- `COLLECT_PROCESS_INFO` and `COLLECT_NETWORK_CONNECTIONS` active-response recommendations are not
-  wired into every rule: of the 92 rule files in `rules/`, 55 currently declare an `active_response`
-  field (verified via `grep -rl active_response rules/`). Rules without this field produce a
-  detection/alert but no response recommendation.
-- Correlation and UEBA are heuristic/statistical, not machine-learned models; do not describe them
-  as "AI-powered."
-- No HTTP API, database, or message queue — this is a single-process CLI tool. Multi-agent /
-  horizontal scaling (queueing, distributed workers) is a later roadmap phase, not implemented here.
-- Remediation is simulated bookkeeping only (see [boundary section](#detection-vs-execution-boundary)).
-- Officer integration has been exercised against recorded/sample NDJSON in this repo's tests; a
-  live end-to-end run against a running `officer-agent.exe` on real Windows process creation should
-  be validated separately before treating the pipeline as fully proven.
-
-## Security
-
-See [`SECURITY.md`](SECURITY.md) for how to report a vulnerability. Please use private
-[GitHub Security Advisories](https://github.com/Panopticon-Co/panopticon-detection-engine/security/advisories/new)
-rather than public issues.
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- The provenance graph is **in-memory** and does not survive a restart.
+  Persistence is the next planned step.
+- No agent emits a process-stop event yet, so process end times are *inferred*
+  from the next process to occupy the same PID.
+- Campaign scoring uses a static prior over edge kinds as a stand-in for a
+  learned baseline. The weights need real telemetry to tune.
+- This is a capstone-grade engine: a CLI and a library, with no HTTP API, no
+  database server and no message queue.
 
 ## License
 
-Distributed under the MIT License. See [`LICENSE`](LICENSE).
+See [LICENSE](LICENSE).

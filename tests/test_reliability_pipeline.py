@@ -4,24 +4,16 @@ Covers the whole queue -> detection -> spool -> sink path plus the V2 spec's
 deterministic-shutdown and restart-recovery requirements.
 """
 
-import sys
 import threading
 import time
-from pathlib import Path
 
-import pytest
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.reliability.alert_sink import IncrementalAlertWriter
-from src.reliability.health import HealthState
-from src.reliability.metrics import Metrics
-from src.reliability.pipeline import StreamingPipeline
-from src.reliability.queue import BoundedEventQueue, OverflowPolicy
-from src.reliability.retry import RetryPolicy
-from src.reliability.spool import AlertSpool
+from panopticon_detection.reliability.alert_sink import IncrementalAlertWriter
+from panopticon_detection.reliability.health import HealthState
+from panopticon_detection.reliability.metrics import Metrics
+from panopticon_detection.reliability.pipeline import StreamingPipeline
+from panopticon_detection.reliability.queue import BoundedEventQueue, OverflowPolicy
+from panopticon_detection.reliability.retry import RetryPolicy
+from panopticon_detection.reliability.spool import AlertSpool
 
 
 def _event(n):
@@ -174,12 +166,12 @@ def test_recover_redelivers_pending_alerts_without_double_emitting(tmp_path):
     # the pipeline can mark_delivered
     class HalfWriter(IncrementalAlertWriter):
         def write(self, record):
-            ok = super().write(record)
+            super().write(record)
             raise KeyboardInterrupt("die after write")
 
     s1 = AlertSpool(db, retry_policy=RetryPolicy(max_attempts=9, base_delay=0.01, jitter=0.0))
     w1 = IncrementalAlertWriter(out, fsync=False)
-    p1 = StreamingPipeline(spool=s1, writer=w1, detection_fn=lambda ev: [_Alert(f"ALT-{ev['process']['pid']}")],
+    StreamingPipeline(spool=s1, writer=w1, detection_fn=lambda ev: [_Alert(f"ALT-{ev['process']['pid']}")],
                            idle_poll=0.01)
     # do it by hand: persist + write, but never mark_delivered (simulated crash)
     for i in range(3):
@@ -223,7 +215,7 @@ def test_full_run_after_restart_recovers_then_streams(tmp_path):
         assert res.recovered_on_start == 1
         # ALT-OLD (recovered) + ALT-1001 + ALT-1002 all delivered exactly once
         assert res.alerts_delivered == 3
-        lines = [l for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
+        lines = [line for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert len(lines) == 3
     finally:
         s2.close()

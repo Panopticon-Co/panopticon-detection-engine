@@ -7,7 +7,7 @@ require a rule to explicitly opt in via its own `active_response:` field,
 exactly like TERMINATE_PROCESS/BLOCK_FIREWALL_IP already do.
 """
 
-from src.alerting.active_response import ActiveResponseEngine
+from panopticon_detection.alerting.active_response import ActiveResponseEngine
 
 
 def test_collect_process_info_carries_pid_and_start_time_ticks() -> None:

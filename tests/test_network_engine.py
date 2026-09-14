@@ -1,9 +1,10 @@
 """Unit tests for Network Threat Subsystems: DGA, DNS Tunneling, C2 Beaconing, and Port Scanning."""
 
 import pytest
-from src.network.dns_analyzer import DnsAnalyzer
-from src.network.beacon_detector import C2BeaconDetector
-from src.network.port_scanner import PortScanDetector
+
+from panopticon_detection.behavioral.beacon import C2BeaconDetector
+from panopticon_detection.behavioral.dns import DnsAnalyzer
+from panopticon_detection.behavioral.port_scan import PortScanDetector
 
 
 def test_dns_dga_and_tunneling():

@@ -3,7 +3,7 @@ name: Image File Execution Options (IFEO) or AppInit_DLLs Persistence
 description: Detects registry modifications to 'Image File Execution Options' (Debugger value) or 'AppInit_DLLs' to hijack process execution and achieve persistence.
 version: 1
 status: enabled
-event_type: registry_modify
+event_type: registry_write
 
 level: 14
 severity: critical

@@ -1,24 +1,14 @@
 """Tests for the V2 SQLite alert-delivery spool (src/reliability/spool.py)."""
 
-import json
 import sqlite3
-import sys
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.reliability.retry import RetryPolicy
-from src.reliability.spool import (
+from panopticon_detection.reliability.retry import RetryPolicy
+from panopticon_detection.reliability.spool import (
     SPOOL_SCHEMA_VERSION,
-    STATUS_DEAD,
-    STATUS_DELIVERED,
-    STATUS_PENDING,
     AlertSpool,
     SpoolSchemaError,
 )
