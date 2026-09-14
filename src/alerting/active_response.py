@@ -112,5 +112,20 @@ class ActiveResponseEngine:
                 host_id=host_id,
                 reason=reason or f"Automated network connection snapshot for Level {level} event",
             )
+        # QUARANTINE_FILE is the same opt-in-only shape as the two COLLECT_*
+        # branches above: only a rule that explicitly sets
+        # active_response: QUARANTINE_FILE in its YAML produces one, since
+        # this is a destructive, file-identity-bound action (see
+        # response_engine.policy.Tier.ANALYST_APPROVAL), not something any
+        # severity heuristic should default to. file_path is surfaced as-is;
+        # response_engine.translate_recommendation is responsible for
+        # failing closed if it is missing or malformed.
+        elif custom_action == "QUARANTINE_FILE":
+            return ActiveResponseAction(
+                action="QUARANTINE_FILE",
+                host_id=host_id,
+                target_file=file_path,
+                reason=reason or f"Automated malicious file quarantine for Level {level} event",
+            )
 
         return None

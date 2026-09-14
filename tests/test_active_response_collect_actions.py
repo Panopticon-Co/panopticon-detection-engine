@@ -70,3 +70,29 @@ def test_neither_collect_action_auto_fires_on_severity_alone() -> None:
 def test_unknown_custom_action_still_produces_no_recommendation() -> None:
     event = {"host_id": "host-1", "process": {"pid": 4242}}
     assert ActiveResponseEngine.resolve_action(level=8, event=event, custom_action="NOT_A_REAL_ACTION") is None
+
+
+def test_quarantine_file_carries_the_triggering_events_file_path() -> None:
+    # QUARANTINE_FILE is destructive (response_engine.policy.Tier.ANALYST_APPROVAL),
+    # so like TERMINATE_PROCESS/ISOLATE_HOST it must be opt-in only via a
+    # rule's explicit active_response field -- this closes the gap where
+    # DET-PERS-007 declared active_response: QUARANTINE_FILE but resolve_action
+    # had no matching branch, so the recommendation silently vanished.
+    event = {
+        "host_id": "host-1",
+        "file": {"path": r"C:\Users\victim\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\evil.exe"},
+    }
+    action = ActiveResponseEngine.resolve_action(level=13, event=event, custom_action="QUARANTINE_FILE")
+    assert action is not None
+    assert action.action == "QUARANTINE_FILE"
+    assert action.target_file == event["file"]["path"]
+    payload = action.to_dict()
+    assert payload["action"] == "QUARANTINE_FILE"
+    assert payload["target_file"] == event["file"]["path"]
+
+
+def test_quarantine_file_does_not_auto_fire_on_severity_alone() -> None:
+    event = {"host_id": "host-1", "file": {"path": "/etc/rc.local"}}
+    for level in (12, 13, 14, 16):
+        action = ActiveResponseEngine.resolve_action(level=level, event=event, custom_action=None)
+        assert action is None or action.action != "QUARANTINE_FILE"
