@@ -294,6 +294,12 @@ class DetectionRun:
         beacon_match = self.beacon_detector.ingest_connection(event)
         if beacon_match:
             self.beacon_alerts_count += 1
+            # "BLOCK_FIREWALL_IP" has no closed-set equivalent and is not a
+            # supported custom_action -- ActiveResponseEngine.resolve_action
+            # correctly fails closed (returns None) for it now, rather than
+            # opportunistically downgrading to a full ISOLATE_HOST the way it
+            # used to. The alert is still raised for analyst visibility; it
+            # just carries no active_response recommendation.
             ar_action = ActiveResponseEngine.resolve_action(
                 level=14,
                 event=event,

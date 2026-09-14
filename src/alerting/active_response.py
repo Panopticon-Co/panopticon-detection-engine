@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 @dataclass
 class ActiveResponseAction:
     """Action payload for automated endpoint containment."""
-    action: str  # e.g., "TERMINATE_PROCESS", "ISOLATE_HOST", "BLOCK_FIREWALL_IP", "QUARANTINE_FILE"
+    action: str  # e.g., "TERMINATE_PROCESS", "ISOLATE_HOST", "QUARANTINE_FILE"
     host_id: str
     target_pid: Optional[int] = None
     target_guid: Optional[str] = None
@@ -43,12 +43,10 @@ class ActiveResponseEngine:
     ) -> Optional[ActiveResponseAction]:
         host_id = event.get("host_id", "UNKNOWN_HOST")
         proc = event.get("process", {})
-        net = event.get("network", {})
         file_info = event.get("file", {})
 
         pid = proc.get("pid")
         guid = proc.get("process_guid")
-        dest_ip = net.get("destination_ip")
         file_path = file_info.get("path")
         # Schema 0.4's process.start_time_ticks, read straight off the
         # triggering event exactly like pid/guid above -- resolve_action only
@@ -72,15 +70,20 @@ class ActiveResponseEngine:
                 target_start_time_ticks=start_time_ticks,
                 reason=reason or f"Automated malicious process termination for Level {level} threat",
             )
-        elif custom_action == "BLOCK_FIREWALL_IP" or (custom_action is None and dest_ip and level >= 12):
-            return ActiveResponseAction(
-                action="BLOCK_FIREWALL_IP",
-                host_id=host_id,
-                target_ip=dest_ip,
-                target_pid=pid,
-                reason=reason or f"Automated C2 egress block for Level {level} threat",
-            )
-        elif custom_action == "ISOLATE_HOST" or level >= 14:
+        # The `level >= 14` clause is a severity-driven default, exactly like
+        # branch 1's `level in (12, 13)` default -- it must only apply when
+        # the rule did NOT itself request a different action. Before this
+        # gate, ANY rule (or internal engine call) whose active_response was
+        # an unsupported string (e.g. REVOKE_USER_SESSIONS) at level >= 14
+        # silently resolved to a real ISOLATE_HOST recommendation instead of
+        # failing closed -- and a rule explicitly requesting QUARANTINE_FILE/
+        # COLLECT_PROCESS_INFO/COLLECT_NETWORK_CONNECTIONS at level >= 14
+        # would have been shadowed by this branch too, since it is checked
+        # before those. Gating on `custom_action is None` fixes both: an
+        # explicit, unsupported request now genuinely falls through to
+        # `return None`, and an explicit supported request further below is
+        # no longer preempted.
+        elif custom_action == "ISOLATE_HOST" or (custom_action is None and level >= 14):
             return ActiveResponseAction(
                 action="ISOLATE_HOST",
                 host_id=host_id,
@@ -93,7 +96,7 @@ class ActiveResponseEngine:
         # panopticon-contracts/docs/CONTRACT.md) -- unlike the branches above,
         # no severity level auto-fires them here: only a rule that explicitly
         # opts in via its own YAML `active_response:` field (the same
-        # custom_action mechanism TERMINATE_PROCESS/BLOCK_FIREWALL_IP already
+        # custom_action mechanism TERMINATE_PROCESS/ISOLATE_HOST already
         # use) produces one, since inventing a new severity heuristic for an
         # evidence-collection action is a rule-authoring decision, not
         # something this engine should default on its own.
