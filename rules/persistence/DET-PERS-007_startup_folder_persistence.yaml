@@ -3,7 +3,7 @@ name: Persistence via Startup Folder File Placement
 description: Detects executable files (.exe, .vbs, .bat, .ps1, .lnk) written to user or system Startup directories to execute on user logon.
 version: 1
 status: enabled
-event_type: file_write
+event_type: file_create
 
 level: 13
 severity: high
