@@ -9,8 +9,6 @@ level: 14
 severity: critical
 confidence: 0.95
 
-active_response: REVOKE_CLOUD_ACCESS_KEY
-
 logic:
   all:
     - field: action

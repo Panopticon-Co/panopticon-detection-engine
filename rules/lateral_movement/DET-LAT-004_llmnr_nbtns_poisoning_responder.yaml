@@ -9,8 +9,6 @@ level: 13
 severity: high
 confidence: 0.94
 
-active_response: BLOCK_FIREWALL_IP
-
 logic:
   all:
     - field: network.destination_port

@@ -9,8 +9,6 @@ level: 13
 severity: high
 confidence: 0.90
 
-active_response: REVOKE_USER_SESSIONS
-
 logic:
   all:
     - field: auth.package

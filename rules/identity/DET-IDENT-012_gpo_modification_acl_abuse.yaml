@@ -9,8 +9,6 @@ level: 15
 severity: critical
 confidence: 0.96
 
-active_response: REVOKE_USER_SESSIONS
-
 logic:
   all:
     - any:

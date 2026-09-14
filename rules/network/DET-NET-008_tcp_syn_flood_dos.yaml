@@ -9,8 +9,6 @@ level: 12
 severity: high
 confidence: 0.90
 
-active_response: BLOCK_FIREWALL_IP
-
 logic:
   all:
     - field: network.tcp_flags

@@ -9,8 +9,6 @@ level: 13
 severity: high
 confidence: 0.92
 
-active_response: FORCE_PASSWORD_RESET
-
 logic:
   all:
     - field: kerberos.preauth_type
