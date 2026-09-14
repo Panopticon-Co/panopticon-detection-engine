@@ -4,19 +4,13 @@ Covers the wiring introduced to let operators pin the live Officer subprocess to
 single collector source (etw or sysmon) instead of always running both ("all").
 No collector, Schema 0.2, or detection-rule behavior is touched by this feature.
 """
-import subprocess
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.ingestion.live_stream import LiveTelemetryStream
-from src.main import main as run_main
+from panopticon_detection.cli import main as run_main
+from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
 
 
 def _fake_officer_process():
@@ -29,7 +23,7 @@ def _fake_officer_process():
 
 @pytest.mark.parametrize("source", ["etw", "sysmon", "all"])
 def test_stream_from_officer_process_forwards_source_flag(source):
-    with patch("src.ingestion.live_stream.subprocess.Popen") as mock_popen:
+    with patch("panopticon_detection.ingestion.live_stream.subprocess.Popen") as mock_popen:
         mock_popen.return_value = _fake_officer_process()
         list(LiveTelemetryStream.stream_from_officer_process("officer-agent.exe", source=source))
 
@@ -38,7 +32,7 @@ def test_stream_from_officer_process_forwards_source_flag(source):
 
 
 def test_stream_from_officer_process_defaults_to_all():
-    with patch("src.ingestion.live_stream.subprocess.Popen") as mock_popen:
+    with patch("panopticon_detection.ingestion.live_stream.subprocess.Popen") as mock_popen:
         mock_popen.return_value = _fake_officer_process()
         list(LiveTelemetryStream.stream_from_officer_process("officer-agent.exe"))
 
@@ -69,7 +63,7 @@ def test_officer_source_rejects_invalid_choice(capsys):
 
 @pytest.mark.parametrize("source", ["etw", "sysmon", "all"])
 def test_officer_source_propagates_from_cli_to_subprocess(source, tmp_path):
-    with patch("src.ingestion.live_stream.subprocess.Popen") as mock_popen, \
+    with patch("panopticon_detection.ingestion.live_stream.subprocess.Popen") as mock_popen, \
          patch.object(
              sys,
              "argv",

@@ -7,8 +7,8 @@ rules match on -- so these fixtures are representative of what the engine
 actually receives from a Linux endpoint, not a synthetic shape invented for
 this test.
 """
-from src.evaluator.engine import RuleEvaluator
-from src.rules.loader import RuleLoader
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.rules.loader import RuleLoader
 
 
 def _evaluator():

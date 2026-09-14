@@ -1,14 +1,17 @@
 """Unit tests validating detection of all 8 major types of Privilege Escalation."""
 
 import pytest
-from src.rules.loader import RuleLoader
-from src.evaluator.engine import RuleEvaluator
+
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.rules.loader import RuleLoader
 
 
 @pytest.fixture
 def evaluator():
     loader = RuleLoader()
-    rules = loader.load_directory("rules")
+    # Includes rules/unsourced/: this suite exercises rule logic against
+    # synthetic events, not the live agent-sourced rule set.
+    rules = loader.load_directory("rules", include_unsourced=True)
     return RuleEvaluator(rules)
 
 

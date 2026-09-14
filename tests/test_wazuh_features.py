@@ -1,11 +1,10 @@
 """Unit tests for Wazuh-grade features: Threat Intel, Thresholds, Active Response, and Rule Inheritance."""
 
-import pytest
-from src.threat_intel.ioc_lookup import ThreatIntelEngine
-from src.evaluator.threshold import ThresholdEngine, ThresholdRule
-from src.alerting.active_response import ActiveResponseEngine
-from src.rules.schema import Rule, LogicNode, Condition
-from src.evaluator.engine import RuleEvaluator
+from panopticon_detection.alerting.active_response import ActiveResponseEngine
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.evaluator.threshold import ThresholdEngine
+from panopticon_detection.rules.schema import Condition, LogicNode, Rule
+from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
 
 
 def test_threat_intel_engine():

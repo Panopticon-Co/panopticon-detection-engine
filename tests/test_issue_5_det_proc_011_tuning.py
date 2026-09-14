@@ -6,9 +6,11 @@ payloads (e.g. Base64 / EncodedCommand) continue to trigger reliably.
 """
 
 from pathlib import Path
+
 import pytest
-from src.rules.loader import RuleLoader
-from src.evaluator.engine import RuleEvaluator
+
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.rules.loader import RuleLoader
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RULES_DIR = PROJECT_ROOT / "rules"

@@ -14,20 +14,17 @@ All inputs are SYNTHETIC fixtures -- not live Windows telemetry.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.ingestion import telemetry as tele
+from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
+from panopticon_detection.ingestion.officer_adapter import OfficerIngestionAdapter
+from panopticon_detection.rules.loader import RuleLoader
 
-from src.ingestion import telemetry as tele
-from src.ingestion.live_stream import LiveTelemetryStream
-from src.ingestion.officer_adapter import OfficerIngestionAdapter
-from src.evaluator.engine import RuleEvaluator
-from src.rules.loader import RuleLoader
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 SAMPLE = PROJECT_ROOT / "samples" / "v3" / "mixed_families_sample.ndjson"
 

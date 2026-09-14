@@ -9,9 +9,6 @@ import time
 from pathlib import Path
 
 # Add project root to sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Fix Windows console encoding for UTF-8 output
 if hasattr(sys.stdout, "reconfigure"):
@@ -20,12 +17,13 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from src.ingestion.live_stream import LiveTelemetryStream
-from src.rules.loader import RuleLoader
-from src.evaluator.engine import RuleEvaluator
-from src.threat_intel.ioc_lookup import ThreatIntelEngine
-from src.correlation.process_tree import ProcessTree
-from src.alerting.alert import Alert
+from panopticon_detection.provenance.process_tree import ProcessTree
+
+from panopticon_detection.alerting.alert import Alert
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
+from panopticon_detection.rules.loader import RuleLoader
+from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
 
 
 def print_banner():
@@ -79,12 +77,12 @@ def run_demo():
         results = evaluator.evaluate_event(event)
 
         if not results:
-            print(f"  ✅ [STATUS: BENIGN] Telemetry logged to ProcessTree without threat alarms.\n")
+            print("  ✅ [STATUS: BENIGN] Telemetry logged to ProcessTree without threat alarms.\n")
         else:
             threat_count += len(results)
             for res in results:
                 alert = Alert.from_detection_result(res)
-                print(f"\n  🚨 >>> THREAT INTERCEPTED BY EYEDETECT ENGINE <<<")
+                print("\n  🚨 >>> THREAT INTERCEPTED BY EYEDETECT ENGINE <<<")
                 print(f"     • Rule Triggered  : [{res.rule.id}] {res.rule.name}")
                 print(f"     • Severity Level  : Level {res.rule.level}/16 ({res.rule.severity.upper()}) — Confidence: {int(res.rule.confidence * 100)}%")
                 print(f"     • MITRE ATT&CK    : {res.rule.mitre.tactic} -> {res.rule.mitre.technique} ({res.rule.mitre.name})")
@@ -103,7 +101,7 @@ def run_demo():
     print(f" • C++ Telemetry Events Streamed : {event_count}")
     print(f" • Cyber Attacks Intercepted      : {threat_count}")
     print(f" • Automated Auto-Fixes Applied   : {remediation_count} (Processes Terminated / Files Quarantined)")
-    print(f" • Pipeline Health Status         : 100% OPERATIONAL (Zero Loss Translation)")
+    print(" • Pipeline Health Status         : 100% OPERATIONAL (Zero Loss Translation)")
     print("=" * 80 + "\n")
 
 

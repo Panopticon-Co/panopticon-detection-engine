@@ -1,16 +1,11 @@
 """Tests for the incremental append-safe alert writer (alert_sink.py)."""
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.reliability.alert_sink import IncrementalAlertWriter
+from panopticon_detection.reliability.alert_sink import IncrementalAlertWriter
 
 
 class _Alert:

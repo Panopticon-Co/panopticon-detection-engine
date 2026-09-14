@@ -1,16 +1,15 @@
 """Unit and integration tests for the eyedetect detection engine."""
 
-import pytest
-from src.rules.loader import RuleLoader
-from src.evaluator.engine import RuleEvaluator
-from src.evaluator.operators import (
-    op_equals,
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.evaluator.operators import (
     op_contains,
+    op_ends_with,
+    op_equals,
     op_in,
     op_regex,
     op_starts_with,
-    op_ends_with,
 )
+from panopticon_detection.rules.loader import RuleLoader
 
 
 def test_operators_basic():
