@@ -90,16 +90,18 @@ run. `DetectionRun.process_event` handles one event, in this order:
   machine never sees existing processes being created.
 - The graph is in-memory and does not survive a restart. SQLite persistence is
   the next step.
+- `--story` renders from the alert itself. It replaced a hand-maintained rule-id
+  table that claimed the engine had terminated processes and quarantined files.
+  Keep it derived; do not reintroduce per-rule narrative text.
 
 ## Rules
 
-`rules/` holds 54 live rules. `rules/unsourced/` holds 38 more whose
-`event_type` no agent emits (`http_request`, `kerberos_ticket`, `k8s_audit`…);
-`RuleLoader` excludes that directory unless `include_unsourced=True`.
+`rules/` holds 54 rules, all targeting telemetry a Panopticon agent emits.
 
-`scripts/check_rule_sourcing.py` fails CI if a live rule targets telemetry the
-normalizer cannot produce. A rule that can never fire is not coverage, it is a
-claim — this gate exists because 38 such rules shipped unnoticed.
+`scripts/check_rule_sourcing.py` fails CI if any rule declares an `event_type`
+the normalizer cannot produce. There is no exemption directory: a rule that can
+never fire is not coverage, it is a claim. The gate exists because 38 such rules
+shipped unnoticed; they were deleted rather than parked.
 
 Rule format is Sigma/Wazuh-*inspired*, not Sigma: `id`, `level` (0-16),
 `logic: {all/any/none}`, `active_response`, `mitre: {tactic, technique}`.

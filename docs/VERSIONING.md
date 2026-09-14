@@ -1,15 +1,17 @@
 # Panopticon Versioning Policy
 
 This document defines how versions are assigned across the Panopticon polyrepo
-(`panopticon-agent`, `panopticon-detection-engine`, `panopticon-console`). It
+(`panopticon-agent`, `panopticon-linux-agent`, `panopticon-detection-engine`,
+`panopticon-manager`, `panopticon-response-engine`, `panopticon-contracts`,
+`panopticon-console`). It
 exists to remove ambiguity between a *coordinated platform release* and the
 various *component / build identifiers* that appear in individual files.
 
 ## 1. Coordinated Panopticon release version (authoritative)
 
 The version of "Panopticon" is a single [SemVer](https://semver.org/) string,
-applied as an **annotated Git tag with the same name on all three
-repositories** for a coordinated release.
+applied as an **annotated Git tag with the same name on every repository
+participating in that release**.
 
 - `v1.0.0` — the process-creation vertical slice (Officer -> Schema 0.2 ->
   detection-engine -> `DET-PROC-011` -> `alerts.ndjson` -> console -> browser),

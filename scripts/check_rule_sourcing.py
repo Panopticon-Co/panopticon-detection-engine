@@ -13,8 +13,8 @@ The producible vocabulary is derived from two sources that must agree:
 * ``panopticon_detection/ingestion/telemetry.py`` -- how this engine maps those
   onto its internal ``event_type``
 
-Rules under ``rules/unsourced/`` are exempt: they are kept for MITRE coverage
-and synthetic replay, and ``RuleLoader`` already excludes them from live runs.
+There is no exemption directory. A rule that cannot fire is not coverage, it is
+a claim, so such rules are deleted rather than parked.
 
 Exits non-zero and names every offender, so the failure is actionable.
 """
@@ -50,8 +50,6 @@ def main() -> int:
     offenders = []
 
     for path in sorted(rules_dir.rglob("*.yaml")):
-        if "unsourced" in path.relative_to(rules_dir).parts:
-            continue
         text = path.read_text(encoding="utf-8")
         match = EVENT_TYPE.search(text)
         if not match:
@@ -68,21 +66,15 @@ def main() -> int:
         for path, detail in offenders:
             print(f"  {path.relative_to(REPO_ROOT)}\n      event_type: {detail}")
         print(
-            f"\n{len(offenders)} unsourced rule(s) in the live set."
-            "\nEither correct the event_type to one the normalizer emits, or move"
-            "\nthe rule under rules/unsourced/ so it is excluded from live runs."
+            f"\n{len(offenders)} rule(s) target telemetry nothing produces."
+            "\nCorrect the event_type to one the normalizer emits, or delete the"
+            "\nrule -- do not ship a rule that can never fire."
             f"\n\nProducible event types: {', '.join(sorted(PRODUCIBLE))}"
         )
         return 1
 
-    live = sum(
-        1
-        for p in rules_dir.rglob("*.yaml")
-        if "unsourced" not in p.relative_to(rules_dir).parts
-    )
-    archived = len(list((rules_dir / "unsourced").rglob("*.yaml")))
-    print(f"OK: {live} live rule(s) all target producible telemetry.")
-    print(f"    {archived} rule(s) archived under rules/unsourced/ (not loaded live).")
+    total = len(list(rules_dir.rglob("*.yaml")))
+    print(f"OK: all {total} rule(s) target producible telemetry.")
     return 0
 
 

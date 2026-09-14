@@ -31,22 +31,13 @@ class RuleLoader:
         self.validator.validate_rule(rule)
         return rule
 
-    # Rules whose event_type no Panopticon agent can emit live under this
-    # directory. They are kept for MITRE coverage and for replay against
-    # synthetic telemetry, but must never load into a live detection run --
-    # a rule that can never fire is not coverage, it is a claim.
-    EXCLUDED_DIRS = frozenset({"unsourced"})
-
     def load_directory(
-        self,
-        dir_path: Union[str, Path],
-        recursive: bool = True,
-        include_unsourced: bool = False,
+        self, dir_path: Union[str, Path], recursive: bool = True
     ) -> List[Rule]:
         """Scans a directory for .yaml and .yml rules.
 
-        Skips :attr:`EXCLUDED_DIRS` unless ``include_unsourced`` is set, so the
-        live rule set only ever contains rules the agents can actually trigger.
+        Every rule here is expected to target telemetry a Panopticon agent can
+        actually emit; ``scripts/check_rule_sourcing.py`` enforces that in CI.
         """
         path = Path(dir_path)
         if not path.is_dir():
@@ -56,10 +47,6 @@ class RuleLoader:
         rules: List[Rule] = []
 
         for file_path in sorted(path.glob(pattern)):
-            if not include_unsourced and self.EXCLUDED_DIRS.intersection(
-                file_path.relative_to(path).parts
-            ):
-                continue
             try:
                 rule = self.load_file(file_path)
                 if rule.status == RuleStatus.ENABLED:

@@ -77,18 +77,13 @@ engine correctly refuses to build a `KILL_PROCESS` command.
 | `panopticon_detection/ingestion/` | Agent schema adapters and telemetry streams |
 | `panopticon_detection/reliability/` | Bounded queue, SQLite spool, retry, health, metrics |
 | `panopticon_detection/alerting/` | Alert model and formatters |
-| `rules/` | 54 live rules |
-| `rules/unsourced/` | 38 rules whose telemetry no agent emits — kept, not loaded |
+| `rules/` | 54 rules, all firing on telemetry the agents emit |
 
 ## Rules
 
-`rules/unsourced/` holds rules targeting telemetry no Panopticon agent
-produces (`http_request`, `kerberos_ticket`, `k8s_audit`, …). They are retained
-for MITRE coverage work and synthetic replay, and excluded from live runs.
-
-`scripts/check_rule_sourcing.py` fails CI if a *live* rule targets an
-`event_type` the normalizer cannot produce. A rule that can never fire is not
-coverage, it is a claim.
+`scripts/check_rule_sourcing.py` fails CI if any rule targets an `event_type`
+the normalizer cannot produce. A rule that can never fire is not coverage, it
+is a claim, so 38 such rules were deleted rather than carried.
 
 ```bash
 python scripts/check_rule_sourcing.py
