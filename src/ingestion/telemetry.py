@@ -28,7 +28,9 @@ from __future__ import annotations
 from typing import Any, Callable, Dict
 
 TELEMETRY_FAMILIES = ("process", "network", "file", "registry", "image_load")
-SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3")
+# 0.4 (Linux agent) shares 0.2/0.3's wire envelope -- see the matching
+# comment in officer_adapter.py.
+SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4")
 
 # event.type (Schema 0.3) -> engine event_type, chosen to match the vocabulary
 # the existing rule set already uses (DET-NET-001 -> network_connect,

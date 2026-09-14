@@ -21,7 +21,13 @@ class OfficerIngestionAdapter:
     """
 
     SCHEMA_VERSION = "0.2"
-    SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3")
+    # 0.4 is the Linux agent's schema version (see
+    # panopticon-agent/schema/event.schema.json's enum and
+    # manager/routers/ingest.py's _SUPPORTED_SCHEMA_VERSIONS) -- its wire
+    # shape is identical to 0.2/0.3's (same event/source/agent/host/user/
+    # process envelope), so it is safe to accept explicitly here rather than
+    # relying on the duck-typing fallback below to smuggle it through.
+    SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4")
 
     @classmethod
     def is_officer_event(cls, raw: Dict[str, Any]) -> bool:

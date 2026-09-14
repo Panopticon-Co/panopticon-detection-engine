@@ -62,6 +62,58 @@ def test_is_officer_event_accepts_0_3(raw_rows):
     assert all(tele.is_panopticon_event(r) for r in raw_rows)
 
 
+def _linux_agent_schema_0_4_event() -> dict:
+    """The exact wire shape panopticon-linux-agent's
+    serialize_canonical_process_ndjson (src/event.cpp) actually emits for a
+    real process-start event -- schema_version 0.4 is the Linux agent's
+    version (see manager/routers/ingest.py's comment 'Schema 0.4 is
+    Linux-capable'), structurally identical to 0.2/0.3's envelope."""
+    return {
+        "schema_version": "0.4",
+        "event": {"id": "evt_linux_1", "category": "process", "type": "start", "timestamp": "2026-09-14T12:00:00.000Z"},
+        "source": {"kind": "linux_procfs", "provider": "procfs", "channel": None, "record_id": None},
+        "agent": {"id": "agent-linux-1", "version": "1.0.0"},
+        "host": {"id": "HOST-LINUX-1", "hostname": "linux-host", "os": {"name": "Linux", "build": "6.8.0"}},
+        "user": {"name": None, "domain": None, "sid": None},
+        "process": {
+            "entity_id": "proc_linux1",
+            "pid": 4242,
+            "name": "cron",
+            "executable": "/usr/sbin/cron",
+            "command_line": "/usr/sbin/cron -f",
+            "start_time_ticks": 123456789,
+            "parent": {"entity_id": None, "pid": 1, "name": None},
+            "hash": {"sha256": None},
+        },
+    }
+
+
+def test_schema_0_4_linux_agent_event_is_recognized_and_normalized_without_duck_typing():
+    # Explicit acceptance, not the "event"/"process"/"source" duck-typing
+    # fallback -- proves SUPPORTED_SCHEMA_VERSIONS itself now lists "0.4",
+    # matching panopticon-agent/schema/event.schema.json's own enum and
+    # manager/routers/ingest.py's _SUPPORTED_SCHEMA_VERSIONS, so this can't
+    # silently regress back to relying on duck-typing alone.
+    event = _linux_agent_schema_0_4_event()
+    assert "0.4" in OfficerIngestionAdapter.SUPPORTED_SCHEMA_VERSIONS
+    assert "0.4" in tele.SUPPORTED_SCHEMA_VERSIONS
+    assert OfficerIngestionAdapter.is_officer_event(event) is True
+    assert tele.is_panopticon_event(event) is True
+    transformed = OfficerIngestionAdapter.transform_officer_event(event)
+    assert transformed["process"]["pid"] == 4242
+    # KNOWN GAP (not part of this schema-version fix, reported separately):
+    # transform_officer_event's normalized "process" dict does not carry
+    # start_time_ticks through from the raw officer event -- only the
+    # preserved "_raw_officer_event" copy still has it. This means a real,
+    # live KILL_PROCESS recommendation computed from a raw wire event ingested
+    # through the actual HTTP -> worker.py -> transform_officer_event path
+    # would lose PID-reuse-safety data that the TRUE-PRODUCTION-E2E tests
+    # (which call run.process_event on an already-normalized, non-officer-
+    # shaped event and never go through this function) do not exercise.
+    assert "start_time_ticks" not in transformed["process"]
+    assert transformed["_raw_officer_event"]["process"]["start_time_ticks"] == 123456789
+
+
 def test_category_of_falls_back_to_process_for_unknown():
     assert tele.category_of({"event": {"category": "dns"}}) == "process"
     assert tele.category_of({"event": {"category": "network"}}) == "network"
