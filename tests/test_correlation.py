@@ -98,3 +98,84 @@ def test_multi_event_correlation():
     assert len(incidents_2) == 1
     assert incidents_2[0].correlation_rule_id == "CORR-001"
     assert incidents_2[0].severity == "critical"
+
+
+def _proc_rule(rule_id, name):
+    return Rule(
+        id=rule_id,
+        name=name,
+        event_type="process_create",
+        logic=LogicNode(all=[Condition(field="process.name", operator="equals", value="x")]),
+    )
+
+
+def _net_rule(rule_id, name):
+    return Rule(
+        id=rule_id,
+        name=name,
+        event_type="network_connect",
+        logic=LogicNode(all=[Condition(field="process.name", operator="equals", value="x")]),
+    )
+
+
+def test_correlation_keys_on_pid_across_mismatched_entity_ids():
+    """Live behaviour: the agent derives a different process.entity_id for a
+    process's start event vs its network event, but the PID is the same. The
+    correlation key must join on PID."""
+    engine = CorrelationEngine()
+    proc = _proc_rule("DET-PROC-001", "proc")
+    net = _net_rule("DET-NET-001", "net")
+
+    stage1 = {
+        "event_id": "e1", "host_id": "H1", "timestamp": "2026-08-31T12:00:00.000Z",
+        "process": {"name": "powershell.exe", "pid": 4242, "process_guid": "proc_AAAAAAAA"},
+    }
+    stage2 = {
+        "event_id": "e2", "host_id": "H1", "timestamp": "2026-08-31T12:00:05.000Z",
+        "process": {"name": "powershell.exe", "pid": 4242, "process_guid": "proc_BBBBBBBB"},
+    }
+
+    assert engine.ingest_detection(DetectionResult(rule=proc, event=stage1)) == []
+    incidents = engine.ingest_detection(DetectionResult(rule=net, event=stage2))
+    assert len(incidents) == 1
+    assert incidents[0].correlation_rule_id == "CORR-001"
+
+
+def test_correlation_window_is_enforced():
+    engine = CorrelationEngine()
+    proc = _proc_rule("DET-PROC-001", "proc")
+    net = _net_rule("DET-NET-001", "net")
+
+    stage1 = {
+        "event_id": "e1", "host_id": "H1", "timestamp": "2026-08-31T12:00:00.000Z",
+        "process": {"name": "powershell.exe", "pid": 4242},
+    }
+    stage2 = {
+        "event_id": "e2", "host_id": "H1", "timestamp": "2026-08-31T12:05:00.000Z",  # 300s > 60s
+        "process": {"name": "powershell.exe", "pid": 4242},
+    }
+
+    engine.ingest_detection(DetectionResult(rule=proc, event=stage1))
+    incidents = engine.ingest_detection(DetectionResult(rule=net, event=stage2))
+    assert incidents == []
+
+
+def test_corr_003_certutil_download_then_egress():
+    engine = CorrelationEngine()
+    proc = _proc_rule("DET-PROC-003", "certutil download")
+    net = _net_rule("DET-NET-006", "lolbas egress")
+
+    p = {
+        "event_id": "c1", "host_id": "H1", "timestamp": "2026-08-31T12:00:00.000Z",
+        "process": {"name": "certutil.exe", "pid": 7777, "process_guid": "proc_START"},
+    }
+    n = {
+        "event_id": "c2", "host_id": "H1", "timestamp": "2026-08-31T12:00:02.000Z",
+        "process": {"name": "certutil.exe", "pid": 7777, "process_guid": "proc_CONTEXT"},
+    }
+
+    assert engine.ingest_detection(DetectionResult(rule=proc, event=p)) == []
+    incidents = engine.ingest_detection(DetectionResult(rule=net, event=n))
+    assert len(incidents) == 1
+    assert incidents[0].correlation_rule_id == "CORR-003"
+    assert incidents[0].mitre_technique == "T1105"

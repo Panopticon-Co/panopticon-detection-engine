@@ -6,10 +6,23 @@ and process hierarchies to detect complex attack chains (e.g. Office -> PowerShe
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from src.alerting.alert import Alert
 from src.evaluator.engine import DetectionResult
+
+
+def _parse_ts(value: Any) -> datetime:
+    """Parse an ISO-8601 timestamp tolerantly. Returns ``datetime.min`` when the
+    value is missing or unparseable, so callers can treat that as 'unknown' and
+    fail open rather than dropping a correlation."""
+    if not value:
+        return datetime.min
+    text = str(value).strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(text).replace(tzinfo=None)
+    except ValueError:
+        return datetime.min
 
 
 @dataclass
@@ -82,23 +95,53 @@ class CorrelationEngine:
         rule_id = detection.rule.id
         event = detection.event
         host_id = event.get("host_id", "UNKNOWN")
-        guid = event.get("process", {}).get("process_guid") or event.get("host_id", "HOST")
-        
-        # Track by host + process_guid or host-level key
-        key = f"{host_id}:{guid}"
-        
-        # Parse timestamp or fallback
-        ts_str = event.get("timestamp", datetime.utcnow().isoformat())
-        
+        proc = event.get("process", {}) or {}
+
+        # Bucket by PID, not process.entity_id / process_guid. The agent derives
+        # a *different* entity_id for a process's start event (process-entity-v2:
+        # host+pid+start_time) than for its later network/file/registry events
+        # (process-context-v1: host+pid+ProcessGuid) -- see panopticon-agent
+        # include/.../core/entity_id.hpp -- so an entity_id key can never join the
+        # stages of a live same-process chain. The PID is identical across those
+        # families. Fall back to entity_id then host for legacy/synthetic events
+        # that carry no pid.
+        #
+        # This joins *same-process* multi-stage chains (certutil -> its own
+        # egress; powershell -> its own outbound connection), which is the common
+        # EDR shape. Cross-process campaigns (recon in one PID, vssadmin in
+        # another) need ProcessTree lineage, not this key -- future work, and the
+        # real long-term fix is one unified process GUID across all agent
+        # telemetry families.
+        token = proc.get("pid")
+        if token is None:
+            token = proc.get("process_guid") or "HOST"
+        key = f"{host_id}:{token}"
+
+        ts_str = event.get("timestamp", datetime.now().isoformat())
+
         record = {
             "rule_id": rule_id,
             "timestamp_str": ts_str,
+            "ts": _parse_ts(ts_str),
             "evidence": detection.matched_evidence,
             "event": event,
         }
-        
-        self.alert_history.setdefault(key, []).append(record)
-        
+
+        bucket = self.alert_history.setdefault(key, [])
+        bucket.append(record)
+
+        # Bound memory: a long-running engine would otherwise accumulate every
+        # detection forever. Keep only what could still complete the widest
+        # correlation window.
+        if record["ts"] != datetime.min:
+            widest = max(
+                (r.time_window_seconds for r in self.correlation_rules), default=60
+            )
+            horizon = record["ts"] - timedelta(seconds=widest)
+            self.alert_history[key] = [
+                r for r in bucket if r["ts"] == datetime.min or r["ts"] >= horizon
+            ]
+
         # Check all correlation rules
         incidents: List[CorrelatedIncident] = []
         for corr_rule in self.correlation_rules:
@@ -115,10 +158,7 @@ class CorrelationEngine:
         if len(history) < len(corr_rule.stages):
             return None
 
-        # Check if the sequence of rule_ids occurred
-        history_rule_ids = [h["rule_id"] for h in history]
-        
-        # Look for contiguous or ordered subsequence matching stages
+        # Look for an ordered subsequence of the history matching the stages.
         stage_idx = 0
         matched_records = []
         for rec in history:
@@ -129,7 +169,19 @@ class CorrelationEngine:
                     break
 
         if stage_idx == len(corr_rule.stages):
-            # All stages found in sequence!
+            # Enforce the sliding window: first and last matched stage must fall
+            # within time_window_seconds. Fail open if either timestamp is
+            # unparseable rather than silently dropping the incident.
+            first_ts = matched_records[0]["ts"]
+            last_ts = matched_records[-1]["ts"]
+            if (
+                first_ts != datetime.min
+                and last_ts != datetime.min
+                and (last_ts - first_ts).total_seconds() > corr_rule.time_window_seconds
+            ):
+                return None
+
+            # All stages found in sequence and within the window.
             incident = CorrelatedIncident(
                 incident_id=f"INC-{uuid.uuid4().hex[:8].upper()}",
                 correlation_rule_id=corr_rule.id,
@@ -173,5 +225,21 @@ class CorrelationEngine:
                 confidence=0.95,
                 mitre_tactic="Impact",
                 mitre_technique="T1490",
+            ),
+            CorrelationRule(
+                id="CORR-003",
+                name="LOLBAS Certutil Download Followed by Outbound Network Egress",
+                description=(
+                    "certutil.exe is invoked to download a remote file and the "
+                    "same process then makes an outbound network connection -- a "
+                    "single ships-with-Windows binary performing ingress tool "
+                    "transfer and command-and-control."
+                ),
+                stages=["DET-PROC-003", "DET-NET-006"],
+                time_window_seconds=60,
+                severity="critical",
+                confidence=0.95,
+                mitre_tactic="Command and Control",
+                mitre_technique="T1105",
             ),
         ]
