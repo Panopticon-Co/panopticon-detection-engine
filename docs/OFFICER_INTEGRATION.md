@@ -32,7 +32,7 @@ It is designed to connect directly with the **Windows Kernel Telemetry Agent** (
 │   │             (`eyedetect`)              │                                           │
 │   │  • Officer Ingestion Adapter (v0.2)    │                                           │
 │   │  • Stateful ProcessTree Tracker        │                                           │
-│   │  • 84+ Wazuh/Sigma Rules Evaluator     │                                           │
+│   │  • 92 Custom YAML Rules Evaluator      │                                           │
 │   │  • Entity Risk Scorer & MITRE Matrix   │                                           │
 │   │  • Automated Process Kill / Quarantine │                                           │
 │   └────────────────────────────────────────┘                                           │

@@ -10,15 +10,15 @@ This document provides definitive instructions, architectural boundaries, and ex
 * **Role**: The central analytical detection, correlation, and response engine for the **Panopticon EDR / XDR Platform**.
 * **Organization Topology**:
   * 🛡️ **`panopticon-agent`** (C++20): Windows kernel ETW and Sysmon telemetry collector.
-  * 🧠 **`panopticon-detection-engine`** (Python 3.10+): This repository. Evaluates 84+ Sigma rules, correlates process trees, and produces alerts.
+  * 🧠 **`panopticon-detection-engine`** (Python 3.10+): This repository. Evaluates 92 custom YAML detection rules (Sigma/Wazuh-inspired format, **not** Sigma-format), correlates process trees, and produces alerts.
   * 🏢 **`panopticon-manager`** (Python / FastAPI): Central management server. Vendors this repository as a git submodule at `vendor/eyedetect` to run server-side detection.
   * 🖥️ **`panopticon-console`** (Python / HTML5): Lightweight SOC analyst web dashboard that reads `alerts.ndjson`.
 
 ---
 
-## 2. Telemetry Contract (Panopticon Schema 0.3)
+## 2. Telemetry Contract (Panopticon Schema 0.4)
 
-* This engine ingests telemetry adhering to **Panopticon Schema 0.1, 0.2, and 0.3** via `src/ingestion/officer_adapter.py` (`OfficerIngestionAdapter`).
+* This engine ingests telemetry adhering to **Panopticon Schema 0.1, 0.2, 0.3, and 0.4** via `src/ingestion/officer_adapter.py` (`OfficerIngestionAdapter`). Schema 0.4 is the Linux agent's additive procfs extension; wire compatibility is unchanged for 0.1-0.3 producers.
 * Supported Telemetry Families:
   1. **Process**: Process start, stop, command lines, parent lineage, and SHA-256 entity hashes (`proc_<sha256>`).
   2. **Network**: Outbound/inbound IP connections, destination ports, protocols (Sysmon Event ID 3).
@@ -51,7 +51,7 @@ This document provides definitive instructions, architectural boundaries, and ex
                              ▼
   ┌─────────────────────────────────────────────────────────────┐
   │ 3. Rule Evaluator (src/evaluator/engine.py)                 │
-  │    • Evaluates 84+ Sigma/MITRE rules (rules/*).             │
+  │    • Evaluates 92 custom YAML MITRE-mapped rules (rules/*). │
   │    • Wazuh severity scoring (Levels 0–16).                  │
   └──────────────────────────┬──────────────────────────────────┘
                              │
