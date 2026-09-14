@@ -268,8 +268,11 @@ class DetectionRun:
                             ),
                         )
                     ),
-                    mitre_tactic=rule.mitre.tactic if rule.mitre else None,
-                    mitre_technique=rule.mitre.technique if rule.mitre else None,
+                    # ThresholdRule is a plain dataclass with flat
+                    # mitre_tactic/mitre_technique -- not the pydantic Rule's
+                    # nested `mitre` object. They are different types.
+                    mitre_tactic=rule.mitre_tactic,
+                    mitre_technique=rule.mitre_technique,
                     tags=["threshold_trigger"],
                 ),
                 produced,
