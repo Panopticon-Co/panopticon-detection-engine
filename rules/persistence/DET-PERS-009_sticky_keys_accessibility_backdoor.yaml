@@ -3,7 +3,7 @@ name: Accessibility Feature Sticky Keys Backdoor Abuse
 description: Detects the replacement of sethc.exe, utilman.exe, osk.exe, or Magnify.exe with cmd.exe or powershell.exe to obtain unauthenticated SYSTEM shells at logon screen.
 version: 1
 status: enabled
-event_type: file_modify
+event_type: file_create
 
 level: 16
 severity: critical

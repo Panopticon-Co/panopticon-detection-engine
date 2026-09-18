@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   test:
@@ -21,16 +21,39 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install -e ".[dev]"
 
-      - name: Run Engine Test Suite
-        run: |
-          pytest -v tests/
+      # Gate first: a rule that cannot fire is not coverage, it is a claim.
+      # See scripts/check_rule_sourcing.py and finding F2.
+      - name: Rule sourcing gate
+        run: python scripts/check_rule_sourcing.py
 
-      - name: Validate Master Cyber Attack Simulation
+      - name: Tests
+        run: pytest -q
+
+      - name: Smoke - batch replay
         run: |
-          python src/main.py --rules rules --telemetry samples/master_full_spectrum_simulation.ndjson
+          panopticon-detect --rules rules \
+            --telemetry samples/master_full_spectrum_simulation.ndjson \
+            --output-format ndjson --graph-stats
+
+      # Real agent-shaped telemetry: exercises the provenance graph and the
+      # campaign traversal, which the flat legacy sample above cannot.
+      - name: Smoke - agent telemetry and provenance correlation
+        run: |
+          panopticon-detect --rules rules \
+            --officer-ndjson samples/officer_live_sample.ndjson \
+            --output-format ndjson --graph-stats
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check panopticon_detection scripts tests

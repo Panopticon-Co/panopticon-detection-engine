@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from src.ingestion.live_stream import LiveTelemetryStream
+from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
 
 OFFICER_BIN = os.environ.get("OFFICER_AGENT_BIN")
 

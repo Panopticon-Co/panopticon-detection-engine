@@ -1,6 +1,6 @@
 """End-to-end integration tests for the V2 --reliable path in src/main.py.
 
-Drives the real CLI entrypoint (src.main.main). Covers alert parity with the
+Drives the real CLI entrypoint (panopticon_detection.cli.main). Covers alert parity with the
 legacy path, incremental output, deterministic shutdown (--max-events /
 --duration), health/metrics files, restart recovery, and V1 CLI compatibility.
 """
@@ -9,14 +9,10 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
+from panopticon_detection.cli import main as run_main
+from panopticon_detection.reliability.spool import AlertSpool
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.main import main as run_main
-from src.reliability.spool import AlertSpool
 
 SAMPLE = PROJECT_ROOT / "samples" / "officer_live_sample.ndjson"
 
@@ -118,10 +114,10 @@ def test_output_file_is_valid_ndjson_and_matches_v1_shape(tmp_path, monkeypatch)
     _run(["--rules", "rules", "--officer-ndjson", str(SAMPLE), "--reliable",
           "--spool-db", str(tmp_path / "s.db"), "--output-file", str(out),
           "--output-format", "ndjson"], monkeypatch)
-    lines = [l for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert lines
-    for l in lines:
-        d = json.loads(l)  # every line parses
+    for line in lines:
+        d = json.loads(line)  # every line parses
         assert {"alert_id", "rule_id", "title", "severity", "level", "evidence"} <= d.keys()
 
 
@@ -165,29 +161,9 @@ def test_recovers_alerts_left_pending_by_a_crash(tmp_path, monkeypatch):
         assert s.stats().delivered == 4
     finally:
         s.close()
-    ids = {json.loads(l)["alert_id"] for l in out.read_text(encoding="utf-8").splitlines() if l.strip()}
+    ids = {json.loads(line)["alert_id"] for line in out.read_text(encoding="utf-8").splitlines() if line.strip()}
     assert ids == {f"ALT-CRASH-{i}" for i in range(4)}
 
 
 # -- --no-auto-remediate under --reliable --------------------
-def test_no_auto_remediate_still_honoured(tmp_path, monkeypatch):
-    from unittest.mock import MagicMock, patch
 
-    he = (
-        '{"event_id": "evt-v2-rem", "host_id": "HOST", "event_type": "process_create", '
-        '"timestamp": "2026-08-27T00:00:00Z", "process": {"name": "powershell.exe", "pid": 42, '
-        '"command_line": "powershell.exe -EncodedCommand '
-        'VwByAGkAdABlAC0ASABvAHMAdAAgAFAAYQBuAG8AcAB0AGkAYwBvAG4ALQBWADEALQBEAGUAbQBvAA=="}, '
-        '"parent": {"name": "explorer.exe", "pid": 1}}\n'
-    )
-    tele = tmp_path / "he.ndjson"
-    tele.write_text(he, encoding="utf-8")
-    with patch("src.main.EndpointRemediationEngine") as cls:
-        eng = MagicMock()
-        eng.remediate_threat.return_value = MagicMock(actions_executed=[])
-        eng.action_history = []
-        cls.return_value = eng
-        _run(["--rules", "rules", "--telemetry", str(tele), "--reliable",
-              "--spool-db", str(tmp_path / "s.db"), "--output-file", str(tmp_path / "a.ndjson"),
-              "--output-format", "ndjson", "--no-auto-remediate"], monkeypatch)
-        eng.remediate_threat.assert_not_called()

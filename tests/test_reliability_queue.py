@@ -5,18 +5,12 @@ shutdown, empty-queue behaviour, observable stats, and concurrent producer/
 consumer access.
 """
 
-import sys
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.reliability.queue import (
+from panopticon_detection.reliability.queue import (
     CLOSED,
     EMPTY,
     BoundedEventQueue,

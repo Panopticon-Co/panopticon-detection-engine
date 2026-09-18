@@ -1,18 +1,12 @@
 """Tests for V2 metrics (metrics.py) and health (health.py)."""
 
 import json
-import sys
 import time
-from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.reliability.health import HealthState
-from src.reliability.metrics import Metrics
+from panopticon_detection.reliability.health import HealthState
+from panopticon_detection.reliability.metrics import Metrics
 
 
 # -- metrics ----------------------------------------------------------------

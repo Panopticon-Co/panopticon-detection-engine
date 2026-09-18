@@ -1,9 +1,8 @@
 """Unit tests for Deobfuscation, Shannon Entropy, and Entity Risk Scorer."""
 
-import pytest
-from src.evaluator.deobfuscator import CommandDeobfuscator
-from src.evaluator.entropy import ShannonEntropyCalculator
-from src.correlation.risk_scorer import EntityRiskScorer
+from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
+from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
+from panopticon_detection.provenance.risk_scorer import EntityRiskScorer
 
 
 def test_command_deobfuscation():
@@ -45,21 +44,48 @@ def test_shannon_entropy_calculator():
 
 
 def test_entity_risk_scorer():
-    scorer = EntityRiskScorer(breach_threshold=70)
+    # half_life_seconds=0 disables decay, isolating the accumulation logic.
+    scorer = EntityRiskScorer(breach_threshold=70, half_life_seconds=0)
 
-    # Event 1: Reconnaissance (+15 pts) -> 15/100
     alert1 = scorer.record_detection("HOST-CORP-01", "DET-PROC-008", "Whoami Recon", 7, "2026-08-14T20:00:00Z")
     assert alert1 is None
     assert scorer.get_host_score("HOST-CORP-01") == 15
 
-    # Event 2: Office spawns CMD (+15 pts) -> 30/100
     alert2 = scorer.record_detection("HOST-CORP-01", "DET-PROC-002", "Office spawns CMD", 7, "2026-08-14T20:01:00Z")
     assert alert2 is None
     assert scorer.get_host_score("HOST-CORP-01") == 30
 
-    # Event 3: Deobfuscated Download Cradle (+50 pts) -> 80/100 -> Crosses 70 threshold!
+    # +50 -> 80/100, crossing the 70 threshold.
     alert3 = scorer.record_detection("HOST-CORP-01", "DET-PROC-012", "C2 Download Cradle", 13, "2026-08-14T20:02:00Z")
     assert alert3 is not None
     assert "CORR-RISK-001" in alert3.rule_id
     assert scorer.get_host_score("HOST-CORP-01") == 80
     assert alert3.active_response["action"] == "ISOLATE_HOST"
+
+
+def test_risk_score_decays_over_quiet_time():
+    """F6: the meter only ever rose, so it reported a host's history rather
+    than its current state."""
+    scorer = EntityRiskScorer(breach_threshold=70, half_life_seconds=3600)
+    scorer.record_detection("HOST-A", "R1", "n", 13, "2026-08-14T20:00:00Z")
+    assert scorer.get_host_score("HOST-A") == 50
+
+    # One half-life of quiet: ~50 decays to ~25 before the new points land.
+    scorer.record_detection("HOST-A", "R2", "n", 1, "2026-08-14T21:00:00Z")
+    assert 28 <= scorer.get_host_score("HOST-A") <= 32
+
+
+def test_risk_scorer_rearms_after_a_host_quietens():
+    """F6: has_alerted latched forever, so a second campaign on the same host
+    was silent for the lifetime of the process."""
+    scorer = EntityRiskScorer(breach_threshold=70, half_life_seconds=600)
+
+    scorer.record_detection("HOST-B", "R1", "n", 13, "2026-08-14T20:00:00Z")
+    breach = scorer.record_detection("HOST-B", "R2", "n", 13, "2026-08-14T20:00:30Z")
+    assert breach is not None
+
+    # Long quiet period decays the score below the re-arm threshold...
+    scorer.record_detection("HOST-B", "R3", "n", 1, "2026-08-14T23:00:00Z")
+    # ...so a fresh campaign alerts again instead of being swallowed.
+    second = scorer.record_detection("HOST-B", "R4", "n", 16, "2026-08-14T23:00:10Z")
+    assert second is not None

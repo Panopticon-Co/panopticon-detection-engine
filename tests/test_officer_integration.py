@@ -1,13 +1,14 @@
 """Unit and Integration Tests for C++ Officer Agent (Panopticon Schema 0.2) Integration."""
 
-import json
 from pathlib import Path
+
 import pytest
-from src.evaluator.engine import RuleEvaluator
-from src.ingestion.live_stream import LiveTelemetryStream
-from src.ingestion.officer_adapter import OfficerIngestionAdapter
-from src.rules.loader import RuleLoader
-from src.threat_intel.ioc_lookup import ThreatIntelEngine
+
+from panopticon_detection.evaluator.engine import RuleEvaluator
+from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
+from panopticon_detection.ingestion.officer_adapter import OfficerIngestionAdapter
+from panopticon_detection.rules.loader import RuleLoader
+from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
 
 
 @pytest.fixture
