@@ -86,13 +86,15 @@ def _clean_title(title: str) -> str:
 
 
 def _campaign_detail(alert: Any) -> List[str]:
-    """Extra lines for a multi-stage campaign alert."""
+    """Extra lines for an incident alert."""
     evidence: Dict[str, Any] = getattr(alert, "evidence", None) or {}
     out: List[str] = []
     if evidence.get("attack_chain"):
         out.append(f"chain     : {evidence['attack_chain']}")
     if evidence.get("process_lineage"):
         out.append(f"lineage   : {evidence['process_lineage']}")
+    for reason in evidence.get("why") or []:
+        out.append(f"why       : {reason}")
     return out
 
 
@@ -121,13 +123,13 @@ def recommendation_text(alert: Any) -> str:
 
 def _closing_summary(alerts: List[Any]) -> str:
     """Counts only. The engine executed nothing, so it claims nothing."""
-    campaigns = sum(1 for a in alerts if getattr(a, "rule_id", "") == "PROV-CAMPAIGN")
+    incidents = len({a.incident_id for a in alerts if getattr(a, "incident_id", None)})
     recommended = sum(1 for a in alerts if getattr(a, "active_response", None))
     hosts = len({a.host_id for a in alerts if getattr(a, "host_id", None)})
 
     parts = [
         f"{len(alerts)} detection(s) across {hosts} host(s)",
-        f"{campaigns} multi-stage campaign(s)",
+        f"{incidents} incident(s)",
         f"{recommended} response action(s) recommended for analyst review",
     ]
     return "  " + " | ".join(parts)

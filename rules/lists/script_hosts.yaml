@@ -1,0 +1,8 @@
+# Interpreters an attacker reaches for after initial execution.
+values:
+  - powershell.exe
+  - pwsh.exe
+  - cmd.exe
+  - wscript.exe
+  - cscript.exe
+  - mshta.exe

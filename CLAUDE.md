@@ -53,14 +53,16 @@ spool is a local SQLite file.
 run. `DetectionRun.process_event` handles one event, in this order:
 
 1. **`provenance/builder.py`** turns the event into one graph edge and updates
-   the process registry. This runs *before* evaluation so ancestry conditions on
-   the event's own process resolve.
-2. **`evaluator/`** matches atomic rules.
-3. **`provenance/tagging.py`** writes each match onto the edge the event created
-   — a detection becomes part of the graph, not a parallel stream.
-4. **`provenance/campaign.py`** anchors a backward traversal when a match lands
-   on a terminal tactic; that is how multi-stage campaigns are found.
-5. Behavioral detectors (`behavioral/`) and threshold rules run independently.
+   the process registry (inferring an unseen actor via `observe_context`). This
+   runs *before* evaluation so ancestry and image-writer fields resolve.
+2. **`evaluator/engine.py`** (single-event rules), **`evaluator/stateful.py`**
+   (sequence / threshold / value_count) and **`behavioral/beacon.py`** detect.
+   All read fields through `evaluator/matcher.extract_field`, which serves
+   derived fields from **`enrichment.py`** (cached per event).
+3. Repeats of a rule on the same process within the dedup TTL are suppressed.
+4. Every detection is tagged onto the event's edge, then handed to
+   **`provenance/incident.py`**, which attaches it to an open incident or opens
+   one, emitting an incident alert only on open or material change.
 
 ### The provenance layer
 
@@ -70,14 +72,28 @@ run. `DetectionRun.process_event` handles one event, in this order:
   entity_id can never join a process to its own later activity. This module
   joins on `(host_id, pid, timestamp)` instead, via interval stabbing over
   per-PID incarnations. **Never reintroduce an entity_id-keyed index.**
-- **`provenance/graph.py` (L2)** — typed temporal graph. `backward()` walks
-  undirected adjacency but only ever steps to edges at or before the time
-  reached so far. That causality constraint is what makes the walk root-cause
-  analysis rather than an arbitrary flood.
-- **`provenance/campaign.py` (L4)** — scoring combines tactic breadth, path
-  rareness and severity. `_EDGE_PRIOR` is an explicit **placeholder** for a
-  learned baseline; the weights need real telemetry to tune. Do not present
-  them as settled.
+- **`provenance/graph.py` (L2)** — typed temporal graph. `backward()` follows
+  *information flow* in reverse (child→parent, process→image file→its writer)
+  and never steps forward in time; `forward_processes()` is its complement.
+  Both stop at boundary processes (`provenance/boundary.py`). **Never make a
+  walk undirected or let it expand through a boundary hub** — that merged every
+  program under `explorer.exe` into one "attack" and rooted it at explorer.
+  Sockets are leaves: shared destinations are correlation, not causation.
+- **`provenance/incident.py` (L4)** — a tag's scope is its backward walk plus
+  everything downstream of its tree's entry point; scopes that touch an open
+  incident join it. Stages are recomputed from the graph, so replay rebuilds
+  identical incidents. The incident alert keeps `rule_id: PROV-CAMPAIGN` (a
+  stored contract with the manager) with `incident_id` stable and `alert_id`
+  carrying the revision. The score is itemised in `score_breakdown`; keep it
+  explainable rather than adding opaque weights.
+
+### Rules
+
+- Types: `single` (default), `sequence`, `threshold`, `value_count`
+  (`rules/schema.py`). Stateful rules key `by` an entity kind (`process`,
+  `parent`, `process_tree`, `host`, `user`) or a dotted event field.
+- Named lists live in `rules/lists/<name>.yaml` and are referenced as `$name`.
+- Unknown keys are rejected; `level` is required.
 
 ### Known limitations, stated deliberately
 
@@ -101,20 +117,20 @@ run. `DetectionRun.process_event` handles one event, in this order:
   the manager's long-running worker. `before` and all parsed timestamps are
   naive UTC.
 
-## Rules
+## Rule sourcing gate
 
-`rules/` holds 54 rules, all targeting telemetry a Panopticon agent emits.
+`rules/` holds 64 rules, all reading telemetry a Panopticon agent emits.
 
-`scripts/check_rule_sourcing.py` fails CI if any rule declares an `event_type`
-the normalizer cannot produce. There is no exemption directory: a rule that can
-never fire is not coverage, it is a claim. The gate exists because 38 such rules
-shipped unnoticed; they were deleted rather than parked. It checks `event_type`
-only -- three more rules whose sole conditions read fields no normalizer emits
-were deleted by hand, so check new rules' fields against `ingestion/telemetry.py`.
+`scripts/check_rule_sourcing.py` fails CI if a rule reads an `event_type` the
+normalizer cannot produce, or a condition / `by` / counted / evidence field that
+neither `ingestion/telemetry.FIELD_REGISTRY` (derived by running the normalizer)
+nor `enrichment.DERIVED_FIELDS` provides for that event type. There is no
+exemption directory: a rule that can never fire is not coverage, it is a claim.
+New derived fields must declare the event types they apply to.
 
-`level` is required (no default). Critical rules in a terminal tactic must sit at
-or above `tagging.DEFAULT_ANCHOR_MIN_LEVEL` or they can never anchor a campaign;
-`tests/test_rule_levels.py` enforces this.
+Replay scenarios in `tests/corpus/` are the evidence the engine works end to
+end; add one (agent-schema NDJSON + `expected.json`) for any new correlation
+behaviour, including a benign or must-not-merge case.
 
 Rule format is Sigma/Wazuh-*inspired*, not Sigma: `id`, `level` (0-16),
 `logic: {all/any/none}`, `active_response`, `mitre: {tactic, technique}`.

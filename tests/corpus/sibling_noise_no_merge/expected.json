@@ -1,0 +1,9 @@
+{
+  "description": "Siblings under the explorer.exe hub must not merge into an incident (the old undirected walk merged them and blamed explorer).",
+  "must_fire": [
+    "DET-PROC-008",
+    "DET-PROC-006"
+  ],
+  "must_not_fire": [],
+  "incidents": []
+}

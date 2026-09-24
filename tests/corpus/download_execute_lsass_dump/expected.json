@@ -1,0 +1,26 @@
+{
+  "description": "One incident rooted at the payload the user launched, with the browser that delivered it named as the provenance origin.",
+  "must_fire": [
+    "DET-EXEC-001",
+    "DET-PROC-005"
+  ],
+  "must_not_fire": [],
+  "incidents": [
+    {
+      "root": "invoice_2026.exe",
+      "provenance_origin": "chrome.exe",
+      "tactics_include": [
+        "Execution",
+        "Credential Access"
+      ],
+      "stage_rules_include": [
+        "DET-EXEC-001",
+        "DET-PROC-005"
+      ],
+      "causal_path_includes": [
+        "chrome.exe",
+        "wrote"
+      ]
+    }
+  ]
+}

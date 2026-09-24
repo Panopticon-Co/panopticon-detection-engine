@@ -48,6 +48,13 @@ _FILE_EVENT_TYPES = {
 }
 
 
+def _basename(path: Any) -> Any:
+    """Final path component for either separator; ``None`` when absent."""
+    if not path:
+        return None
+    return str(path).replace("\\", "/").rstrip("/").split("/")[-1] or None
+
+
 def _common(raw: Dict[str, Any]) -> Dict[str, Any]:
     """Identity + host + user + process-context fields shared by every family."""
     event_obj = raw.get("event", {}) or {}
@@ -65,9 +72,8 @@ def _common(raw: Dict[str, Any]) -> Dict[str, Any]:
     proc_hash = proc_obj.get("hash")
     sha256 = proc_hash.get("sha256") if isinstance(proc_hash, dict) else proc_obj.get("sha256")
 
-    proc_name = proc_obj.get("name") or (
-        proc_obj.get("executable", "").split("\\")[-1] if proc_obj.get("executable") else None
-    )
+    proc_name = proc_obj.get("name") or _basename(proc_obj.get("executable"))
+    parent_name = parent_obj.get("name") or _basename(parent_obj.get("executable"))
     host_id = host_obj.get("id") or host_obj.get("hostname") or raw.get("host_id", "OFFICER-ENDPOINT")
 
     return {
@@ -98,13 +104,19 @@ def _common(raw: Dict[str, Any]) -> Dict[str, Any]:
             "executable": proc_obj.get("executable"),
             "command_line": proc_obj.get("command_line", ""),
             "user": full_user,
+            "user_sid": user_obj.get("sid"),
             "file_hash": sha256,
             "sha256": sha256,
+            # Opaque, OS-native creation token (schema 0.4). Passed through
+            # untouched: response_engine.translate_recommendation needs it to
+            # build a PID-reuse-safe KILL_PROCESS and fails closed without it.
+            "start_time_ticks": proc_obj.get("start_time_ticks"),
         },
         "parent": {
             "entity_id": parent_obj.get("entity_id"),
+            "process_guid": parent_obj.get("entity_id"),
             "pid": parent_obj.get("pid"),
-            "name": parent_obj.get("name"),
+            "name": parent_name,
         },
         "_raw_officer_event": raw,
     }
@@ -227,3 +239,101 @@ def normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
 def register_family(name: str, normalizer: Callable[[Dict[str, Any]], Dict[str, Any]]) -> None:
     """Extension hook: add a telemetry family without editing this module."""
     _NORMALIZERS[name] = normalizer
+
+
+# ---------------------------------------------------------------------------
+# Field registry
+#
+# Which dotted fields each engine event_type can actually carry. Derived by
+# running every normalizer on a fully populated agent event, so it cannot drift
+# from the normalizers themselves. scripts/check_rule_sourcing.py rejects any
+# rule condition on a field outside this set (plus the enrichment layer's
+# derived fields) -- a rule reading a field nothing produces can never fire.
+# ---------------------------------------------------------------------------
+
+_FULL_CONTEXT: Dict[str, Any] = {
+    "schema_version": "0.3",
+    "source": {"kind": "sysmon", "provider": "p", "channel": "c", "record_id": 1},
+    "agent": {"id": "a", "version": "v"},
+    "host": {"id": "h", "hostname": "h", "os": {"name": "n"}},
+    "user": {"name": "u", "domain": "d", "sid": "s"},
+    "process": {
+        "entity_id": "e",
+        "pid": 1,
+        "name": "p.exe",
+        "executable": "C:\\p.exe",
+        "command_line": "p",
+        "start_time_ticks": 1,
+        "parent": {"entity_id": "e", "pid": 1, "name": "q.exe"},
+        "hash": {"sha256": "0" * 64},
+    },
+}
+
+_FULL_FAMILY_BLOCKS: Dict[str, Dict[str, Any]] = {
+    "network": {"network": {
+        "direction": "outbound", "protocol": "tcp", "source_ip": "10.0.0.1",
+        "source_port": 1, "destination_ip": "10.0.0.2", "destination_port": 2,
+        "destination_hostname": "x",
+    }},
+    "file": {"file": {
+        "operation": "create", "path": "C:\\f", "target_path": "C:\\f",
+        "previous_path": "C:\\g", "hash": {"sha256": "0" * 64},
+    }},
+    "registry": {"registry": {
+        "operation": "set_value", "key_path": "HKLM\\k", "value_name": "v",
+        "value_type": "REG_SZ", "value_data": "d",
+    }},
+    "image_load": {"image_load": {
+        "path": "C:\\m.dll", "is_signed": True, "signature_status": "Valid",
+        "hash": {"sha256": "0" * 64},
+    }},
+}
+
+_FAMILY_TYPES = {
+    "process": ("start", "stop"),
+    "network": ("connect",),
+    "file": tuple(_FILE_EVENT_TYPES),
+    "registry": tuple(_REGISTRY_EVENT_TYPES),
+    "image_load": ("load",),
+}
+
+# Envelope/bookkeeping keys that are not rule material.
+_NOT_FIELDS = {"_raw_officer_event", "host.os"}
+
+
+def _flatten(prefix: str, value: Any, out: set) -> None:
+    if prefix in _NOT_FIELDS:
+        return
+    if isinstance(value, dict) and value:
+        for key, sub in value.items():
+            _flatten(f"{prefix}.{key}" if prefix else key, sub, out)
+    elif prefix:
+        out.add(prefix)
+
+
+def _build_field_registry() -> Dict[str, frozenset]:
+    registry: Dict[str, set] = {}
+    for family, types in _FAMILY_TYPES.items():
+        for etype in types:
+            raw = {
+                **_FULL_CONTEXT,
+                "event": {"id": "x", "category": family, "type": etype, "timestamp": "t"},
+                **_FULL_FAMILY_BLOCKS.get(family, {}),
+            }
+            if family == "file":
+                raw["file"] = {**raw["file"], "operation": etype}
+            if family == "registry":
+                raw["registry"] = {**raw["registry"], "operation": etype}
+            event = normalize(raw)
+            fields: set = set()
+            _flatten("", event, fields)
+            registry.setdefault(event["event_type"], set()).update(fields)
+    return {etype: frozenset(fields) for etype, fields in registry.items()}
+
+
+FIELD_REGISTRY: Dict[str, frozenset] = _build_field_registry()
+
+
+def producible_fields(event_type: str) -> frozenset:
+    """Raw fields the normalizer emits for ``event_type`` (empty if none)."""
+    return FIELD_REGISTRY.get(event_type, frozenset())

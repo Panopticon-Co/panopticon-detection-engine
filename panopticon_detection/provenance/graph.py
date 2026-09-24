@@ -1,24 +1,27 @@
 """L2 -- the typed temporal provenance graph.
 
 Every telemetry event becomes exactly one edge between two typed entities, and
-every edge carries the time it happened. Correlation is then a *query* over this
-structure rather than a separate subsystem with its own identity model -- which
-is what the previous design got wrong: four correlators, four keys, no shared
-state, so none of them composed.
+every edge carries the time it happened. Correlation is a *query* over this
+structure rather than a separate subsystem with its own identity model.
 
-Causality-constrained traversal
--------------------------------
-:meth:`ProvenanceGraph.backward` answers "what led to this?". It walks the
-*undirected* adjacency (a cause may reach an effect through an edge pointing
-either way -- ``A --wrote--> F`` then ``P --executed--> F`` links A to P through
-F, and the second edge points away from P) but only ever steps to edges that
-happened **at or before** the time reached so far. Nothing can be caused by its
-own future.
+Directed, causality-constrained traversal
+-----------------------------------------
+:meth:`ProvenanceGraph.backward` answers "what led to this?". It follows
+*information flow* backwards (King & Chen, "Backtracking Intrusions", 2003):
 
-That single constraint is what makes the walk a root-cause analysis rather than
-an arbitrary flood, and it is what the replaced ``EnterpriseAttackGraph`` had no
-equivalent of -- it picked successors out of an unordered set, so the path it
-reported was not even deterministic.
+* a child came from its parent            (FORKED parent -> child)
+* a process came from the image it ran    (EXECUTED / LOADED file -> process)
+* a file came from the process that wrote it  (WROTE / RENAMED process -> file)
+
+and it only ever steps to edges at or before the time reached so far, so
+nothing is caused by its own future.
+
+Direction matters. An undirected walk climbs from a child to its parent and
+then descends into the parent's *other* children; under ``explorer.exe`` that
+merges every unrelated program the user ran into one "attack". Sockets are
+leaves for the same reason: two processes contacting the same address are
+correlated, not causally linked. And the walk stops at boundary processes
+(:mod:`.boundary`) -- the session and service hubs every process descends from.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Deque, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple
 
 
 class NodeKind(str, Enum):
@@ -58,6 +61,33 @@ class EdgeKind(str, Enum):
     CREATED_KEY = "created_key"    # process -> registry_key
     DELETED_KEY = "deleted_key"    # process -> registry_key
     RAN_AS = "ran_as"              # process -> user
+
+
+# Which way information flows along each relation. A backward walk moves from
+# the node information flowed INTO to the node it flowed FROM. Relations absent
+# from both sets (CONNECTED_TO, RAN_AS) are never crossed by a causal walk.
+_FLOWS_SRC_TO_DST = frozenset(
+    {
+        EdgeKind.FORKED,
+        EdgeKind.WROTE,
+        EdgeKind.RENAMED,
+        EdgeKind.DELETED,
+        EdgeKind.SET_VALUE,
+        EdgeKind.CREATED_KEY,
+        EdgeKind.DELETED_KEY,
+    }
+)
+_FLOWS_DST_TO_SRC = frozenset({EdgeKind.EXECUTED, EdgeKind.LOADED})
+
+
+def actor_of(edge: "Edge") -> str:
+    """The process node that performed the action an edge records.
+
+    For FORKED that is the *child* -- a detection on a process-create event is
+    about the process created, not its parent. For every other relation it is
+    the edge's source.
+    """
+    return edge.dst if edge.kind == EdgeKind.FORKED else edge.src
 
 
 @dataclass
@@ -97,6 +127,8 @@ class Subgraph:
     root: str
     edges: List[Edge]
     nodes: Dict[str, Node]
+    # Boundary processes the walk reached but did not expand through.
+    boundary_nodes: Set[str] = field(default_factory=set)
 
     @property
     def tagged_edges(self) -> List[Edge]:
@@ -227,23 +259,22 @@ class ProvenanceGraph:
         horizon: timedelta = timedelta(hours=6),
         max_depth: int = 12,
         max_edges: int = 2000,
+        boundary: Optional[Callable[[Node], bool]] = None,
     ) -> Subgraph:
-        """Everything that could causally precede ``start`` at ``not_after``.
+        """Everything that causally precedes ``start`` at ``not_after``.
 
-        Breadth-first over undirected adjacency, admitting an edge only when it
-        happened at or before the time already reached on that branch, and no
-        earlier than ``horizon`` before the anchor. The bound is tightened to
-        each edge's own timestamp as the walk proceeds, so a branch marches
-        strictly backwards through time and cannot loop forward through a later
-        event.
+        Breadth-first along reversed information flow, admitting an edge only
+        when it happened at or before the time already reached on that branch
+        and no earlier than ``horizon`` before the anchor. A node for which
+        ``boundary`` returns True is recorded but not expanded.
 
-        ``max_depth`` and ``max_edges`` bound the worst case; both are generous
-        relative to real attack chains and exist so one noisy host cannot stall
-        the detection worker.
+        ``max_depth`` and ``max_edges`` bound the worst case so one noisy host
+        cannot stall the detection worker.
         """
         floor = not_after - horizon
         visited_nodes: Dict[str, Node] = {}
         walked: Dict[str, Edge] = {}
+        stopped: Set[str] = set()
         seen_states: Set[Tuple[str, int]] = set()
 
         if start in self.nodes:
@@ -260,24 +291,75 @@ class ProvenanceGraph:
             for edge in self.incident_edges(node_id):
                 if edge.ts > bound or edge.ts < floor:
                     continue
-                walked[edge.edge_id] = edge
-
-                other = edge.dst if edge.src == node_id else edge.src
-                # Revisiting a node is only useful if we arrive with an earlier
-                # bound, which can open edges the first visit could not follow.
-                # Bucket by whole seconds to keep the state set small.
-                state = (other, int(edge.ts.timestamp()))
-                if state in seen_states:
+                if edge.kind in _FLOWS_SRC_TO_DST and edge.dst == node_id:
+                    other = edge.src
+                elif edge.kind in _FLOWS_DST_TO_SRC and edge.src == node_id:
+                    other = edge.dst
+                else:
                     continue
-                seen_states.add(state)
+                walked[edge.edge_id] = edge
 
                 node = self.nodes.get(other)
                 if node is not None:
                     visited_nodes.setdefault(other, node)
+                    if boundary is not None and boundary(node):
+                        stopped.add(other)
+                        continue
+
+                # Revisiting a node only helps with an earlier bound, which can
+                # open edges the first visit could not follow. Bucket by whole
+                # seconds to keep the state set small.
+                state = (other, int(edge.ts.timestamp()))
+                if state in seen_states:
+                    continue
+                seen_states.add(state)
                 queue.append((other, edge.ts, depth + 1))
 
-        ordered = sorted(walked.values(), key=lambda e: e.ts)
-        return Subgraph(root=start, edges=ordered, nodes=visited_nodes)
+        ordered = sorted(walked.values(), key=lambda e: (e.ts, e.edge_id))
+        return Subgraph(root=start, edges=ordered, nodes=visited_nodes, boundary_nodes=stopped)
+
+    def forward_processes(
+        self,
+        start: str,
+        not_before: datetime,
+        *,
+        max_depth: int = 12,
+        max_nodes: int = 500,
+        boundary: Optional[Callable[[Node], bool]] = None,
+    ) -> Set[str]:
+        """Process nodes causally downstream of ``start`` since ``not_before``.
+
+        The complement of :meth:`backward`: follows information flow forwards --
+        a process to the children it forked, and to the processes that later
+        executed or loaded a file it wrote -- only ever stepping to edges at or
+        after the time reached so far. Boundary processes are neither included
+        nor expanded, so a payload a user launches through ``explorer.exe`` is
+        still reached through the file, never through the hub.
+        """
+        reached: Set[str] = {start}
+        queue: Deque[Tuple[str, datetime, int]] = deque([(start, not_before, 0)])
+        while queue and len(reached) < max_nodes:
+            node_id, bound, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for edge in self.incident_edges(node_id):
+                if edge.ts < bound:
+                    continue
+                if edge.kind in _FLOWS_SRC_TO_DST and edge.src == node_id:
+                    nxt = edge.dst
+                elif edge.kind in _FLOWS_DST_TO_SRC and edge.dst == node_id:
+                    nxt = edge.src
+                else:
+                    continue
+                node = self.nodes.get(nxt)
+                if node is None:
+                    continue
+                if node.kind == NodeKind.PROCESS:
+                    if nxt in reached or (boundary is not None and boundary(node)):
+                        continue
+                    reached.add(nxt)
+                queue.append((nxt, edge.ts, depth + 1))
+        return reached
 
     # ------------------------------------------------------------------
     # Maintenance

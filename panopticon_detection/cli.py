@@ -256,26 +256,36 @@ def _print_summary(run, context, *, show_graph: bool) -> None:
     print("\n" + "=" * 78)
     print("RUN SUMMARY")
     print("=" * 78)
+    incidents = context.incidents.open_incidents()
     rows = [
         ("Telemetry events ingested", run.events_count),
-        ("Rule detections", run.atomic_alerts_count),
-        ("Multi-stage campaigns", run.campaign_alerts_count),
+        ("Single-event rule detections", run.rule_alerts_count),
+        ("Stateful rule detections", run.stateful_alerts_count),
+        ("Beacon detections", run.beacon_alerts_count),
+        ("Repeat detections suppressed", run.suppressed_duplicates),
+        ("Incidents", len(incidents)),
+        ("Incident alerts (opened/updated)", run.incident_alerts_count),
         ("Host risk-threshold breaches", run.risk_breach_alerts_count),
-        ("Ransomware tripwires", run.ransomware_shield_alerts),
-        ("C2 beacons", run.beacon_alerts_count),
-        ("Port scans", run.port_scan_alerts_count),
-        ("Frequency thresholds", run.threshold_alerts_count),
         ("Response actions recommended", run.active_responses_count),
     ]
     for label, value in rows:
         print(f"  {label:<34}: {value}")
+
+    for incident in incidents:
+        root = context.registry.get(incident.root_node_id) if incident.root_node_id else None
+        print(
+            f"  - {incident.incident_id}  rooted at {root.name if root else 'unknown'}  "
+            f"score {incident.score}  {len(incident.stages)} stage(s): "
+            f"{', '.join(incident.tactics)}"
+        )
 
     if show_graph:
         stats = context.stats()
         print(
             f"  {'Provenance graph':<34}: "
             f"{stats['nodes']} nodes, {stats['edges']} edges "
-            f"({stats['tagged_edges']} tagged), {stats['processes']} processes"
+            f"({stats['tagged_edges']} tagged), {stats['processes']} processes, "
+            f"{stats['sequence_keys']} open sequence key(s), {stats['window_keys']} window key(s)"
         )
     print("=" * 78)
 

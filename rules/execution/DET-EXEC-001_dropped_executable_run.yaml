@@ -1,0 +1,42 @@
+id: DET-EXEC-001
+name: Recently Dropped Executable Run From a User-Writable Path
+description: >
+  A process starts from an image that another process wrote to a temp or
+  user-writable location minutes earlier. Joins the writer and the executed
+  payload in the provenance graph, so the dropper is part of the evidence.
+version: 1
+status: enabled
+event_type: process_create
+
+level: 11
+severity: high
+confidence: 0.8
+
+logic:
+  all:
+    - field: process.image_writer_name
+      operator: exists
+      value: true
+    - field: process.image_age_seconds
+      operator: less_than
+      value: 600
+    - field: process.path_class
+      operator: in
+      value: [temp, user_writable]
+
+evidence:
+  - process.name
+  - process.executable
+  - process.image_writer_name
+  - process.image_age_seconds
+  - process.lineage
+
+mitre:
+  tactic: Execution
+  technique: T1204.002
+  name: "User Execution: Malicious File"
+
+tags:
+  - attack.execution
+  - provenance
+  - dropped_payload

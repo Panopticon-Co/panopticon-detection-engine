@@ -247,6 +247,57 @@ class ProcessRegistry:
         self._insert(placeholder)
         return placeholder
 
+    def observe_context(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
+        """Resolve the acting process of a non-process event, inferring it if unseen.
+
+        An agent that starts on a running machine never sees existing processes
+        being created, and a buffered create can arrive after the process's first
+        network or file event. Without inference those processes have no node, so
+        their detections cannot join any incident. The inferred incarnation
+        starts at this first sighting, carries the name/image/command line the
+        event reports, links to its parent the same way ``observe_start`` does,
+        and is flagged ``inferred=True``. It never carries ``start_time_ticks``:
+        that token was not observed, and inventing one would defeat the PID-reuse
+        guard on ``KILL_PROCESS``.
+        """
+        existing = self.resolve_event(event)
+        if existing is not None:
+            return existing
+
+        proc = event.get("process") or {}
+        pid = proc.get("pid")
+        host_id = event.get("host_id") or "UNKNOWN_HOST"
+        when = parse_timestamp(event.get("timestamp"))
+        if not isinstance(pid, int) or isinstance(pid, bool) or when == UNKNOWN_TIME:
+            return None
+
+        start = when - timedelta(microseconds=1)
+        incarnation = ProcessIncarnation(
+            node_id=derive_node_id(host_id, pid, start),
+            host_id=host_id,
+            pid=pid,
+            start_time=start,
+            name=(proc.get("name") or "").lower(),
+            executable=proc.get("executable") or "",
+            command_line=proc.get("command_line") or "",
+            user=proc.get("user") or "",
+            sha256=proc.get("sha256") or proc.get("file_hash"),
+            entity_id=proc.get("entity_id"),
+            inferred=True,
+        )
+        parent = event.get("parent") or {}
+        parent_pid = parent.get("pid")
+        if isinstance(parent_pid, int) and not isinstance(parent_pid, bool):
+            incarnation.parent_pid = parent_pid
+            parent_inc = self.resolve(host_id, parent_pid, start) or self._infer_parent(
+                host_id, parent_pid, parent.get("name"), start
+            )
+            if parent_inc is not None:
+                incarnation.parent_node_id = parent_inc.node_id
+
+        self._insert(incarnation)
+        return incarnation
+
     def observe_stop(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
         """Record a process-termination event, closing the live incarnation.
 

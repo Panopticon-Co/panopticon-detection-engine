@@ -55,7 +55,10 @@ def test_rule_level_is_required_on_the_model():
 
 def test_every_rule_file_declares_its_level_explicitly():
     missing = [
-        p.name for p in RULES.rglob("*.yaml") if "level" not in (yaml.safe_load(p.read_text()) or {})
+        p.name
+        for p in RULES.rglob("*.yaml")
+        if "lists" not in p.relative_to(RULES).parts
+        and "level" not in (yaml.safe_load(p.read_text()) or {})
     ]
     assert missing == []
 
