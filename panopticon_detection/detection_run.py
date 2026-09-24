@@ -106,20 +106,28 @@ class DetectionRun:
         # Emit (or suppress) each detection, then tag them all onto the edge
         # before correlating, so an incident opened by one detection on this
         # event already includes the others.
+        emitted: List[Alert] = []
         for alert, _tag, kind in detections:
             if self._is_duplicate(alert, event, edge):
                 self.suppressed_duplicates += 1
                 continue
             self._count(kind)
             self._emit(alert, produced)
+            emitted.append(alert)
+
+        # One event is one piece of evidence toward a host's risk, however many
+        # overlapping rules describe it: feed the meter once, with the event's
+        # strongest detection.
+        if emitted:
+            strongest = max(emitted, key=lambda a: (a.level, a.rule_id))
             risk = self.risk_scorer.record_detection(
-                host_id=alert.host_id,
-                rule_id=alert.rule_id,
-                rule_name=alert.title,
-                level=alert.level,
-                timestamp=alert.timestamp,
-                summary=alert.description,
-                confidence=alert.confidence,
+                host_id=strongest.host_id,
+                rule_id=strongest.rule_id,
+                rule_name=strongest.title,
+                level=strongest.level,
+                timestamp=strongest.timestamp,
+                summary=strongest.description,
+                confidence=strongest.confidence,
             )
             if risk is not None:
                 self.risk_breach_alerts_count += 1

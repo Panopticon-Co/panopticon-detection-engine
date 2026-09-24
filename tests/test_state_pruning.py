@@ -114,3 +114,21 @@ def test_timestamps_normalise_to_utc_not_local_time():
     assert event_epoch("2026-08-18T12:00:00Z") == event_epoch("2026-08-18T17:30:00+05:30")
     assert event_epoch("garbage") is None
     assert event_epoch(True) is None
+
+
+def test_overlapping_rules_on_one_event_count_once_toward_host_risk():
+    """Two rules describing the same startup-folder drop are one piece of
+    evidence; they must not push the host risk meter over its threshold."""
+    run, _ = build_detection_run(RULES)
+    produced = run.process_event({
+        "event_id": "evt-startup",
+        "event_type": "file_create",
+        "timestamp": "2026-09-14T12:00:00Z",
+        "host_id": "HOST-1",
+        "process": {"pid": 6001, "name": "explorer.exe"},
+        "file": {"path": "C:\\Users\\a\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\x.lnk"},
+    })
+    rule_ids = [a.rule_id for a in produced]
+    assert {"DET-FILE-001", "DET-PERS-007"} <= set(rule_ids)
+    assert "CORR-RISK-001" not in rule_ids
+    assert len(run.risk_scorer.host_profiles["HOST-1"].event_timeline) == 1
