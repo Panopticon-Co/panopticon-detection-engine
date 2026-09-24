@@ -19,6 +19,7 @@ logic:
         - powerpnt.exe
         - outlook.exe
 
+level: 12
 severity: high
 confidence: 0.85
 

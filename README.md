@@ -83,7 +83,13 @@ engine correctly refuses to build a `KILL_PROCESS` command.
 
 `scripts/check_rule_sourcing.py` fails CI if any rule targets an `event_type`
 the normalizer cannot produce. A rule that can never fire is not coverage, it
-is a claim, so 38 such rules were deleted rather than carried.
+is a claim, so 38 such rules were deleted rather than carried, and three more
+(`DET-PROC-013`, `DET-INJ-005`, `DET-PRIV-004`) whose only conditions read
+fields no normalizer emits. The gate checks `event_type` only; checking every
+condition field is planned.
+
+Every rule declares its `level` (0-16). There is no default: a silent default
+of 7 once left critical rules below the campaign anchor threshold.
 
 ```bash
 python scripts/check_rule_sourcing.py
@@ -99,6 +105,11 @@ Stated plainly rather than left for a reader to discover:
   from the next process to occupy the same PID.
 - Campaign scoring uses a static prior over edge kinds as a stand-in for a
   learned baseline. The weights need real telemetry to tune.
+- The backward campaign walk follows undirected adjacency, so it can link
+  sibling processes that share a parent such as `explorer.exe`, and each new
+  stage re-emits a larger campaign rather than updating one incident.
+- The behavioral detectors (port scan, beacon, ransomware burst) and the host
+  risk meter are threshold heuristics that will be noisy on a real workstation.
 - This is a capstone-grade engine: a CLI and a library, with no HTTP API, no
   database server and no message queue.
 

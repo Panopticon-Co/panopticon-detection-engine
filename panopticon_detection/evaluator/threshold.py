@@ -6,10 +6,11 @@ brute force attacks, rapid ransomware file encryption, and port scanning.
 
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from panopticon_detection.evaluator.matcher import extract_field
+from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 
 
 @dataclass
@@ -56,7 +57,9 @@ class ThresholdEngine:
             return []
 
         matches: List[ThresholdMatch] = []
-        now_ts = self._parse_timestamp(event.get("timestamp"))
+        now_ts = event_epoch(event.get("timestamp"))
+        if now_ts is None:
+            return []
 
         for rule in self.rules:
             if rule.event_type != event_type:
@@ -105,19 +108,13 @@ class ThresholdEngine:
 
         return matches
 
-    @staticmethod
-    def _parse_timestamp(ts_val: Any) -> float:
-        if isinstance(ts_val, (int, float)):
-            return float(ts_val)
-        if isinstance(ts_val, str):
-            try:
-                # ISO format parse
-                clean_ts = ts_val.replace("Z", "+00:00")
-                dt = datetime.fromisoformat(clean_ts)
-                return dt.timestamp()
-            except Exception:
-                pass
-        return datetime.now(timezone.utc).timestamp()
+    def prune(self, before: datetime) -> int:
+        """Drop frequency windows with no activity since ``before``."""
+        cutoff = naive_utc_epoch(before)
+        stale = [k for k, q in self.buckets.items() if not q or q[-1] < cutoff]
+        for k in stale:
+            del self.buckets[k]
+        return len(stale)
 
     @staticmethod
     def _default_rules() -> List[ThresholdRule]:

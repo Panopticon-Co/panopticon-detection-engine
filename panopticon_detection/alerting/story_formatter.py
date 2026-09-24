@@ -68,7 +68,7 @@ class StoryModeFormatter:
             for extra in _campaign_detail(alert):
                 lines.append(f"        {extra}")
 
-            lines.append(f"        recommend : {_recommendation_text(alert)}")
+            lines.append(f"        recommend : {recommendation_text(alert)}")
             lines.append("")
 
         lines.append(sep)
@@ -96,7 +96,7 @@ def _campaign_detail(alert: Any) -> List[str]:
     return out
 
 
-def _recommendation_text(alert: Any) -> str:
+def recommendation_text(alert: Any) -> str:
     """Describe the recommendation, and who has to approve it.
 
     A recommendation is a proposal for an analyst. Saying so is the whole point

@@ -90,9 +90,16 @@ run. `DetectionRun.process_event` handles one event, in this order:
   machine never sees existing processes being created.
 - The graph is in-memory and does not survive a restart. SQLite persistence is
   the next step.
-- `--story` renders from the alert itself. It replaced a hand-maintained rule-id
-  table that claimed the engine had terminated processes and quarantined files.
-  Keep it derived; do not reintroduce per-rule narrative text.
+- `--story` and the default console view both render from the alert itself.
+  They replaced hand-maintained rule-id tables that claimed the engine had
+  terminated processes, quarantined files and "neutralized" threats. Keep them
+  derived; do not reintroduce per-rule narrative text or any wording that says
+  the engine acted.
+- Every stateful component takes event time only (`identity.event_epoch`), never
+  wall-clock time, and exposes `prune(before)`; `DetectionContext.prune` must
+  reach all of them. A new stateful detector without `prune` is a memory leak in
+  the manager's long-running worker. `before` and all parsed timestamps are
+  naive UTC.
 
 ## Rules
 
@@ -101,7 +108,13 @@ run. `DetectionRun.process_event` handles one event, in this order:
 `scripts/check_rule_sourcing.py` fails CI if any rule declares an `event_type`
 the normalizer cannot produce. There is no exemption directory: a rule that can
 never fire is not coverage, it is a claim. The gate exists because 38 such rules
-shipped unnoticed; they were deleted rather than parked.
+shipped unnoticed; they were deleted rather than parked. It checks `event_type`
+only -- three more rules whose sole conditions read fields no normalizer emits
+were deleted by hand, so check new rules' fields against `ingestion/telemetry.py`.
+
+`level` is required (no default). Critical rules in a terminal tactic must sit at
+or above `tagging.DEFAULT_ANCHOR_MIN_LEVEL` or they can never anchor a campaign;
+`tests/test_rule_levels.py` enforces this.
 
 Rule format is Sigma/Wazuh-*inspired*, not Sigma: `id`, `level` (0-16),
 `logic: {all/any/none}`, `active_response`, `mitre: {tactic, technique}`.

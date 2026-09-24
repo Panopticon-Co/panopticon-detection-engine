@@ -19,6 +19,7 @@ logic:
           operator: contains
           value: "clear-log"
 
+level: 12
 severity: high
 confidence: 0.95
 

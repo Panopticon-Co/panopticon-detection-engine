@@ -55,8 +55,9 @@ class Rule(BaseModel):
     event_type: str
     logic: LogicNode
     
-    # Wazuh-grade Level (0 to 16)
-    level: int = Field(default=7, ge=0, le=16)
+    # Wazuh-grade Level (0 to 16). Required: a silent default once left 20
+    # rules at 7, below the campaign anchor threshold, including critical ones.
+    level: int = Field(ge=0, le=16)
     severity: SeverityLevel = SeverityLevel.MEDIUM
     confidence: float = Field(default=0.85, ge=0.0, le=1.0)
     

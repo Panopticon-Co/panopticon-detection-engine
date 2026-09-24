@@ -23,6 +23,7 @@ logic:
       operator: regex
       value: "\\|\\s*(sudo\\s+)?(bash|sh|dash|zsh)\\b"
 
+level: 12
 severity: high
 confidence: 0.70
 

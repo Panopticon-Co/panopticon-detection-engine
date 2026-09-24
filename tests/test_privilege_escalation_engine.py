@@ -2,7 +2,9 @@
 
 Scoped to rules that fire on telemetry a Panopticon agent actually emits.
 The driver_load, directory_service and k8s_audit cases were removed with the
-rules they exercised -- nothing produces those event types.
+rules they exercised -- nothing produces those event types. The unquoted
+service path case went with DET-PRIV-004, whose only condition read a field
+no normalizer emits.
 """
 
 import pytest
@@ -14,23 +16,6 @@ from panopticon_detection.rules.loader import RuleLoader
 @pytest.fixture
 def evaluator():
     return RuleEvaluator(RuleLoader().load_directory("rules"))
-
-
-def test_unquoted_service_path_escalation(evaluator):
-    evt = {
-        "event_type": "process_create",
-        "process": {
-            "name": "Program.exe",
-            "command_line": "C:\\Program.exe",
-            "pid": 2040,
-            "user": "NT AUTHORITY\\SYSTEM",
-            "is_unquoted_service_path": True,
-        },
-        "host_id": "SRV-FILE-01",
-    }
-    results = evaluator.evaluate_event(evt)
-    rule_ids = [r.rule.id for r in results]
-    assert "DET-PRIV-004" in rule_ids
 
 
 def test_horizontal_privilege_escalation(evaluator):

@@ -15,6 +15,7 @@ logic:
       operator: contains
       value: /create
 
+level: 10
 severity: medium
 confidence: 0.80
 

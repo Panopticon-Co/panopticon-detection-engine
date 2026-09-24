@@ -18,6 +18,7 @@ logic:
         - excel.exe
         - powerpnt.exe
 
+level: 12
 severity: high
 confidence: 0.95
 
