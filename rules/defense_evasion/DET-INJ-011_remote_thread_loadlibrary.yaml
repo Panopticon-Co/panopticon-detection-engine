@@ -1,0 +1,40 @@
+id: DET-INJ-011
+name: Remote Thread Started at LoadLibrary (DLL Injection)
+description: >-
+  A process created a thread in another process whose start routine is
+  LoadLibrary -- the classic way to force a DLL into a running process
+  (mavinject.exe /INJECTRUNNING, many loaders). Reads Sysmon EventID 8,
+  schema 0.5.
+version: 1
+status: enabled
+event_type: remote_thread
+
+logic:
+  all:
+    - field: remote_thread.start_function
+      operator: in
+      value: [LoadLibraryA, LoadLibraryW, LoadLibraryExA, LoadLibraryExW]
+
+level: 12
+active_response: COLLECT_PROCESS_INFO
+severity: high
+confidence: 0.85
+
+evidence:
+  - process.name
+  - process.command_line
+  - target.name
+  - target.pid
+  - remote_thread.start_module
+  - remote_thread.start_function
+
+mitre:
+  tactic: Defense Evasion
+  technique: T1055.001
+  name: "Process Injection: Dynamic-link Library Injection"
+
+tags:
+  - attack.defense_evasion
+  - attack.privilege_escalation
+  - process_injection
+  - dll_injection

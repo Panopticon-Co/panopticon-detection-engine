@@ -128,7 +128,10 @@ def test_transform_officer_event_preserves_missing_start_time_ticks_as_none():
 
 
 def test_category_of_falls_back_to_process_for_unknown():
-    assert tele.category_of({"event": {"category": "dns"}}) == "process"
+    # "dns" was this test's unknown example until schema 0.5 made it a family;
+    # no agent collects WMI.
+    assert tele.category_of({"event": {"category": "wmi"}}) == "process"
+    assert tele.category_of({"event": {"category": "dns"}}) == "dns"
     assert tele.category_of({"event": {"category": "network"}}) == "network"
     assert tele.category_of({"event": {"category": "image_load"}}) == "image_load"
 
@@ -194,22 +197,26 @@ def test_image_load_family_normalization(raw_rows):
 def test_unknown_family_degrades_to_process_context_without_raising():
     raw = {
         "schema_version": "0.3",
-        "event": {"id": "evt_x", "category": "dns", "type": "query", "timestamp": "t"},
+        "event": {"id": "evt_x", "category": "wmi", "type": "consumer", "timestamp": "t"},
         "source": {}, "agent": {}, "host": {"id": "H"}, "user": {},
         "process": {"pid": 9, "name": "svc.exe", "parent": {}},
     }
     ev = tele.normalize(raw)  # must not raise
     assert ev["process"]["name"] == "svc.exe"
     assert ev["event_type"].startswith("process_")
+    # dns stopped being an unknown family in schema 0.5.
+    assert tele.normalize({**raw, "event": {**raw["event"], "category": "dns", "type": "query"}})[
+        "event_type"
+    ] == "dns_query"
 
 
 def test_register_family_extension_hook():
-    tele.register_family("dns", lambda raw: {**tele._common(raw), "event_type": "dns_query"})
+    tele.register_family("wmi", lambda raw: {**tele._common(raw), "event_type": "wmi_activity"})
     try:
-        ev = tele.normalize({"event": {"category": "dns"}, "process": {}, "source": {}})
-        assert ev["event_type"] == "dns_query"
+        ev = tele.normalize({"event": {"category": "wmi"}, "process": {}, "source": {}})
+        assert ev["event_type"] == "wmi_activity"
     finally:
-        tele._NORMALIZERS.pop("dns", None)
+        tele._NORMALIZERS.pop("wmi", None)
 
 
 # -- stream integration ------------------------------------

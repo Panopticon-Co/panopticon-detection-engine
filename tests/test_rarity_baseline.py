@@ -29,7 +29,12 @@ def _features(parent, name, path_class="system", *, start="2026-09-01T12:00:00",
         image_writer_name=None, image_age_seconds=None,
         child_count=0, file_write_count=0, executable_write_count=0,
         registry_write_count=0, network_connect_count=0, public_connect_count=0,
-        module_load_count=0, as_of=None,
+        module_load_count=0, lifetime_seconds=None,
+        dns_query_count=0, distinct_domain_count=0, failed_dns_query_count=0,
+        process_access_count=0, lsass_access_count=0, remote_thread_count=0,
+        injected_thread_count=0, access_targets=(), remote_thread_targets=(),
+        script_block_count=0, script_block_bytes=0, obfuscated_script_block_count=0,
+        as_of=None,
     )
 
 
@@ -93,6 +98,7 @@ def test_each_readiness_threshold_applies():
     assert too_few_relationships.readiness() == {
         "ready": False, "observations": 18, "relationships": 4,
         "min_observations": 10, "min_relationships": 5,
+        "cross_process_ready": False, "cross_process_observations": 0, "min_cross_process": 10,
     }
 
     just_enough = _trained(min_observations=18, min_relationships=4)
@@ -144,7 +150,7 @@ def test_version_metadata():
     assert data["baseline_type"] == "process_rarity"
     assert data["format_version"] == 1
     assert data["feature_schema_version"] == FEATURE_SCHEMA_VERSION
-    assert data["readiness"] == {"min_observations": 10, "min_relationships": 3}
+    assert data["readiness"] == {"min_observations": 10, "min_relationships": 3, "min_cross_process": 10}
     assert data["thresholds"] == {"uncommon_max_count": 2}
     assert data["total_observations"] == 18
     assert len(data["baseline_version"]) == 12

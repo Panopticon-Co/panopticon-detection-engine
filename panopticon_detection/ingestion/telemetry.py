@@ -13,6 +13,13 @@ A Schema 0.3 event is a Schema 0.2 event plus:
 * ``process`` stays present on every event as *process context* -- who did it.
 
 Schema 0.2 events remain valid (no family block, ``category == "process"``).
+
+Schema 0.5 adds process stop (``process_terminate``) and four families, each
+with an explicit engine event type: ``dns`` -> ``dns_query``,
+``process_access`` -> ``process_access``, ``remote_thread`` -> ``remote_thread``
+and ``script_block`` -> ``script_block``. For the two cross-process families the
+process context is the source; the other process is flattened to ``target.*``
+(``target.name``, ``target.pid`` ...), the same namespace for both.
 This module never mutates the input. It produces the engine-internal event dict
 the rule evaluator consumes, keyed by a synthesized ``event_type`` and with the
 family fields flattened to the dotted aliases the rules already read
@@ -27,10 +34,15 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
-TELEMETRY_FAMILIES = ("process", "network", "file", "registry", "image_load")
+TELEMETRY_FAMILIES = (
+    "process", "network", "file", "registry", "image_load",
+    "dns", "process_access", "remote_thread", "script_block",
+)
 # 0.4 (Linux agent) shares 0.2/0.3's wire envelope -- see the matching
-# comment in officer_adapter.py.
-SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4")
+# comment in officer_adapter.py. 0.5 adds process stop and the dns,
+# process_access, remote_thread and script_block families; older families keep
+# their own version on the wire.
+SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4", "0.5")
 
 # event.type (Schema 0.3) -> engine event_type, chosen to match the vocabulary
 # the existing rule set already uses (DET-NET-001 -> network_connect,
@@ -206,12 +218,116 @@ def _normalize_image_load(raw: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+# -- Schema 0.5 families -----------------------------------------------------
+
+
+def _dns_answers(results: Any) -> list:
+    """Addresses in a Sysmon ``QueryResults`` string, in the order given.
+
+    ``"type:  5 cdn.example;::ffff:93.184.216.34;"`` -> ``["93.184.216.34"]``.
+    Non-address records (``type: N name``) are skipped; IPv4-mapped IPv6 is
+    shown as plain IPv4 so it joins a network event's ``destination_ip``.
+    """
+    answers = []
+    for entry in str(results or "").split(";"):
+        entry = entry.strip()
+        if not entry or entry.lower().startswith("type:"):
+            continue
+        if entry.lower().startswith("::ffff:"):
+            entry = entry[7:]
+        answers.append(entry)
+    return answers
+
+
+def _hex_int(value: Any) -> Any:
+    """``"0x1410"`` -> ``5136``; ``None`` for absent or malformed input."""
+    if value is None:
+        return None
+    try:
+        return int(str(value), 16)
+    except ValueError:
+        return None
+
+
+def _target(block: Dict[str, Any]) -> Dict[str, Any]:
+    target = block.get("target", {}) or {}
+    return {
+        "entity_id": target.get("entity_id"),
+        "pid": target.get("pid"),
+        "executable": target.get("executable"),
+        "name": (_basename(target.get("executable")) or "").lower() or None,
+        "user": target.get("user"),
+    }
+
+
+def _normalize_dns(raw: Dict[str, Any]) -> Dict[str, Any]:
+    out = _common(raw)
+    d = raw.get("dns", {}) or {}
+    out["event_type"] = "dns_query"
+    name = d.get("query_name")
+    out["dns"] = {
+        "query_name": name.lower().rstrip(".") if isinstance(name, str) else name,
+        "query_status": d.get("query_status"),
+        "query_results": d.get("query_results"),
+        "answers": _dns_answers(d.get("query_results")),
+    }
+    return out
+
+
+def _normalize_process_access(raw: Dict[str, Any]) -> Dict[str, Any]:
+    out = _common(raw)
+    a = raw.get("process_access", {}) or {}
+    out["event_type"] = "process_access"
+    out["target"] = _target(a)
+    out["process_access"] = {
+        "granted_access": a.get("granted_access"),
+        "access_mask": _hex_int(a.get("granted_access")),
+        "call_trace": a.get("call_trace"),
+    }
+    return out
+
+
+def _normalize_remote_thread(raw: Dict[str, Any]) -> Dict[str, Any]:
+    out = _common(raw)
+    t = raw.get("remote_thread", {}) or {}
+    out["event_type"] = "remote_thread"
+    out["target"] = _target(t)
+    out["remote_thread"] = {
+        "new_thread_id": t.get("new_thread_id"),
+        "start_address": t.get("start_address"),
+        "start_module": t.get("start_module"),
+        "start_function": t.get("start_function"),
+    }
+    return out
+
+
+def _normalize_script_block(raw: Dict[str, Any]) -> Dict[str, Any]:
+    out = _common(raw)
+    s = raw.get("script_block", {}) or {}
+    out["event_type"] = "script_block"
+    out["script_block"] = {
+        "script_block_id": s.get("script_block_id"),
+        "message_number": s.get("message_number"),
+        "message_total": s.get("message_total"),
+        "path": s.get("path"),
+        "text": s.get("text") or "",
+        "text_length": s.get("text_length"),
+        "text_truncated": s.get("text_truncated"),
+        "text_sha256": s.get("text_sha256"),
+    }
+    return out
+
+
 _NORMALIZERS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "process": _normalize_process,
     "network": _normalize_network,
     "file": _normalize_file,
     "registry": _normalize_registry,
     "image_load": _normalize_image_load,
+    "dns": _normalize_dns,
+    "process_access": _normalize_process_access,
+    "remote_thread": _normalize_remote_thread,
+    "script_block": _normalize_script_block,
 }
 
 
@@ -287,6 +403,24 @@ _FULL_FAMILY_BLOCKS: Dict[str, Dict[str, Any]] = {
         "path": "C:\\m.dll", "is_signed": True, "signature_status": "Valid",
         "hash": {"sha256": "0" * 64},
     }},
+    "dns": {"dns": {
+        "query_name": "example.com", "query_status": 0,
+        "query_results": "::ffff:93.184.216.34;",
+    }},
+    "process_access": {"process_access": {
+        "target": {"entity_id": "e", "pid": 2, "executable": "C:\\t.exe", "user": "u"},
+        "granted_access": "0x1410", "call_trace": "C:\\x.dll+1",
+    }},
+    "remote_thread": {"remote_thread": {
+        "target": {"entity_id": "e", "pid": 2, "executable": "C:\\t.exe", "user": "u"},
+        "new_thread_id": 3, "start_address": "0x1", "start_module": "C:\\k.dll",
+        "start_function": "LoadLibraryW",
+    }},
+    "script_block": {"script_block": {
+        "script_block_id": "id", "message_number": 1, "message_total": 1,
+        "path": "C:\\s.ps1", "text": "Get-Date", "text_length": 8,
+        "text_truncated": False, "text_sha256": "0" * 64,
+    }},
 }
 
 _FAMILY_TYPES = {
@@ -295,6 +429,10 @@ _FAMILY_TYPES = {
     "file": tuple(_FILE_EVENT_TYPES),
     "registry": tuple(_REGISTRY_EVENT_TYPES),
     "image_load": ("load",),
+    "dns": ("query",),
+    "process_access": ("access",),
+    "remote_thread": ("create",),
+    "script_block": ("execute",),
 }
 
 # Envelope/bookkeeping keys that are not rule material.

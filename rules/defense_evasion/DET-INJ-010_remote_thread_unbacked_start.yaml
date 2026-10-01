@@ -1,0 +1,40 @@
+id: DET-INJ-010
+name: Remote Thread Started Outside Any Loaded Module
+description: >-
+  A process created a thread in another process at an address no loaded
+  module backs (Sysmon reports StartModule '-') -- injected shellcode or a
+  manually mapped PE. Reads Sysmon EventID 8 (CreateRemoteThread), schema 0.5.
+version: 1
+status: enabled
+event_type: remote_thread
+
+logic:
+  all:
+    - field: remote_thread.start_module
+      operator: exists
+      value: false
+    - field: target.pid
+      operator: exists
+      value: true
+
+level: 13
+active_response: COLLECT_PROCESS_INFO
+severity: high
+confidence: 0.85
+
+evidence:
+  - process.name
+  - process.pid
+  - target.name
+  - target.pid
+  - remote_thread.start_address
+
+mitre:
+  tactic: Defense Evasion
+  technique: T1055
+  name: "Process Injection"
+
+tags:
+  - attack.defense_evasion
+  - attack.privilege_escalation
+  - process_injection

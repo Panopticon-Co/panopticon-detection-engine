@@ -144,6 +144,11 @@ class ProcessIncarnation:
     # without inference every lineage would stop at the first such process.
     inferred: bool = False
 
+    # True when end_time came from an observed stop event (schema 0.5), not
+    # from a later process reusing the PID. Only an observed end measures how
+    # long the process actually ran.
+    end_observed: bool = False
+
     def covers(self, when: datetime, max_lifetime: timedelta) -> bool:
         """Whether this incarnation was live at ``when``."""
         if when == UNKNOWN_TIME or when < self.start_time:
@@ -301,9 +306,10 @@ class ProcessRegistry:
     def observe_stop(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
         """Record a process-termination event, closing the live incarnation.
 
-        No Panopticon agent emits this yet -- the schema's process family admits
-        only ``event.type: "start"``. Implemented now so that adding the ``stop``
-        event upstream needs no change here.
+        Schema 0.5's ``process``/``stop`` event (Sysmon EventID 5). A stop for a
+        process never seen starting is ignored: there is nothing to close, and
+        inventing an incarnation only to end it would add a node with no
+        observed behaviour.
         """
         proc = event.get("process") or {}
         pid = proc.get("pid")
@@ -316,6 +322,37 @@ class ProcessRegistry:
         if incarnation is None:
             return None
         incarnation.end_time = when
+        incarnation.end_observed = True
+        return incarnation
+
+    def observe_reference(
+        self, host_id: str, pid: Any, executable: Optional[str], when: datetime
+    ) -> Optional[ProcessIncarnation]:
+        """Resolve the *other* process a cross-process event names, inferring it if unseen.
+
+        A process-access or remote-thread event names a target by PID and image.
+        The target is usually long-lived (``lsass.exe``, ``explorer.exe``) and its
+        start predates the agent, so when no incarnation covers ``when`` one is
+        inferred exactly as :meth:`observe_context` infers an unseen actor: it
+        starts at this first sighting and is flagged ``inferred=True``.
+        """
+        if not isinstance(pid, int) or isinstance(pid, bool) or when == UNKNOWN_TIME:
+            return None
+        existing = self.resolve(host_id, pid, when)
+        if existing is not None:
+            return existing
+        start = when - timedelta(microseconds=1)
+        image = executable or ""
+        incarnation = ProcessIncarnation(
+            node_id=derive_node_id(host_id, pid, start),
+            host_id=host_id,
+            pid=pid,
+            start_time=start,
+            name=image.replace("\\", "/").rsplit("/", 1)[-1].lower(),
+            executable=image,
+            inferred=True,
+        )
+        self._insert(incarnation)
         return incarnation
 
     # ------------------------------------------------------------------

@@ -11,11 +11,15 @@ There is exactly one extractor. Live detection, ``--export-features`` and
 model can never be trained on features computed differently from the ones it is
 later scored on (training/serving skew).
 
-Every feature comes from telemetry the agent emits today (schema 0.3) or from
-graph joins over it. Deliberately absent, because nothing produces them: the
-signer of a process's own image (only ``image_load`` carries signature data),
-process lifetime (no process-stop event), hash prevalence, DNS, script content
-and process access.
+Every feature comes from telemetry an agent emits (schema 0.5) or from graph
+joins over it. Deliberately absent, because nothing produces them: the signer
+of a process's own image (only ``image_load`` carries signature data), hash
+prevalence, logon sessions and WMI activity.
+
+Schema version 2 added the 0.5 telemetry: lifetime (from an observed stop),
+DNS activity, cross-process access and injection, and PowerShell script
+blocks. Each is a count or a short list a person can read back, not an opaque
+vector.
 
 Behavior counts are *as of* a point in time. At process creation they are all
 zero -- nothing has happened yet -- and an export taken after a replay sees the
@@ -29,7 +33,7 @@ import json
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from panopticon_detection.enrichment import (
     MatchContext,
@@ -50,12 +54,16 @@ from panopticon_detection.provenance.identity import (
 
 # Bump when a field is added, removed or changes meaning. Baselines record the
 # version they were learned with and refuse to load against a different one.
-FEATURE_SCHEMA_VERSION = 1
+FEATURE_SCHEMA_VERSION = 2
 
 # Image types counted as "executable" by executable_write_count.
 EXECUTABLE_SUFFIXES = frozenset({".exe", ".dll", ".scr", ".sys", ".com"})
 
 _REGISTRY_WRITES = frozenset({EdgeKind.SET_VALUE, EdgeKind.CREATED_KEY, EdgeKind.DELETED_KEY})
+
+# Fields serialised as JSON lists; restored to tuples so records stay hashable
+# and compare equal after a round trip.
+_TUPLE_FIELDS = ("access_targets", "remote_thread_targets")
 
 
 @dataclass(frozen=True)
@@ -102,6 +110,28 @@ class ProcessFeatures:
     network_connect_count: int
     public_connect_count: int
     module_load_count: int
+
+    # lifetime: only when a stop event was observed (schema 0.5)
+    lifetime_seconds: Optional[float]
+
+    # DNS (schema 0.5), as of ``as_of``
+    dns_query_count: int
+    distinct_domain_count: int
+    failed_dns_query_count: int
+
+    # cross-process (schema 0.5), as of ``as_of``
+    process_access_count: int
+    lsass_access_count: int
+    remote_thread_count: int
+    injected_thread_count: int
+    access_targets: Tuple[str, ...]
+    remote_thread_targets: Tuple[str, ...]
+
+    # PowerShell script blocks (schema 0.5), as of ``as_of``
+    script_block_count: int
+    script_block_bytes: int
+    obfuscated_script_block_count: int
+
     as_of: Optional[str]
 
     def to_dict(self) -> Dict[str, Any]:
@@ -113,7 +143,11 @@ class ProcessFeatures:
         unknown = set(data) - names
         if unknown:
             raise ValueError(f"unknown feature field(s): {sorted(unknown)}")
-        return cls(**data)
+        values = dict(data)
+        for name in _TUPLE_FIELDS:
+            if isinstance(values.get(name), list):
+                values[name] = tuple(values[name])
+        return cls(**values)
 
 
 class FeatureExtractor:
@@ -165,6 +199,7 @@ class FeatureExtractor:
             image_writer_name=(written[0].name or None) if written else None,
             image_age_seconds=written[1] if written else None,
             **self._behavior(process.node_id, as_of),
+            lifetime_seconds=_lifetime(process, as_of),
             as_of=as_of.isoformat() if as_of is not None else None,
         )
 
@@ -182,8 +217,8 @@ class FeatureExtractor:
         return [self.extract(p, as_of) for p in processes]
 
     # ------------------------------------------------------------------
-    def _behavior(self, node_id: str, as_of: Optional[datetime]) -> Dict[str, int]:
-        counts = {
+    def _behavior(self, node_id: str, as_of: Optional[datetime]) -> Dict[str, Any]:
+        counts: Dict[str, Any] = {
             "child_count": 0,
             "file_write_count": 0,
             "executable_write_count": 0,
@@ -191,9 +226,26 @@ class FeatureExtractor:
             "network_connect_count": 0,
             "public_connect_count": 0,
             "module_load_count": 0,
+            "dns_query_count": 0,
+            "failed_dns_query_count": 0,
+            "process_access_count": 0,
+            "lsass_access_count": 0,
+            "remote_thread_count": 0,
+            "injected_thread_count": 0,
+            "script_block_count": 0,
+            "script_block_bytes": 0,
+            "obfuscated_script_block_count": 0,
         }
+        domains = set()
+        access_targets = set()
+        thread_targets = set()
         for edge in self.graph.incident_edges(node_id):
-            if edge.src != node_id or (as_of is not None and edge.ts > as_of):
+            if as_of is not None and edge.ts > as_of:
+                continue
+            if edge.dst == node_id and edge.kind == EdgeKind.INJECTED:
+                counts["injected_thread_count"] += 1
+                continue
+            if edge.src != node_id:
                 continue
             if edge.kind == EdgeKind.FORKED:
                 counts["child_count"] += 1
@@ -215,7 +267,42 @@ class FeatureExtractor:
                     counts["public_connect_count"] += 1
             elif edge.kind == EdgeKind.LOADED:
                 counts["module_load_count"] += 1
+            elif edge.kind == EdgeKind.RESOLVED:
+                counts["dns_query_count"] += 1
+                domains.add(edge.dst)
+                if edge.attrs.get("query_status") not in (None, 0):
+                    counts["failed_dns_query_count"] += 1
+            elif edge.kind == EdgeKind.ACCESSED:
+                counts["process_access_count"] += 1
+                target = self._label(edge.dst)
+                access_targets.add(target)
+                if target == "lsass.exe":
+                    counts["lsass_access_count"] += 1
+            elif edge.kind == EdgeKind.INJECTED:
+                counts["remote_thread_count"] += 1
+                thread_targets.add(self._label(edge.dst))
+            elif edge.kind == EdgeKind.RAN_SCRIPT:
+                counts["script_block_count"] += 1
+                counts["script_block_bytes"] += edge.attrs.get("text_length") or 0
+                if edge.attrs.get("obfuscated"):
+                    counts["obfuscated_script_block_count"] += 1
+        counts["distinct_domain_count"] = len(domains)
+        counts["access_targets"] = tuple(sorted(t for t in access_targets if t))
+        counts["remote_thread_targets"] = tuple(sorted(t for t in thread_targets if t))
         return counts
+
+    def _label(self, node_id: str) -> str:
+        node = self.graph.nodes.get(node_id)
+        return (node.label or "").lower() if node is not None else ""
+
+
+def _lifetime(process: ProcessIncarnation, as_of: Optional[datetime]) -> Optional[float]:
+    """Seconds the process ran, when its stop was observed by ``as_of``."""
+    if not process.end_observed or process.end_time is None:
+        return None
+    if as_of is not None and process.end_time > as_of:
+        return None
+    return round((process.end_time - process.start_time).total_seconds(), 3)
 
 
 def _suffix(path: Optional[str]) -> str:

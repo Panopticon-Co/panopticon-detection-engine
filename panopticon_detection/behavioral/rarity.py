@@ -17,6 +17,10 @@ believed to be benign:
   ``svchost.exe`` in Temp); a never-seen program is reported once, by
   ``parent_child``, not twice.
 * ``name`` -- how often each program started, kept to support the above.
+* ``cross_process`` -- which program opened or injected into which (schema
+  0.5 process-access and remote-thread telemetry), e.g.
+  ``rundll32.exe -> lsass.exe [access]``. Counted once per source process and
+  target name, so the count reads "how many observed processes did this".
 
 Scoring a new process start against the table gives, per dimension, one of:
 
@@ -71,13 +75,21 @@ COMMON = "common"
 
 PARENT_CHILD = "parent_child"
 NAME_PATH_CLASS = "name_path_class"
+CROSS_PROCESS = "cross_process"
 _NAME = "name"
+
+# Engine event type -> the label a cross-process relationship is counted under.
+_CROSS_PROCESS_KINDS = {"process_access": "access", "remote_thread": "remote_thread"}
 
 # Defaults for a real deployment: a few hundred process starts and a few dozen
 # distinct relationships before any judgement is made.
 DEFAULT_MIN_OBSERVATIONS = 200
 DEFAULT_MIN_RELATIONSHIPS = 25
 DEFAULT_UNCOMMON_MAX_COUNT = 2
+# Cross-process telemetry is sparser than process starts (a Sysmon config
+# usually filters ProcessAccess to a few targets), and a baseline learned
+# before it existed has none, so this dimension has its own readiness floor.
+DEFAULT_MIN_CROSS_PROCESS = 10
 
 # How each dimension is reported. Levels sit far below the incident anchor
 # threshold (10) and below every rule that matters to scoring.
@@ -91,6 +103,11 @@ _REPORTING = {
         "BHV-RARE-002",
         "rare_process_location",
         "Known process running from an unusual location",
+    ),
+    CROSS_PROCESS: (
+        "BHV-RARE-003",
+        "rare_cross_process",
+        "Rare cross-process access or injection",
     ),
 }
 _LEVEL = {UNSEEN: 4, UNCOMMON: 2}
@@ -122,11 +139,15 @@ class RarityBaseline:
         min_observations: int = DEFAULT_MIN_OBSERVATIONS,
         min_relationships: int = DEFAULT_MIN_RELATIONSHIPS,
         uncommon_max_count: int = DEFAULT_UNCOMMON_MAX_COUNT,
+        min_cross_process: int = DEFAULT_MIN_CROSS_PROCESS,
     ) -> None:
         self.min_observations = min_observations
         self.min_relationships = min_relationships
         self.uncommon_max_count = uncommon_max_count
-        self.counts: Dict[str, Dict[str, int]] = {_NAME: {}, PARENT_CHILD: {}, NAME_PATH_CLASS: {}}
+        self.min_cross_process = min_cross_process
+        self.counts: Dict[str, Dict[str, int]] = {
+            _NAME: {}, PARENT_CHILD: {}, NAME_PATH_CLASS: {}, CROSS_PROCESS: {},
+        }
         self.total_observations = 0
         self.observed_from: Optional[str] = None
         self.observed_to: Optional[str] = None
@@ -143,6 +164,10 @@ class RarityBaseline:
             self._bump(PARENT_CHILD, features.parent_child)
         if features.path_class:
             self._bump(NAME_PATH_CLASS, _located(features.name, features.path_class))
+        for target in features.access_targets:
+            self._bump(CROSS_PROCESS, _crossed(features.name, target, "access"))
+        for target in features.remote_thread_targets:
+            self._bump(CROSS_PROCESS, _crossed(features.name, target, "remote_thread"))
         if self.observed_from is None or features.start_time < self.observed_from:
             self.observed_from = features.start_time
         if self.observed_to is None or features.start_time > self.observed_to:
@@ -163,6 +188,14 @@ class RarityBaseline:
         return len(self.counts[PARENT_CHILD])
 
     @property
+    def cross_process_observations(self) -> int:
+        return sum(self.counts[CROSS_PROCESS].values())
+
+    @property
+    def cross_process_ready(self) -> bool:
+        return self.is_ready and self.cross_process_observations >= self.min_cross_process
+
+    @property
     def is_ready(self) -> bool:
         return (
             self.total_observations >= self.min_observations
@@ -176,6 +209,9 @@ class RarityBaseline:
             "relationships": self.relationships,
             "min_observations": self.min_observations,
             "min_relationships": self.min_relationships,
+            "cross_process_ready": self.cross_process_ready,
+            "cross_process_observations": self.cross_process_observations,
+            "min_cross_process": self.min_cross_process,
         }
 
     # ------------------------------------------------------------- scoring
@@ -190,9 +226,20 @@ class RarityBaseline:
             )
         return results
 
-    def _result(self, dimension: str, value: str) -> RarityResult:
+    def score_cross_process(self, source: str, target: str, kind: str) -> RarityResult:
+        """Compare one process opening/injecting into another with the baseline."""
+        return self._result(
+            CROSS_PROCESS,
+            _crossed(source, target, kind),
+            ready=self.cross_process_ready,
+            total=self.cross_process_observations,
+        )
+
+    def _result(
+        self, dimension: str, value: str, *, ready: Optional[bool] = None, total: Optional[int] = None
+    ) -> RarityResult:
         count = self.counts[dimension].get(value, 0)
-        if not self.is_ready:
+        if not (self.is_ready if ready is None else ready):
             category = NOT_READY
         elif count == 0:
             category = UNSEEN
@@ -200,7 +247,9 @@ class RarityBaseline:
             category = UNCOMMON
         else:
             category = COMMON
-        return RarityResult(dimension, value, category, count, self.total_observations)
+        return RarityResult(
+            dimension, value, category, count, self.total_observations if total is None else total
+        )
 
     # ------------------------------------------------------- serialization
     @property
@@ -217,6 +266,7 @@ class RarityBaseline:
             "readiness": {
                 "min_observations": self.min_observations,
                 "min_relationships": self.min_relationships,
+                "min_cross_process": self.min_cross_process,
             },
             "thresholds": {"uncommon_max_count": self.uncommon_max_count},
             "observed_from": self.observed_from,
@@ -254,6 +304,7 @@ class RarityBaseline:
             min_observations=int(readiness.get("min_observations", DEFAULT_MIN_OBSERVATIONS)),
             min_relationships=int(readiness.get("min_relationships", DEFAULT_MIN_RELATIONSHIPS)),
             uncommon_max_count=int(thresholds.get("uncommon_max_count", DEFAULT_UNCOMMON_MAX_COUNT)),
+            min_cross_process=int(readiness.get("min_cross_process", DEFAULT_MIN_CROSS_PROCESS)),
         )
         counts = data.get("counts") or {}
         for dimension in baseline.counts:
@@ -292,14 +343,27 @@ class RarityDetector:
         self.baseline = baseline
 
     def evaluate(self, event: Dict[str, Any], extractor) -> List[BehavioralSignal]:
-        if event.get("event_type") != "process_create" or not self.baseline.is_ready:
-            return []
-        features = extractor.extract_event(event)
-        if features is None:
+        event_type = event.get("event_type")
+        if event_type == "process_create":
+            if not self.baseline.is_ready:
+                return []
+            features = extractor.extract_event(event)
+            results = self.baseline.score(features) if features is not None else []
+        elif event_type in _CROSS_PROCESS_KINDS:
+            if not self.baseline.cross_process_ready:
+                return []
+            features = extractor.extract_event(event)
+            target = (event.get("target") or {}).get("name")
+            if features is None or not features.name or not target:
+                return []
+            results = [
+                self.baseline.score_cross_process(features.name, target, _CROSS_PROCESS_KINDS[event_type])
+            ]
+        else:
             return []
         return [
             self._signal(result, features, event)
-            for result in self.baseline.score(features)
+            for result in results
             if result.category in (UNSEEN, UNCOMMON)
         ]
 
@@ -360,6 +424,13 @@ class RarityDetector:
     def _explain(self, result: RarityResult, features: ProcessFeatures) -> str:
         baseline = self.baseline
         where = f"rarity baseline {baseline.version}"
+        if result.dimension == CROSS_PROCESS:
+            seen = "Previously unseen" if result.category == UNSEEN else "Uncommon"
+            return (
+                f"{seen} cross-process relationship: {result.value} "
+                f"({result.observed_count} of {result.baseline_total} cross-process relationships in "
+                f"{where})."
+            )
         if result.dimension == PARENT_CHILD:
             if result.category == UNSEEN:
                 return (
@@ -381,3 +452,7 @@ class RarityDetector:
 
 def _located(name: str, path_class: str) -> str:
     return f"{name} @ {path_class}"
+
+
+def _crossed(source: str, target: str, kind: str) -> str:
+    return f"{source} -> {target} [{kind}]"

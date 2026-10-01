@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, Callable, Dict, FrozenSet, Optional, Tuple
 
+from panopticon_detection.behavioral.dns import DnsAnalyzer
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 from panopticon_detection.provenance.boundary import is_boundary
@@ -31,6 +32,10 @@ _FILE_TYPES = frozenset({"file_create", "file_delete", "file_rename"})
 _PROCESS_TYPES = frozenset({"process_create"})
 _NETWORK_TYPES = frozenset({"network_connect"})
 _IMAGE_TYPES = frozenset({"image_load"})
+_CROSS_PROCESS_TYPES = frozenset({"process_access", "remote_thread"})
+_ACCESS_TYPES = frozenset({"process_access"})
+_SCRIPT_TYPES = frozenset({"script_block"})
+_DNS_TYPES = frozenset({"dns_query"})
 
 
 @dataclass
@@ -235,6 +240,44 @@ def _extension_changed(event, ctx):
     return bool(new) and new != old
 
 
+# -- schema 0.5 families -------------------------------------------------------
+
+# Windows process access rights (winnt.h).
+PROCESS_VM_READ = 0x0010
+PROCESS_VM_WRITE = 0x0020
+PROCESS_CREATE_THREAD = 0x0002
+
+# Modules whose presence in a Sysmon call trace means the handle was opened to
+# write a minidump (MiniDumpWriteDump lives in dbghelp/dbgcore).
+_MINIDUMP_MODULES = ("dbghelp.dll", "dbgcore.dll")
+
+
+def _access_right(mask_bit: int):
+    def derive_right(event, ctx):
+        mask = (event.get("process_access") or {}).get("access_mask")
+        return None if mask is None else bool(mask & mask_bit)
+    return derive_right
+
+
+def _call_trace(event) -> str:
+    return ((event.get("process_access") or {}).get("call_trace") or "").lower()
+
+
+def _script_deob(event: Dict[str, Any]) -> Dict[str, Any]:
+    cache = event.setdefault(DERIVED_KEY, {})
+    if "_script_deobfuscation" not in cache:
+        text = (event.get("script_block") or {}).get("text") or ""
+        cache["_script_deobfuscation"] = CommandDeobfuscator.deobfuscate(text)
+    return cache["_script_deobfuscation"]
+
+
+def _dns_analysis(event: Dict[str, Any]) -> Dict[str, Any]:
+    cache = event.setdefault(DERIVED_KEY, {})
+    if "_dns_analysis" not in cache:
+        cache["_dns_analysis"] = DnsAnalyzer.analyze_domain((event.get("dns") or {}).get("query_name"))
+    return cache["_dns_analysis"]
+
+
 def _hash_match(event, ctx):
     if ctx.threat_intel is None:
         return None
@@ -283,6 +326,24 @@ DERIVED_FIELDS: Dict[str, Tuple[Callable[[Dict[str, Any], MatchContext], Any], O
     ),
     "threat_intel.hash_match": (_hash_match, None),
     "threat_intel.ip_match": (_ip_match, _NETWORK_TYPES),
+    # schema 0.5: cross-process, script-block and DNS families
+    "target.path_class": (
+        lambda e, c: classify_path((e.get("target") or {}).get("executable")),
+        _CROSS_PROCESS_TYPES,
+    ),
+    "process_access.can_read_memory": (_access_right(PROCESS_VM_READ), _ACCESS_TYPES),
+    "process_access.can_write_memory": (_access_right(PROCESS_VM_WRITE), _ACCESS_TYPES),
+    "process_access.can_create_thread": (_access_right(PROCESS_CREATE_THREAD), _ACCESS_TYPES),
+    "process_access.via_minidump": (
+        lambda e, c: any(m in _call_trace(e) for m in _MINIDUMP_MODULES),
+        _ACCESS_TYPES,
+    ),
+    "process_access.unbacked_caller": (lambda e, c: "unknown" in _call_trace(e), _ACCESS_TYPES),
+    "script_block.deobfuscated_text": (lambda e, c: _script_deob(e)["full_deobfuscated"], _SCRIPT_TYPES),
+    "script_block.is_obfuscated": (lambda e, c: _script_deob(e)["is_obfuscated"], _SCRIPT_TYPES),
+    "script_block.evasion_techniques": (lambda e, c: _script_deob(e)["evasion_techniques"], _SCRIPT_TYPES),
+    "dns.is_dga": (lambda e, c: _dns_analysis(e)["is_dga"], _DNS_TYPES),
+    "dns.query_entropy": (lambda e, c: _dns_analysis(e)["entropy"], _DNS_TYPES),
 }
 
 

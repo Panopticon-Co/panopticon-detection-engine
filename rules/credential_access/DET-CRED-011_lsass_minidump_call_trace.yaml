@@ -1,0 +1,41 @@
+id: DET-CRED-011
+name: LSASS Read Through the MiniDump Writer
+description: >-
+  lsass.exe was opened from a call stack that runs through dbghelp.dll or
+  dbgcore.dll -- MiniDumpWriteDump writing LSASS memory to disk, whichever
+  tool asked for it (comsvcs.dll MiniDump, procdump, Task Manager). Reads
+  the Sysmon EventID 10 call trace, schema 0.5.
+version: 1
+status: enabled
+event_type: process_access
+
+logic:
+  all:
+    - field: target.name
+      operator: equals
+      value: lsass.exe
+    - field: process_access.via_minidump
+      operator: equals
+      value: true
+
+level: 14
+active_response: TERMINATE_PROCESS
+severity: critical
+confidence: 0.95
+
+evidence:
+  - process.name
+  - process.pid
+  - target.name
+  - process_access.granted_access
+  - process_access.call_trace
+
+mitre:
+  tactic: Credential Access
+  technique: T1003.001
+  name: "OS Credential Dumping: LSASS Memory"
+
+tags:
+  - attack.credential_access
+  - lsass
+  - minidump

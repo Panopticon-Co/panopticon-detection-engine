@@ -1,4 +1,4 @@
-"""Ingestion adapter for Officer agent events (Panopticon schema 0.1-0.4).
+"""Ingestion adapter for Officer agent events (Panopticon schema 0.1-0.5).
 
 Recognises agent events and hands them to the shared normalizer; the public
 methods here are the entry points the CLI, live stream and manager call.
@@ -11,7 +11,7 @@ from panopticon_detection.ingestion import telemetry as _telemetry
 
 
 class OfficerIngestionAdapter:
-    """Recognises Officer events and normalizes them -- one contract, five families."""
+    """Recognises Officer events and normalizes them -- one contract, every family."""
 
     SCHEMA_VERSION = "0.2"
     # 0.4 is the Linux agent's schema version (see
@@ -20,7 +20,9 @@ class OfficerIngestionAdapter:
     # shape is identical to 0.2/0.3's (same event/source/agent/host/user/
     # process envelope), so it is safe to accept explicitly here rather than
     # relying on the duck-typing fallback below to smuggle it through.
-    SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4")
+    # 0.5 adds families (dns, process_access, remote_thread, script_block)
+    # and process stop; the envelope is unchanged.
+    SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3", "0.4", "0.5")
 
     @classmethod
     def is_officer_event(cls, raw: Dict[str, Any]) -> bool:

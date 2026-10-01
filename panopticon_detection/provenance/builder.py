@@ -17,6 +17,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
+from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 from panopticon_detection.provenance.graph import (
     Edge,
     EdgeKind,
@@ -44,6 +46,11 @@ _REGISTRY_EDGES = {
     "registry_add_key": EdgeKind.CREATED_KEY,
     "registry_delete_key": EdgeKind.DELETED_KEY,
     "registry_rename_key": EdgeKind.SET_VALUE,
+}
+# Schema 0.5 cross-process families: source process -> target process.
+_CROSS_PROCESS_EDGES = {
+    "process_access": EdgeKind.ACCESSED,
+    "remote_thread": EdgeKind.INJECTED,
 }
 
 
@@ -97,6 +104,12 @@ class EventGraphBuilder:
             return self._apply_registry(event, when, actor, _REGISTRY_EDGES[event_type])
         if event_type == "image_load":
             return self._apply_image_load(event, when, actor)
+        if event_type == "dns_query":
+            return self._apply_dns(event, when, actor)
+        if event_type in _CROSS_PROCESS_EDGES:
+            return self._apply_cross_process(event, when, actor, _CROSS_PROCESS_EDGES[event_type])
+        if event_type == "script_block":
+            return self._apply_script_block(event, when, actor)
         return None
 
     # ------------------------------------------------------------------
@@ -262,6 +275,90 @@ class EventGraphBuilder:
             actor.host_id,
             event.get("event_id"),
             signature_status=info.get("signature_status"),
+        )
+
+    def _apply_dns(
+        self, event: Dict[str, Any], when: datetime, actor: ProcessIncarnation
+    ) -> Optional[Edge]:
+        info = event.get("dns") or {}
+        name = info.get("query_name")
+        if not name:
+            return None
+        domain_id = entity_node_id(NodeKind.DOMAIN, actor.host_id, name)
+        self.graph.upsert_node(domain_id, NodeKind.DOMAIN, name, actor.host_id, when)
+        return self.graph.add_edge(
+            EdgeKind.RESOLVED,
+            actor.node_id,
+            domain_id,
+            when,
+            actor.host_id,
+            event.get("event_id"),
+            query_status=info.get("query_status"),
+            answers=tuple(info.get("answers") or ()) or None,
+        )
+
+    def _apply_cross_process(
+        self,
+        event: Dict[str, Any],
+        when: datetime,
+        actor: ProcessIncarnation,
+        kind: EdgeKind,
+    ) -> Optional[Edge]:
+        """Process access or remote thread: an edge from the source to the target.
+
+        The target is resolved by ``(host, pid, time)`` like any actor, and
+        inferred (flagged) when its start was never seen -- ``lsass.exe`` and
+        ``explorer.exe`` usually predate the agent.
+        """
+        target_info = event.get("target") or {}
+        target = self.registry.observe_reference(
+            actor.host_id, target_info.get("pid"), target_info.get("executable"), when
+        )
+        if target is None:
+            return None
+        self._ensure_process_node(target)
+        if kind == EdgeKind.ACCESSED:
+            access = event.get("process_access") or {}
+            attrs = {"granted_access": access.get("granted_access"), "access_mask": access.get("access_mask")}
+        else:
+            thread = event.get("remote_thread") or {}
+            attrs = {
+                "start_module": thread.get("start_module"),
+                "start_function": thread.get("start_function"),
+            }
+        return self.graph.add_edge(
+            kind, actor.node_id, target.node_id, when, actor.host_id, event.get("event_id"), **attrs
+        )
+
+    def _apply_script_block(
+        self, event: Dict[str, Any], when: datetime, actor: ProcessIncarnation
+    ) -> Optional[Edge]:
+        """A script block becomes a leaf node; its text is summarised, not kept.
+
+        Keeping every script's text in a 24-hour in-memory graph would grow
+        without bound on a PowerShell-heavy host, so the edge records its length,
+        hash, entropy and whether it is obfuscated. Rules still read the text
+        itself from the event.
+        """
+        info = event.get("script_block") or {}
+        key = info.get("script_block_id") or info.get("text_sha256")
+        if not key:
+            return None
+        part = info.get("message_number")
+        script_id = entity_node_id(NodeKind.SCRIPT, actor.host_id, f"{key}#{part or 1}")
+        self.graph.upsert_node(script_id, NodeKind.SCRIPT, str(key), actor.host_id, when, path=info.get("path"))
+        text = info.get("text") or ""
+        return self.graph.add_edge(
+            EdgeKind.RAN_SCRIPT,
+            actor.node_id,
+            script_id,
+            when,
+            actor.host_id,
+            event.get("event_id"),
+            text_length=info.get("text_length"),
+            text_sha256=info.get("text_sha256"),
+            entropy=round(ShannonEntropyCalculator.calculate_entropy(text), 4) if text else None,
+            obfuscated=bool(CommandDeobfuscator.deobfuscate(text)["is_obfuscated"]) if text else False,
         )
 
     # ------------------------------------------------------------------

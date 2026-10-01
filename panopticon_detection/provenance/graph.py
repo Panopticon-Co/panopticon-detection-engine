@@ -12,6 +12,8 @@ Directed, causality-constrained traversal
 * a child came from its parent            (FORKED parent -> child)
 * a process came from the image it ran    (EXECUTED / LOADED file -> process)
 * a file came from the process that wrote it  (WROTE / RENAMED process -> file)
+* a process's behaviour came from code another process injected into it
+  (INJECTED injector -> target, from a remote-thread event)
 
 and it only ever steps to edges at or before the time reached so far, so
 nothing is caused by its own future.
@@ -45,6 +47,8 @@ class NodeKind(str, Enum):
     MODULE = "module"
     USER = "user"
     HOST = "host"
+    DOMAIN = "domain"   # a DNS name a process resolved (schema 0.5)
+    SCRIPT = "script"   # a PowerShell script block, keyed by its id (schema 0.5)
 
 
 class EdgeKind(str, Enum):
@@ -61,11 +65,21 @@ class EdgeKind(str, Enum):
     CREATED_KEY = "created_key"    # process -> registry_key
     DELETED_KEY = "deleted_key"    # process -> registry_key
     RAN_AS = "ran_as"              # process -> user
+    RESOLVED = "resolved"          # process -> domain       (DNS query)
+    ACCESSED = "accessed"          # process -> process      (handle opened)
+    INJECTED = "injected"          # process -> process      (remote thread created)
+    RAN_SCRIPT = "ran_script"      # process -> script       (script block compiled)
 
 
 # Which way information flows along each relation. A backward walk moves from
 # the node information flowed INTO to the node it flowed FROM. Relations absent
-# from both sets (CONNECTED_TO, RAN_AS) are never crossed by a causal walk.
+# from both sets are never crossed by a causal walk: CONNECTED_TO and RESOLVED
+# (two processes contacting one address or name are correlated, not causally
+# linked), RAN_AS, RAN_SCRIPT (a script node is a leaf), and ACCESSED -- a
+# handle to lsass.exe is opened by antivirus and system services all day, and
+# following it would make lsass the cause of everything that touched it.
+# INJECTED is causal: code the source placed runs inside the target, so what
+# the target does next has the injector upstream of it.
 _FLOWS_SRC_TO_DST = frozenset(
     {
         EdgeKind.FORKED,
@@ -75,6 +89,7 @@ _FLOWS_SRC_TO_DST = frozenset(
         EdgeKind.SET_VALUE,
         EdgeKind.CREATED_KEY,
         EdgeKind.DELETED_KEY,
+        EdgeKind.INJECTED,
     }
 )
 _FLOWS_DST_TO_SRC = frozenset({EdgeKind.EXECUTED, EdgeKind.LOADED})
