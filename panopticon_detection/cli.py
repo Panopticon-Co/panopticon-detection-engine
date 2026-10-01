@@ -27,8 +27,16 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from panopticon_detection.alerting.formatter import AlertFormatter
 from panopticon_detection.alerting.story_formatter import StoryModeFormatter
+from panopticon_detection.behavioral.rarity import (
+    DEFAULT_MIN_OBSERVATIONS,
+    DEFAULT_MIN_RELATIONSHIPS,
+    DEFAULT_UNCOMMON_MAX_COUNT,
+    RarityBaseline,
+    RarityDetector,
+)
 from panopticon_detection.detection_run import _print_alert
 from panopticon_detection.factory import build_detection_run
+from panopticon_detection.features import write_jsonl
 from panopticon_detection.ingestion.live_stream import LiveTelemetryStream
 from panopticon_detection.mitre.attack import MitreMatrixNavigator
 from panopticon_detection.rules.loader import RuleLoader
@@ -98,6 +106,41 @@ def build_parser() -> argparse.ArgumentParser:
         "--graph-stats",
         action="store_true",
         help="Print provenance graph size after the run",
+    )
+
+    behavioral = parser.add_argument_group("behavioral rarity baseline (batch mode)")
+    behavioral.add_argument(
+        "--export-features",
+        default=None,
+        help="After the replay, write one JSON line of process features per process here",
+    )
+    behavioral.add_argument(
+        "--learn-baseline",
+        default=None,
+        help="After the replay, learn a rarity baseline from its processes and save it here",
+    )
+    behavioral.add_argument(
+        "--baseline",
+        default=None,
+        help="Score process starts against this rarity baseline (emits BHV-RARE-* signals)",
+    )
+    behavioral.add_argument(
+        "--baseline-min-observations",
+        type=int,
+        default=DEFAULT_MIN_OBSERVATIONS,
+        help="--learn-baseline: process starts required before the baseline judges anything",
+    )
+    behavioral.add_argument(
+        "--baseline-min-relationships",
+        type=int,
+        default=DEFAULT_MIN_RELATIONSHIPS,
+        help="--learn-baseline: distinct parent-child pairs required before it judges anything",
+    )
+    behavioral.add_argument(
+        "--baseline-uncommon-max",
+        type=int,
+        default=DEFAULT_UNCOMMON_MAX_COUNT,
+        help="--learn-baseline: a relationship seen at most this often is 'uncommon' (0 = off)",
     )
 
     reliability = parser.add_argument_group("reliable streaming pipeline")
@@ -182,6 +225,18 @@ def main() -> None:
         if not _telemetry_requested():
             return
 
+    if args.reliable and (args.export_features or args.learn_baseline or args.baseline):
+        print("[ERROR] --export-features, --learn-baseline and --baseline are batch-mode only")
+        sys.exit(1)
+
+    detectors = []
+    if args.baseline:
+        try:
+            detectors.append(RarityDetector(RarityBaseline.load(Path(args.baseline))))
+        except (OSError, ValueError) as exc:
+            print(f"[ERROR] Failed to load rarity baseline {args.baseline}: {exc}")
+            sys.exit(1)
+
     event_stream, stream_name = _open_stream(args)
 
     try:
@@ -190,6 +245,7 @@ def main() -> None:
             emit=lambda alert: _print_alert(
                 alert, args.output_format, story_mode=args.story
             ),
+            behavioral_detectors=detectors,
         )
     except Exception as exc:
         print(f"[ERROR] Failed to load rules: {exc}")
@@ -199,7 +255,10 @@ def main() -> None:
     print("Panopticon detection engine")
     print("=" * 78)
     print(f"[*] {len(run.evaluator.rules)} enabled rule(s) loaded from {rules_path}")
-    print(f"[*] Telemetry source: {stream_name}\n")
+    print(f"[*] Telemetry source: {stream_name}")
+    for detector in detectors:
+        print(f"[*] {_baseline_status(detector.baseline)}")
+    print()
 
     if args.reliable:
         _run_streaming_pipeline(args, run, event_stream)
@@ -213,11 +272,43 @@ def main() -> None:
                 for alert in run.all_alerts:
                     handle.write(AlertFormatter.to_ndjson(alert) + "\n")
             print(f"\n[+] Wrote {len(run.all_alerts)} alert(s) to {out_path.resolve()}")
+        _write_behavioral_outputs(args, run)
 
     if args.story:
         print("\n" + StoryModeFormatter.render_story_timeline(run.all_alerts, []))
 
     _print_summary(run, context, show_graph=args.graph_stats)
+
+
+def _baseline_status(baseline: RarityBaseline) -> str:
+    state = baseline.readiness()
+    counts = f"{state['observations']} process starts, {state['relationships']} relationships"
+    if state["ready"]:
+        return f"Rarity baseline {baseline.version}: ready ({counts})"
+    return (
+        f"Rarity baseline {baseline.version}: NOT READY ({counts}; needs "
+        f"{state['min_observations']} and {state['min_relationships']}) -- "
+        "no rarity signals will be emitted"
+    )
+
+
+def _write_behavioral_outputs(args, run) -> None:
+    """Feature export and baseline learning, both from the run's one extractor."""
+    if args.export_features:
+        path = Path(args.export_features)
+        count = write_jsonl(run.feature_extractor.extract_all(), path)
+        print(f"[+] Wrote {count} process feature record(s) to {path.resolve()}")
+    if args.learn_baseline:
+        baseline = RarityBaseline(
+            min_observations=args.baseline_min_observations,
+            min_relationships=args.baseline_min_relationships,
+            uncommon_max_count=args.baseline_uncommon_max,
+        )
+        learned = baseline.fit(run.feature_extractor.extract_all())
+        path = Path(args.learn_baseline)
+        baseline.save(path)
+        print(f"[+] Learned from {learned} observed process start(s); saved to {path.resolve()}")
+        print(f"[+] {_baseline_status(baseline)}")
 
 
 def _telemetry_requested() -> bool:
@@ -262,6 +353,7 @@ def _print_summary(run, context, *, show_graph: bool) -> None:
         ("Single-event rule detections", run.rule_alerts_count),
         ("Stateful rule detections", run.stateful_alerts_count),
         ("Beacon detections", run.beacon_alerts_count),
+        ("Behavioral signals", run.behavioral_signals_count),
         ("Repeat detections suppressed", run.suppressed_duplicates),
         ("Incidents", len(incidents)),
         ("Incident alerts (opened/updated)", run.incident_alerts_count),

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple
 
 from panopticon_detection.behavioral.beacon import C2BeaconDetector
 from panopticon_detection.detection_run import DetectionRun
@@ -48,14 +48,15 @@ class DetectionContext:
         """Drop every piece of detection state older than ``before`` (naive UTC).
 
         Covers the graph, the process registry, open incidents, stateful rule
-        state, the beacon detector, the risk meter and alert dedup, so a
-        long-running worker stays bounded.
+        state, the beacon detector, behavioral detectors, the risk meter and
+        alert dedup, so a long-running worker stays bounded.
         """
         run = self.run
         detector_state = (
             run.stateful.prune(before)
             + run.risk_scorer.prune(before)
             + run.beacon_detector.prune(before)
+            + sum(detector.prune(before) for detector in run.behavioral_detectors)
             + run.prune(before)
         )
         return {
@@ -80,12 +81,15 @@ def build_detection_run(
     emit: Optional[Callable[[Any], None]] = None,
     retention: timedelta = timedelta(hours=24),
     campaign_horizon: timedelta = timedelta(hours=6),
+    behavioral_detectors: Sequence[Any] = (),
 ) -> Tuple[DetectionRun, DetectionContext]:
     """Load rules and wire a detection run over a fresh provenance graph.
 
     ``emit`` is called once per alert produced. ``retention`` bounds how long a
     process incarnation stays resolvable; ``campaign_horizon`` bounds how far
-    back an incident's causal walk may reach.
+    back an incident's causal walk may reach. ``behavioral_detectors`` (e.g. a
+    :class:`~panopticon_detection.behavioral.rarity.RarityDetector`) are
+    optional; with none, the run behaves exactly as it did before they existed.
     """
     rules = RuleLoader().load_directory(Path(rules_dir))
 
@@ -102,5 +106,6 @@ def build_detection_run(
         risk_scorer=EntityRiskScorer(breach_threshold=75),
         beacon_detector=C2BeaconDetector(registry=registry),
         emit=emit,
+        behavioral_detectors=behavioral_detectors,
     )
     return run, DetectionContext(graph, registry, incidents, run)

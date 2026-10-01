@@ -6,7 +6,11 @@ One event flows through here exactly once, in a fixed order:
    edge and keeps the process registry current -- before evaluation, so rules
    asking about this process's ancestry or image see it.
 2. **Detect.** Single-event rules, stateful rules (sequence / threshold /
-   value_count) and the beacon detector each run on the event.
+   value_count) and the beacon detector each run on the event, then any
+   behavioral detectors (the rarity baseline). A behavioral detector reports a
+   :class:`~panopticon_detection.behavioral.signal.BehavioralSignal`, which is
+   turned into an ordinary alert here and follows every step below -- except
+   the host risk meter, because "unusual" is not evidence of compromise.
 3. **Deduplicate.** The same rule on the same process within ``dedup_ttl`` is
    one alert; repeats are counted, not re-emitted.
 4. **Tag.** Every detection -- including suppressed repeats -- is written onto
@@ -22,11 +26,12 @@ so their behaviour cannot drift apart.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from panopticon_detection import enrichment
 from panopticon_detection.alerting.alert import Alert
 from panopticon_detection.alerting.formatter import AlertFormatter
+from panopticon_detection.features import FeatureExtractor
 from panopticon_detection.provenance.graph import actor_of
 from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 from panopticon_detection.provenance.tagging import Tag, tag_from_alert, tag_from_detection
@@ -57,6 +62,7 @@ class DetectionRun:
         beacon_detector,
         emit: Optional[Callable[[Alert], None]] = None,
         dedup_ttl_seconds: float = 600.0,
+        behavioral_detectors: Sequence[Any] = (),
     ) -> None:
         self.graph_builder = graph_builder
         self.evaluator = evaluator
@@ -65,6 +71,12 @@ class DetectionRun:
         self.risk_scorer = risk_scorer
         self.beacon_detector = beacon_detector
         self.dedup_ttl_seconds = dedup_ttl_seconds
+        # Optional, and none by default: each takes (event, feature_extractor)
+        # and returns BehavioralSignals. The extractor reads the same registry
+        # and graph the builder maintains, so features are computed exactly as
+        # --export-features and --learn-baseline compute them.
+        self.behavioral_detectors = list(behavioral_detectors)
+        self.feature_extractor = FeatureExtractor(graph_builder.registry, graph_builder.graph)
 
         self._emit_cb = emit or (lambda _alert: None)
         # (rule, host, actor) -> event time of the last emitted alert.
@@ -77,6 +89,7 @@ class DetectionRun:
         self.rule_alerts_count = 0
         self.stateful_alerts_count = 0
         self.beacon_alerts_count = 0
+        self.behavioral_signals_count = 0
         self.incident_alerts_count = 0
         self.risk_breach_alerts_count = 0
         self.suppressed_duplicates = 0
@@ -102,24 +115,31 @@ class DetectionRun:
         if beacon is not None:
             alert = self._beacon_alert(beacon, event)
             detections.append((alert, tag_from_alert(alert), "beacon"))
+        for detector in self.behavioral_detectors:
+            for signal in detector.evaluate(event, self.feature_extractor):
+                alert = signal.to_alert()
+                detections.append((alert, tag_from_alert(alert), "behavioral"))
 
         # Emit (or suppress) each detection, then tag them all onto the edge
         # before correlating, so an incident opened by one detection on this
         # event already includes the others.
-        emitted: List[Alert] = []
+        evidential: List[Alert] = []
         for alert, _tag, kind in detections:
             if self._is_duplicate(alert, event, edge):
                 self.suppressed_duplicates += 1
                 continue
             self._count(kind)
             self._emit(alert, produced)
-            emitted.append(alert)
+            if kind != "behavioral":
+                evidential.append(alert)
 
         # One event is one piece of evidence toward a host's risk, however many
         # overlapping rules describe it: feed the meter once, with the event's
-        # strongest detection.
-        if emitted:
-            strongest = max(emitted, key=lambda a: (a.level, a.rule_id))
+        # strongest detection. Behavioral signals are left out: "never seen
+        # here before" is context for an analyst, not evidence of compromise,
+        # and must not push a host toward an isolation recommendation.
+        if evidential:
+            strongest = max(evidential, key=lambda a: (a.level, a.rule_id))
             risk = self.risk_scorer.record_detection(
                 host_id=strongest.host_id,
                 rule_id=strongest.rule_id,
@@ -164,6 +184,8 @@ class DetectionRun:
             self.stateful_alerts_count += 1
         elif kind == "beacon":
             self.beacon_alerts_count += 1
+        elif kind == "behavioral":
+            self.behavioral_signals_count += 1
 
     def _emit(self, alert: Alert, produced: List[Alert]) -> None:
         produced.append(alert)

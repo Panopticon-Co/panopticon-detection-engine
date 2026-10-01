@@ -167,26 +167,34 @@ def image_write(event: Dict[str, Any], ctx: MatchContext) -> Optional[Tuple[Any,
     process WROTE.
     """
     cache = event.setdefault(DERIVED_KEY, {})
-    if "_image_write" in cache:
-        return cache["_image_write"]
-    result = None
-    actor = _actor(event, ctx)
-    if actor is not None and actor.executable and ctx.graph is not None:
-        file_id = entity_node_id(NodeKind.FILE, actor.host_id, actor.executable)
-        best = None
-        for edge in ctx.graph.incident_edges(file_id):
-            if edge.kind not in (EdgeKind.WROTE, EdgeKind.RENAMED) or edge.dst != file_id:
-                continue
-            if edge.src == actor.node_id or edge.ts > actor.start_time:
-                continue
-            if best is None or edge.ts > best.ts:
-                best = edge
-        if best is not None:
-            writer = ctx.registry.get(best.src)
-            if writer is not None:
-                result = (writer, (actor.start_time - best.ts).total_seconds())
-    cache["_image_write"] = result
-    return result
+    if "_image_write" not in cache:
+        cache["_image_write"] = image_write_for(_actor(event, ctx), ctx)
+    return cache["_image_write"]
+
+
+def image_write_for(actor, ctx: MatchContext) -> Optional[Tuple[Any, float]]:
+    """:func:`image_write` for a process incarnation rather than an event.
+
+    The feature extractor calls this directly, so a feature and a rule field
+    computed for the same process can never disagree.
+    """
+    if actor is None or not actor.executable or ctx.graph is None or ctx.registry is None:
+        return None
+    file_id = entity_node_id(NodeKind.FILE, actor.host_id, actor.executable)
+    best = None
+    for edge in ctx.graph.incident_edges(file_id):
+        if edge.kind not in (EdgeKind.WROTE, EdgeKind.RENAMED) or edge.dst != file_id:
+            continue
+        if edge.src == actor.node_id or edge.ts > actor.start_time:
+            continue
+        if best is None or edge.ts > best.ts:
+            best = edge
+    if best is None:
+        return None
+    writer = ctx.registry.get(best.src)
+    if writer is None:
+        return None
+    return writer, (actor.start_time - best.ts).total_seconds()
 
 
 # --------------------------------------------------------------- the fields

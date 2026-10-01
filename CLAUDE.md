@@ -64,6 +64,27 @@ run. `DetectionRun.process_event` handles one event, in this order:
    **`provenance/incident.py`**, which attaches it to an open incident or opens
    one, emitting an incident alert only on open or material change.
 
+### Behavioral detectors
+
+`build_detection_run(..., behavioral_detectors=[...])` adds optional detectors
+(none by default, so the manager is unaffected). Each takes
+`(event, FeatureExtractor)` and returns `BehavioralSignal`s
+(`behavioral/signal.py`). `DetectionRun` converts each one with `to_alert()` and
+sends it down the ordinary dedup → emit → `tag_from_alert` → `on_tag` path.
+Keep these properties:
+
+- **One feature extractor.** `features.FeatureExtractor` serves live scoring,
+  `--export-features` and `--learn-baseline`. Never compute features a second
+  way for training.
+- **Evidence, not verdicts.** A signal has no ATT&CK tactic, so it can join an
+  incident but never open one. It carries no `active_response`, and it is
+  excluded from the host risk meter. Do not give it a tactic, a response, or a
+  weight in `_score`.
+- **Frozen baseline.** `RarityDetector` never updates its `RarityBaseline`.
+  Learning is offline (`--learn-baseline`), which keeps replay deterministic.
+- Say "previously unseen behavior", never "zero-day detection".
+- Details and limitations: `docs/behavioral-intelligence.md`.
+
 ### The provenance layer
 
 - **`provenance/identity.py` (L1)** — the linchpin. The agent derives

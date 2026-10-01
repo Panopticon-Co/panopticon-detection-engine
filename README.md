@@ -34,6 +34,13 @@ pytest -q
 # Replay agent-shaped telemetry and show the provenance graph it built
 panopticon-detect --rules rules \
   --officer-ndjson samples/officer_live_sample.ndjson --graph-stats
+
+# Learn a rarity baseline from benign telemetry, then score other telemetry against it
+panopticon-detect --rules rules --officer-ndjson benign.ndjson --learn-baseline baseline.json
+panopticon-detect --rules rules --officer-ndjson today.ndjson --baseline baseline.json
+
+# Export per-process feature records (JSON lines)
+panopticon-detect --rules rules --officer-ndjson today.ndjson --export-features features.jsonl
 ```
 
 Requires Python 3.10+. Dependencies are `pyyaml` and `pydantic` — nothing else.
@@ -79,6 +86,7 @@ related tags become one **incident**.
 | Sequence rules | Office-spawned script host then public egress (by process tree); payload dropped then Run key set |
 | Threshold / value_count rules | mass extension-changing renames; internal horizontal sweep; vertical port scan; discovery-tool burst |
 | Statistical | per-process C2 beaconing (jitter-tolerant, measured FP/TP in its docstring) |
+| Behavioral (opt-in) | previously unseen parent→child relationships and known programs in unusual locations, against a learned rarity baseline (`BHV-RARE-*`, see [docs/behavioral-intelligence.md](docs/behavioral-intelligence.md)) |
 
 Rules read raw fields and derived ones computed once per event: `path_class`,
 `network.destination_scope`, `file.extension_changed`, the process-tree entry
@@ -95,7 +103,8 @@ records the conditions that matched and the values they saw.
 | `panopticon_detection/evaluator/` | Condition matching, single-event and stateful rule evaluation |
 | `panopticon_detection/enrichment.py` | Derived fields, cached per event |
 | `panopticon_detection/rules/` | Rule types, loading, named lists, validation |
-| `panopticon_detection/behavioral/` | C2 beaconing; DNS/DGA analysis (awaiting DNS telemetry) |
+| `panopticon_detection/behavioral/` | C2 beaconing; DNS/DGA analysis (awaiting DNS telemetry); rarity baseline and `BehavioralSignal` |
+| `panopticon_detection/features.py` | Per-process feature records -- the one extractor shared by detection, export and baseline learning |
 | `panopticon_detection/ingestion/` | The one normalizer, its field registry, agent adapters |
 | `panopticon_detection/reliability/` | Bounded queue, SQLite spool, retry, health, metrics |
 | `panopticon_detection/alerting/` | Alert model and formatters |
@@ -146,6 +155,10 @@ Stated plainly rather than left for a reader to discover:
   never evicts newer ones, and a sequence step that arrives out of order does
   not advance a match.
 - The incident score is a transparent heuristic, not a learned model.
+- The rarity baseline is opt-in, learned offline and fleet-wide; it reports
+  unusual process starts, not malicious ones, and cannot see an exploit itself.
+  Its cold start, poisoning and drift limits are in
+  [docs/behavioral-intelligence.md](docs/behavioral-intelligence.md).
 - This is a capstone-grade engine: a CLI and a library, with no HTTP API, no
   database server and no message queue.
 

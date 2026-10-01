@@ -412,7 +412,9 @@ class IncidentTracker:
         evidence: Dict[str, Any] = {
             "incident_id": incident.incident_id,
             "revision": incident.revision,
-            "attack_chain": " -> ".join(f"{s.rule_id} ({s.tactic})" for s in incident.stages),
+            "attack_chain": " -> ".join(
+                f"{s.rule_id} ({s.tactic})" if s.tactic else s.rule_id for s in incident.stages
+            ),
             "stage_count": len(incident.stages),
             "stages": [s.to_dict() for s in incident.stages],
             "tactics_covered": incident.tactics,
@@ -443,8 +445,12 @@ class IncidentTracker:
             ),
             level=level,
             severity=band,
-            # An incident is only as trustworthy as its least certain stage.
-            confidence=round(min((s.confidence for s in incident.stages), default=0.5), 3),
+            # An incident is only as trustworthy as its least certain technique
+            # detection. Stages with no ATT&CK tactic -- behavioral signals --
+            # are context, not a claim about the attack, so they do not count.
+            confidence=round(
+                min((s.confidence for s in incident.stages if s.tactic), default=0.5), 3
+            ),
             host_id=incident.host_id,
             timestamp=edge.ts.isoformat(),
             event_id=edge.event_id,
