@@ -138,6 +138,22 @@ set of alerts; siblings under `explorer.exe` that must not merge; and a benign
 session that must produce nothing. `tests/test_corpus.py` replays each through
 the full engine and checks it twice for determinism.
 
+## Schema 0.5 telemetry and datasets
+
+The engine ingests the agent's Schema 0.5 families in addition to 0.3: process
+stop, DNS (`dns_query`), process access (`process_access`), remote thread
+(`remote_thread`) and PowerShell script blocks (`script_block`). These add
+`DET-CRED-010/011` (LSASS reads), `DET-INJ-010/011` (injection) and `DET-PS-010`
+(AMSI / script-block-logging tampering), feed the version-2 feature set
+(lifetime, DNS, cross-process and script-block counts), and extend the
+behavioural rarity baseline with a cross-process dimension (`BHV-RARE-003`).
+
+External recordings are converted to the agent's own wire format by
+`panopticon_detection.datasets` and the `panopticon-dataset` CLI, then replayed
+through the ordinary pipeline. See [docs/datasets.md](docs/datasets.md) for the
+dataset choice, the telemetry → feature → detection matrix, and reproduction
+commands.
+
 ## Current limitations
 
 Stated plainly rather than left for a reader to discover:
