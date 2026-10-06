@@ -1,0 +1,45 @@
+{
+  "description": "The full chain must become one incident rooted at winword.exe; the browser and OneDrive activity on the same host must stay out of it.",
+  "must_fire": [
+    "DET-PROC-001",
+    "DET-SEQ-001",
+    "DET-EXEC-001",
+    "DET-NET-007",
+    "DET-SEQ-002",
+    "DET-PERS-001",
+    "DET-NET-004"
+  ],
+  "must_not_fire": [
+    "DET-NET-005",
+    "DET-NET-008",
+    "DET-RANS-001"
+  ],
+  "incidents": [
+    {
+      "root": "winword.exe",
+      "tactics_include": [
+        "Execution",
+        "Command and Control",
+        "Persistence"
+      ],
+      "stage_rules_include": [
+        "DET-PROC-001",
+        "DET-EXEC-001",
+        "DET-NET-007",
+        "DET-PERS-001",
+        "DET-SEQ-002",
+        "DET-NET-004"
+      ],
+      "stage_processes_exclude": [
+        "chrome.exe",
+        "onedrive.exe",
+        "explorer.exe"
+      ],
+      "causal_path_includes": [
+        "wrote",
+        "svchelper.exe"
+      ],
+      "min_score": 0.75
+    }
+  ]
+}

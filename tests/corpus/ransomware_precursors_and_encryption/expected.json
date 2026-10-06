@@ -1,0 +1,28 @@
+{
+  "description": "One incident rooted at the encryptor, covering Defense Evasion and Impact; the rename burst fires the declarative threshold rule once.",
+  "must_fire": [
+    "DET-EVAS-001",
+    "DET-PROC-006",
+    "DET-RANS-001",
+    "DET-RANS-002"
+  ],
+  "must_not_fire": [],
+  "fire_counts": {
+    "DET-RANS-001": 1,
+    "DET-RANS-002": 1
+  },
+  "incidents": [
+    {
+      "root": "upd.exe",
+      "tactics_include": [
+        "Defense Evasion",
+        "Impact"
+      ],
+      "stage_rules_include": [
+        "DET-EVAS-001",
+        "DET-PROC-006",
+        "DET-RANS-001"
+      ]
+    }
+  ]
+}

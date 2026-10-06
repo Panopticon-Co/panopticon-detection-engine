@@ -3,29 +3,33 @@
 One event flows through here exactly once, in a fixed order:
 
 1. **Record it.** :class:`EventGraphBuilder` turns the event into a provenance
-   edge and keeps the process registry current. This happens *before* rule
-   evaluation so that ancestry conditions on the event's own process resolve.
-2. **Evaluate it.** Atomic rules run against the event.
-3. **Tag it.** Each match is written onto the edge the event created, so the
-   detection becomes part of the graph rather than a parallel stream.
-4. **Search from it.** A match on a terminal tactic anchors a backward
-   traversal, which is how multi-stage campaigns are found.
-5. **Behavioral analytics.** Ransomware bursts, C2 beaconing, port scans and
-   frequency thresholds run as independent detectors on the same event.
+   edge and keeps the process registry current -- before evaluation, so rules
+   asking about this process's ancestry or image see it.
+2. **Detect.** Single-event rules, stateful rules (sequence / threshold /
+   value_count) and the beacon detector each run on the event.
+3. **Deduplicate.** The same rule on the same process within ``dedup_ttl`` is
+   one alert; repeats are counted, not re-emitted.
+4. **Tag.** Every detection -- including suppressed repeats -- is written onto
+   the edge the event created, so the graph holds the full picture.
+5. **Correlate.** Each tag is handed to the incident tracker, which attaches it
+   to the causal incident it belongs to or opens one; an incident alert is
+   emitted only when an incident opens or changes materially.
 
-``DetectionRun`` holds the constructed engines plus running counters and exposes
-:meth:`process_event`. Both the CLI and the manager's detection worker drive
-that one method, so their behaviour cannot drift apart.
+Both the CLI and the manager's detection worker drive :meth:`process_event`,
+so their behaviour cannot drift apart.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from panopticon_detection.alerting.active_response import ActiveResponseEngine
+from panopticon_detection import enrichment
 from panopticon_detection.alerting.alert import Alert
 from panopticon_detection.alerting.formatter import AlertFormatter
-from panopticon_detection.provenance.tagging import tag_from_detection
+from panopticon_detection.provenance.graph import actor_of
+from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
+from panopticon_detection.provenance.tagging import Tag, tag_from_alert, tag_from_detection
 
 
 def _print_alert(alert: Alert, fmt: str, story_mode: bool = False) -> None:
@@ -47,39 +51,120 @@ class DetectionRun:
         *,
         graph_builder,
         evaluator,
-        threshold_engine,
-        campaign_detector,
+        stateful,
+        incidents,
         risk_scorer,
         beacon_detector,
-        port_scan_detector,
-        ransomware_shield,
         emit: Optional[Callable[[Alert], None]] = None,
+        dedup_ttl_seconds: float = 600.0,
     ) -> None:
         self.graph_builder = graph_builder
         self.evaluator = evaluator
-        self.threshold_engine = threshold_engine
-        self.campaign_detector = campaign_detector
+        self.stateful = stateful
+        self.incidents = incidents
         self.risk_scorer = risk_scorer
         self.beacon_detector = beacon_detector
-        self.port_scan_detector = port_scan_detector
-        self.ransomware_shield = ransomware_shield
+        self.dedup_ttl_seconds = dedup_ttl_seconds
 
         self._emit_cb = emit or (lambda _alert: None)
+        # (rule, host, actor) -> event time of the last emitted alert.
+        self._last_emitted: Dict[Tuple[str, str, str], float] = {}
 
         # Kept for story mode and the end-of-run summary.
         self.all_alerts: List[Alert] = []
 
         self.events_count = 0
-        self.atomic_alerts_count = 0
-        self.threshold_alerts_count = 0
+        self.rule_alerts_count = 0
+        self.stateful_alerts_count = 0
         self.beacon_alerts_count = 0
-        self.port_scan_alerts_count = 0
-        self.ransomware_shield_alerts = 0
-        self.campaign_alerts_count = 0
+        self.incident_alerts_count = 0
         self.risk_breach_alerts_count = 0
+        self.suppressed_duplicates = 0
         self.active_responses_count = 0
 
     # ------------------------------------------------------------------
+    def process_event(self, event: Dict[str, Any]) -> List[Alert]:
+        """Run every detector against one event; return the alerts produced."""
+        produced: List[Alert] = []
+        self.events_count += 1
+        enrichment.reset(event)
+
+        edge = self.graph_builder.apply(event)
+
+        detections: List[Tuple[Alert, Tag, str]] = []
+        for result in self.evaluator.evaluate_event(event):
+            detections.append((Alert.from_detection_result(result), tag_from_detection(result), "rule"))
+        for result in self.stateful.evaluate_event(event):
+            detections.append(
+                (Alert.from_detection_result(result), tag_from_detection(result), "stateful")
+            )
+        beacon = self.beacon_detector.ingest_connection(event)
+        if beacon is not None:
+            alert = self._beacon_alert(beacon, event)
+            detections.append((alert, tag_from_alert(alert), "beacon"))
+
+        # Emit (or suppress) each detection, then tag them all onto the edge
+        # before correlating, so an incident opened by one detection on this
+        # event already includes the others.
+        emitted: List[Alert] = []
+        for alert, _tag, kind in detections:
+            if self._is_duplicate(alert, event, edge):
+                self.suppressed_duplicates += 1
+                continue
+            self._count(kind)
+            self._emit(alert, produced)
+            emitted.append(alert)
+
+        # One event is one piece of evidence toward a host's risk, however many
+        # overlapping rules describe it: feed the meter once, with the event's
+        # strongest detection.
+        if emitted:
+            strongest = max(emitted, key=lambda a: (a.level, a.rule_id))
+            risk = self.risk_scorer.record_detection(
+                host_id=strongest.host_id,
+                rule_id=strongest.rule_id,
+                rule_name=strongest.title,
+                level=strongest.level,
+                timestamp=strongest.timestamp,
+                summary=strongest.description,
+                confidence=strongest.confidence,
+            )
+            if risk is not None:
+                self.risk_breach_alerts_count += 1
+                self._emit(risk, produced)
+
+        if edge is not None:
+            for _alert, tag, _kind in detections:
+                edge.tags.append(tag)
+            for _alert, tag, _kind in detections:
+                incident_alert = self.incidents.on_tag(edge, tag)
+                if incident_alert is not None:
+                    self.incident_alerts_count += 1
+                    self._emit(incident_alert, produced)
+
+        return produced
+
+    # ------------------------------------------------------------------
+    def _is_duplicate(self, alert: Alert, event: Dict[str, Any], edge) -> bool:
+        ts = event_epoch(event.get("timestamp"))
+        if ts is None:
+            return False
+        actor = actor_of(edge) if edge is not None else f"pid:{(event.get('process') or {}).get('pid')}"
+        key = (alert.rule_id, alert.host_id, actor)
+        last = self._last_emitted.get(key)
+        if last is not None and 0 <= ts - last < self.dedup_ttl_seconds:
+            return True
+        self._last_emitted[key] = ts
+        return False
+
+    def _count(self, kind: str) -> None:
+        if kind == "rule":
+            self.rule_alerts_count += 1
+        elif kind == "stateful":
+            self.stateful_alerts_count += 1
+        elif kind == "beacon":
+            self.beacon_alerts_count += 1
+
     def _emit(self, alert: Alert, produced: List[Alert]) -> None:
         produced.append(alert)
         self.all_alerts.append(alert)
@@ -87,197 +172,39 @@ class DetectionRun:
             self.active_responses_count += 1
         self._emit_cb(alert)
 
-    # ------------------------------------------------------------------
-    def process_event(self, event: Dict[str, Any]) -> List[Alert]:
-        """Run every detector against one event; return the alerts produced."""
-        produced: List[Alert] = []
-        self.events_count += 1
-        host_id = event.get("host_id") or "UNKNOWN_HOST"
-        ts = event.get("timestamp", "")
-
-        # 1. Record the event in the provenance graph first, so a rule asking
-        #    about this process's ancestry can resolve it.
-        edge = self.graph_builder.apply(event)
-
-        # 2-4. Atomic rules -> tags on the edge -> campaign search.
-        for result in self.evaluator.evaluate_event(event):
-            self.atomic_alerts_count += 1
-            self._emit(Alert.from_detection_result(result), produced)
-
-            tag = tag_from_detection(result)
-            if edge is not None:
-                edge.tags.append(tag)
-                campaign = self.campaign_detector.on_tagged_edge(edge, tag)
-                if campaign is not None:
-                    self.campaign_alerts_count += 1
-                    self._emit(campaign.to_alert(), produced)
-
-            risk_incident = self.risk_scorer.record_detection(
-                host_id=host_id,
-                rule_id=result.rule.id,
-                rule_name=result.rule.name,
-                level=result.rule.level,
-                timestamp=ts,
-                summary=result.rule.description,
-            )
-            if risk_incident:
-                self.risk_breach_alerts_count += 1
-                self._emit(risk_incident, produced)
-
-        # 5. Behavioral analytics. These are independent detectors rather than
-        #    rule matches, so they emit directly instead of tagging an edge.
-        self._run_ransomware_shield(event, ts, produced)
-        self._run_beacon_detector(event, ts, produced)
-        self._run_port_scan_detector(event, ts, produced)
-        self._run_threshold_engine(event, ts, produced)
-
-        return produced
-
-    # ------------------------------------------------------------------
-    def _run_ransomware_shield(self, event, ts, produced) -> None:
-        match = self.ransomware_shield.inspect_file_event(event)
-        if not match:
-            return
-        self.ransomware_shield_alerts += 1
-
-        # QUARANTINE_FILE rather than the blanket ISOLATE_HOST this used to
-        # request: the shield knows exactly which file tripped it, and the
-        # narrower action is the one an analyst can approve quickly.
-        # translate_recommendation fails closed if the path is missing.
-        self._emit(
-            Alert(
-                alert_id=f"ALT-RANS-{self.events_count}",
-                rule_id="DET-RANS-001",
-                title=f"[RANSOMWARE SHIELD] {match.threat_type}",
-                description=(
-                    f"Process '{match.process_name}' (PID {match.pid}) breached a "
-                    f"ransomware protection tripwire across "
-                    f"{match.affected_files_count} file(s)."
-                ),
-                level=16,
-                severity="critical",
-                confidence=match.confidence,
-                host_id=match.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=match.evidence,
-                active_response=_action_or_none(
-                    ActiveResponseEngine.resolve_action(
-                        level=16,
-                        event=event,
-                        custom_action="QUARANTINE_FILE",
-                        reason=f"Ransomware tripwire: {match.threat_type}",
-                    )
-                ),
-                mitre_tactic="Impact",
-                mitre_technique="T1486",
-                tags=["attack.impact", "ransomware_shield", "canary_tripwire"],
+    @staticmethod
+    def _beacon_alert(match, event: Dict[str, Any]) -> Alert:
+        # No active_response: the closed action set has no per-destination
+        # block, and substituting whole-host isolation for a narrow egress
+        # block is exactly the mapping the response contract forbids.
+        return Alert(
+            alert_id=f"ALT-BCN-{match.host_id}-{match.pid}-{match.destination_ip}-"
+            f"{match.destination_port}-{event.get('event_id')}",
+            rule_id="DET-NET-004",
+            title="Periodic outbound connections (possible C2 beacon)",
+            description=(
+                f"{match.process_name} (PID {match.pid}) connected to "
+                f"{match.destination_ip}:{match.destination_port} {match.connections} times "
+                f"at a regular ~{match.median_interval_seconds}s interval "
+                f"(dispersion {match.dispersion})."
             ),
-            produced,
+            level=13,
+            severity="high",
+            confidence=match.confidence,
+            host_id=match.host_id,
+            timestamp=event.get("timestamp") or "",
+            event_id=event.get("event_id"),
+            evidence=match.evidence,
+            active_response=None,
+            mitre_tactic="Command and Control",
+            mitre_technique="T1071.001",
+            tags=["attack.command_and_control", "c2_beaconing"],
         )
 
-    def _run_beacon_detector(self, event, ts, produced) -> None:
-        match = self.beacon_detector.ingest_connection(event)
-        if not match:
-            return
-        self.beacon_alerts_count += 1
-
-        # No active_response: the closed 7-action contract has no per-IP block,
-        # and substituting a whole-host isolation for a narrow egress block is
-        # exactly the opportunistic mapping the response contract forbids. The
-        # alert still reaches the analyst; it simply recommends nothing.
-        self._emit(
-            Alert(
-                alert_id=f"ALT-BCN-{self.events_count}",
-                rule_id="DET-NET-004",
-                title="[C2 BEACON] Periodic outbound heartbeat detected",
-                description=(
-                    f"Consistent beaconing to {match.destination_ip}:"
-                    f"{match.destination_port} (mean interval "
-                    f"{match.mean_interval_seconds}s, CV "
-                    f"{match.coefficient_of_variation})."
-                ),
-                level=14,
-                severity="critical",
-                confidence=match.confidence,
-                host_id=match.host_id,
-                timestamp=ts,
-                event_id=event.get("event_id"),
-                evidence=match.evidence,
-                active_response=None,
-                mitre_tactic="Command and Control",
-                mitre_technique="T1071.001",
-                tags=["attack.command_and_control", "c2_beaconing"],
-            ),
-            produced,
-        )
-
-    def _run_port_scan_detector(self, event, ts, produced) -> None:
-        for match in self.port_scan_detector.ingest_connection(event):
-            self.port_scan_alerts_count += 1
-            self._emit(
-                Alert(
-                    alert_id=f"ALT-SCAN-{self.events_count}",
-                    rule_id="DET-NET-005",
-                    title=f"[RECONNAISSANCE] {match.scan_type}",
-                    description=(
-                        f"Host initiated rapid network probes "
-                        f"({match.target_summary}) within "
-                        f"{match.time_window_seconds}s."
-                    ),
-                    level=12,
-                    severity="high",
-                    confidence=0.92,
-                    host_id=match.host_id,
-                    timestamp=ts,
-                    event_id=event.get("event_id"),
-                    evidence=match.evidence,
-                    active_response=None,
-                    mitre_tactic="Discovery",
-                    mitre_technique="T1046",
-                    tags=["attack.discovery", "port_scan"],
-                ),
-                produced,
-            )
-
-    def _run_threshold_engine(self, event, ts, produced) -> None:
-        for match in self.threshold_engine.ingest_event(event):
-            self.threshold_alerts_count += 1
-            rule = match.rule
-            self._emit(
-                Alert(
-                    alert_id=f"ALT-TH-{rule.id}",
-                    rule_id=rule.id,
-                    title=f"[FREQUENCY THRESHOLD] {rule.name}",
-                    description=rule.description,
-                    level=rule.level,
-                    severity=rule.severity,
-                    confidence=rule.confidence,
-                    host_id=match.host_id,
-                    timestamp=ts,
-                    event_id=event.get("event_id"),
-                    evidence=match.evidence,
-                    active_response=_action_or_none(
-                        ActiveResponseEngine.resolve_action(
-                            level=rule.level,
-                            event=event,
-                            custom_action=rule.active_response,
-                            reason=(
-                                f"Threshold rule [{rule.id}]: {match.event_count} "
-                                f"events in {match.timeframe_seconds}s"
-                            ),
-                        )
-                    ),
-                    # ThresholdRule is a plain dataclass with flat
-                    # mitre_tactic/mitre_technique -- not the pydantic Rule's
-                    # nested `mitre` object. They are different types.
-                    mitre_tactic=rule.mitre_tactic,
-                    mitre_technique=rule.mitre_technique,
-                    tags=["threshold_trigger"],
-                ),
-                produced,
-            )
-
-
-def _action_or_none(action) -> Optional[Dict[str, Any]]:
-    return action.to_dict() if action else None
+    def prune(self, before: datetime) -> int:
+        """Forget dedup entries older than ``before``."""
+        cutoff = naive_utc_epoch(before)
+        stale = [k for k, ts in self._last_emitted.items() if ts < cutoff]
+        for k in stale:
+            del self._last_emitted[k]
+        return len(stale)

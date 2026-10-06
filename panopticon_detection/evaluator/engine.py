@@ -1,13 +1,18 @@
-"""Evaluation engine orchestrating rule logic matching, threat intel lookups, and rule inheritance."""
+"""Single-event rule evaluation.
+
+Stateful rules (sequence / threshold / value_count) are evaluated by
+:mod:`panopticon_detection.evaluator.stateful`; this evaluator ignores them, so a
+mixed rule list from ``RuleLoader.load_directory`` can be handed to either.
+"""
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from panopticon_detection.evaluator.matcher import ConditionMatcher, extract_field
-from panopticon_detection.provenance.identity import ProcessRegistry, parse_timestamp
-from panopticon_detection.rules.schema import Condition, LogicNode, Rule
+from panopticon_detection.enrichment import MatchContext
+from panopticon_detection.evaluator.matcher import evaluate_logic, extract_field, format_trace
+from panopticon_detection.provenance.identity import ProcessRegistry
+from panopticon_detection.rules.schema import Rule
 from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
 
 _log = logging.getLogger(__name__)
@@ -15,142 +20,72 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class DetectionResult:
-    """Represents a successful atomic rule match with extracted evidence."""
-    rule: Rule
+    """A rule match with the evidence that supports it."""
+
+    rule: Any
     event: Dict[str, Any]
     matched_evidence: Dict[str, Any] = field(default_factory=dict)
+    # The conditions that made the rule true and the values they saw.
+    matched_conditions: List[str] = field(default_factory=list)
+
+
+def collect_evidence(rule, event: Dict[str, Any], ctx: MatchContext) -> Dict[str, Any]:
+    evidence: Dict[str, Any] = {}
+    for field_path in rule.evidence:
+        value = extract_field(event, field_path, ctx=ctx)
+        if value is not None:
+            evidence[field_path] = value
+    return evidence
 
 
 class RuleEvaluator:
-    """Evaluates telemetry events against active detection rules."""
+    """Evaluates telemetry events against single-event rules."""
 
     def __init__(
         self,
-        rules: List[Rule] = None,
+        rules: Optional[List[Any]] = None,
         registry: Optional[ProcessRegistry] = None,
         threat_intel: Optional[ThreatIntelEngine] = None,
+        graph=None,
     ):
-        self.rules = rules or []
         self.registry = registry
         self.threat_intel = threat_intel or ThreatIntelEngine()
+        self.ctx = MatchContext(registry=registry, graph=graph, threat_intel=self.threat_intel)
         self._rules_by_type: Dict[str, List[Rule]] = {}
-        # host -> rule id -> event time it last matched, for `depends_on_rule`
-        # (Wazuh <if_sid>). Timed so prune() can bound it.
-        self._matched_rules_history: Dict[str, Dict[str, datetime]] = {}
         # Per-rule exception counts -- observable evidence that a specific rule
         # is broken, without letting it silently disable unrelated rules.
         self.rule_errors: Dict[str, int] = {}
-        self.set_rules(self.rules)
+        self.rules: List[Rule] = []
+        self.set_rules(rules or [])
 
-    def set_rules(self, rules: List[Rule]) -> None:
-        self.rules = rules
+    def set_rules(self, rules: List[Any]) -> None:
+        self.rules = [r for r in rules if isinstance(r, Rule)]
         self._rules_by_type.clear()
-        for r in self.rules:
-            self._rules_by_type.setdefault(r.event_type, []).append(r)
+        for rule in self.rules:
+            self._rules_by_type.setdefault(rule.event_type, []).append(rule)
 
     def evaluate_event(self, event: Dict[str, Any]) -> List[DetectionResult]:
-        """Evaluates a single telemetry event against all candidate rules for its event_type."""
-        # Process-identity state is maintained by EventGraphBuilder, which runs
-        # once per event before evaluation (see detection_run.DetectionRun). The
-        # evaluator only reads the registry, so ancestry conditions see the
-        # current event's own process already indexed.
+        """Evaluate one event against the rules for its event_type."""
         event_type = event.get("event_type")
         if not event_type:
             return []
 
-        host_id = event.get("host_id", "UNKNOWN_HOST")
-        candidate_rules = self._rules_by_type.get(event_type, [])
         matches: List[DetectionResult] = []
-
-        for rule in candidate_rules:
-            # 1. Rule Inheritance Check (Wazuh <if_sid>)
-            if rule.depends_on_rule:
-                host_history = self._matched_rules_history.get(host_id, {})
-                if rule.depends_on_rule not in host_history:
-                    continue  # Parent rule hasn't triggered yet!
-
-            # 2. Logic condition check -- isolated per rule. A single rule
-            # raising (e.g. a malformed condition against an unexpected event
-            # shape) must not abort the loop and silently withhold every
-            # other candidate rule's verdict on this same event.
+        for rule in self._rules_by_type.get(event_type, []):
+            # Isolated per rule: one rule raising on an unexpected event shape
+            # must not withhold every other rule's verdict on this event.
             try:
-                if self._evaluate_logic_node(rule.logic, event):
-                    evidence = self._extract_evidence(rule, event)
-                    matches.append(DetectionResult(rule=rule, event=event, matched_evidence=evidence))
-                    self._matched_rules_history.setdefault(host_id, {})[rule.id] = (
-                        parse_timestamp(event.get("timestamp"))
+                trace: List[Dict[str, Any]] = []
+                if evaluate_logic(rule.logic, event, self.ctx, trace):
+                    matches.append(
+                        DetectionResult(
+                            rule=rule,
+                            event=event,
+                            matched_evidence=collect_evidence(rule, event, self.ctx),
+                            matched_conditions=format_trace(trace),
+                        )
                     )
             except Exception:
                 self.rule_errors[rule.id] = self.rule_errors.get(rule.id, 0) + 1
                 _log.exception("rule %s raised while evaluating event_type=%s", rule.id, event_type)
-                continue
-
         return matches
-
-    def prune(self, before: datetime) -> int:
-        """Forget rule matches older than ``before`` (or with no usable time)."""
-        removed = 0
-        for host_id, history in list(self._matched_rules_history.items()):
-            stale = [rid for rid, ts in history.items() if ts < before]
-            for rid in stale:
-                del history[rid]
-            removed += len(stale)
-            if not history:
-                del self._matched_rules_history[host_id]
-        return removed
-
-    def _evaluate_logic_node(self, node: LogicNode, event: Dict[str, Any]) -> bool:
-        """Recursively evaluates boolean logic tree with short-circuiting."""
-        # 1. Evaluate 'all' (AND)
-        if node.all is not None:
-            for item in node.all:
-                if isinstance(item, Condition):
-                    if not ConditionMatcher.evaluate(
-                        item, event, registry=self.registry, threat_intel=self.threat_intel
-                    ):
-                        return False
-                elif isinstance(item, LogicNode):
-                    if not self._evaluate_logic_node(item, event):
-                        return False
-
-        # 2. Evaluate 'any' (OR)
-        if node.any is not None:
-            any_matched = False
-            for item in node.any:
-                if isinstance(item, Condition):
-                    if ConditionMatcher.evaluate(
-                        item, event, registry=self.registry, threat_intel=self.threat_intel
-                    ):
-                        any_matched = True
-                        break
-                elif isinstance(item, LogicNode):
-                    if self._evaluate_logic_node(item, event):
-                        any_matched = True
-                        break
-            if not any_matched:
-                return False
-
-        # 3. Evaluate 'none' (NOT)
-        if node.none is not None:
-            for item in node.none:
-                if isinstance(item, Condition):
-                    if ConditionMatcher.evaluate(
-                        item, event, registry=self.registry, threat_intel=self.threat_intel
-                    ):
-                        return False
-                elif isinstance(item, LogicNode):
-                    if self._evaluate_logic_node(item, event):
-                        return False
-
-        return True
-
-    def _extract_evidence(self, rule: Rule, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Extracts specified evidence fields from the event or dynamic process tree."""
-        evidence_dict: Dict[str, Any] = {}
-        for field_path in rule.evidence:
-            val = extract_field(
-                event, field_path, registry=self.registry, threat_intel=self.threat_intel
-            )
-            if val is not None:
-                evidence_dict[field_path] = val
-        return evidence_dict

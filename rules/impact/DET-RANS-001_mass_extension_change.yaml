@@ -1,0 +1,38 @@
+id: DET-RANS-001
+name: Mass File Renames Changing the Extension
+description: >
+  One process renames at least ten files to a different extension within
+  thirty seconds -- the rename step of in-place encryption.
+version: 1
+status: enabled
+type: threshold
+by: process
+event_type: file_rename
+count: 10
+window: 30s
+
+level: 15
+severity: critical
+confidence: 0.9
+active_response: TERMINATE_PROCESS
+
+logic:
+  all:
+    - field: file.extension_changed
+      operator: equals
+      value: true
+
+evidence:
+  - process.name
+  - process.executable
+  - file.path
+  - process.lineage
+
+mitre:
+  tactic: Impact
+  technique: T1486
+  name: "Data Encrypted for Impact"
+
+tags:
+  - attack.impact
+  - ransomware

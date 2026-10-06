@@ -1,0 +1,33 @@
+id: DET-RANS-003
+name: File Created With a Known Ransomware Extension
+description: >
+  A file is written with an extension used by a known ransomware family -- the
+  write-new-then-delete-original pattern some families use instead of renaming.
+version: 1
+status: enabled
+event_type: file_create
+
+level: 14
+severity: critical
+confidence: 0.9
+active_response: TERMINATE_PROCESS
+
+logic:
+  all:
+    - field: file.path
+      operator: regex
+      value: '\.(locked|crypto|wnry|wncry|crypted|locky|encrypted|mallox|lockbit|blackcat|alphv|akira|ryk)$'
+
+evidence:
+  - process.name
+  - file.path
+  - process.lineage
+
+mitre:
+  tactic: Impact
+  technique: T1486
+  name: "Data Encrypted for Impact"
+
+tags:
+  - attack.impact
+  - ransomware

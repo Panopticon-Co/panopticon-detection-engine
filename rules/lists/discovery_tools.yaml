@@ -1,0 +1,19 @@
+# Built-in tools used for host, user and network discovery.
+values:
+  - whoami.exe
+  - net.exe
+  - net1.exe
+  - nltest.exe
+  - ipconfig.exe
+  - systeminfo.exe
+  - quser.exe
+  - qwinsta.exe
+  - tasklist.exe
+  - netstat.exe
+  - arp.exe
+  - route.exe
+  - hostname.exe
+  - nslookup.exe
+  - dsquery.exe
+  - klist.exe
+  - cmdkey.exe

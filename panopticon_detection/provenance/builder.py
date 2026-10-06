@@ -82,10 +82,12 @@ class EventGraphBuilder:
             self.registry.observe_stop(event)
             return None
 
-        # Every other family hangs off the process that caused it.
-        actor = self.registry.resolve_event(event)
+        # Every other family hangs off the process that caused it -- inferred
+        # from this event's process context if its creation was never seen.
+        actor = self.registry.observe_context(event)
         if actor is None:
             return None
+        self._ensure_process_node(actor)
 
         if event_type == "network_connect":
             return self._apply_network(event, when, actor)
@@ -106,6 +108,10 @@ class EventGraphBuilder:
             return None
 
         self._upsert_process(incarnation)
+        if incarnation.parent_node_id and incarnation.parent_node_id not in self.graph.nodes:
+            parent = self.registry.get(incarnation.parent_node_id)
+            if parent is not None:
+                self._upsert_process(parent)
 
         # The image a process runs is a first-class file node, so a dropper that
         # wrote the binary and the process that later executed it converge on
@@ -236,10 +242,12 @@ class EventGraphBuilder:
         if not path:
             return None
 
-        module_id = entity_node_id(NodeKind.MODULE, actor.host_id, path)
+        # A loaded module is the same file node a process may have written, so
+        # "wrote payload.dll, then loaded payload.dll" is one connected path.
+        module_id = entity_node_id(NodeKind.FILE, actor.host_id, path)
         self.graph.upsert_node(
             module_id,
-            NodeKind.MODULE,
+            NodeKind.FILE,
             path,
             actor.host_id,
             when,
@@ -257,6 +265,35 @@ class EventGraphBuilder:
         )
 
     # ------------------------------------------------------------------
+    def _ensure_process_node(self, incarnation: ProcessIncarnation) -> None:
+        """Give an inferred process a node, and a FORKED edge from its parent.
+
+        The edge is dated at the first sighting (the real fork time is
+        unknown) and marked ``inferred`` so a reader can tell it apart.
+        """
+        if incarnation.node_id in self.graph.nodes:
+            return
+        self._upsert_process(incarnation)
+        parent = (
+            self.registry.get(incarnation.parent_node_id)
+            if incarnation.parent_node_id
+            else None
+        )
+        if parent is None:
+            return
+        if parent.node_id not in self.graph.nodes:
+            self._upsert_process(parent)
+        self.graph.add_edge(
+            EdgeKind.FORKED,
+            parent.node_id,
+            incarnation.node_id,
+            incarnation.start_time,
+            incarnation.host_id,
+            None,
+            inferred=True,
+            command_line=incarnation.command_line or None,
+        )
+
     def _upsert_process(self, incarnation: ProcessIncarnation) -> None:
         self.graph.upsert_node(
             incarnation.node_id,
@@ -272,4 +309,5 @@ class EventGraphBuilder:
             # Threaded onto the node so a response recommendation raised from a
             # later event can still name a PID-reuse-safe kill target.
             start_time_ticks=incarnation.start_time_ticks,
+            inferred=incarnation.inferred or None,
         )
