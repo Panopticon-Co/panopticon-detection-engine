@@ -1,6 +1,7 @@
 """Alert definitions and data structures with Wazuh 0-16 levels and Active Response."""
 
 import hashlib
+import json
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -18,6 +19,13 @@ def _stable_alert_id(rule_id: str, event: Dict[str, Any], evidence: Dict[str, An
     alert instead of emitting it twice. Falls back to a random id only when the
     event carries nothing stable to key on.
     """
+    if event.get("identity_model") == "endpoint_record_v1":
+        # A 32-bit alert digest is too small for fleet replay/dedup. Canonical
+        # record keys are agent-scoped; preserve that scope in the alert key.
+        material = [str(rule_id), str(event["endpoint"]["agent_id"]), str(event["event_id"]),
+                    json.dumps(evidence or {}, sort_keys=True, separators=(",", ":"), default=str)]
+        encoded = "".join(str(len(value.encode("utf-8"))) + ":" + value for value in material)
+        return "ALT-" + hashlib.sha256(encoded.encode("utf-8")).hexdigest().upper()
     parts = [
         str(rule_id),
         str(event.get("event_id") or event.get("event", {}).get("id") or ""),
@@ -52,6 +60,8 @@ class Alert:
     mitre_technique: Optional[str] = None
     compliance: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    # Facts about the triggering canonical record, not an inferred ancestor.
+    endpoint_context: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_detection_result(cls, result: DetectionResult) -> "Alert":

@@ -86,6 +86,8 @@ class EventGraphBuilder:
         actor = self.registry.resolve_event(event)
         if actor is None:
             return None
+        if actor.identity_model == "endpoint_record_v1":
+            self._upsert_process(actor)
 
         if event_type == "network_connect":
             return self._apply_network(event, when, actor)

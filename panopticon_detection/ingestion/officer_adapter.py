@@ -175,6 +175,11 @@ class OfficerIngestionAdapter:
             if not isinstance(raw, dict):
                 return None
 
+            from panopticon_detection.ingestion.endpoint_adapter import EndpointIngestionAdapter
+
+            if EndpointIngestionAdapter.is_endpoint_record(raw):
+                return EndpointIngestionAdapter.transform(raw)
+
             if cls.is_officer_event(raw):
                 return cls.transform_officer_event(raw)
             return raw

@@ -283,6 +283,7 @@ def _print_summary(run, context, *, show_graph: bool) -> None:
 def _run_streaming_pipeline(args, run, event_stream) -> None:
     """Bounded queue -> detection -> SQLite alert spool -> incremental
     alerts.ndjson, with delivery retry, health/metrics and restart recovery."""
+    from panopticon_detection.ingestion.endpoint_adapter import EndpointIngestionAdapter
     from panopticon_detection.ingestion.officer_adapter import OfficerIngestionAdapter
     from panopticon_detection.reliability import (
         AlertSpool,
@@ -319,7 +320,9 @@ def _run_streaming_pipeline(args, run, event_stream) -> None:
         # The spool stores whatever the stream yielded. A raw Officer record
         # (nested "event" object) recovered from the spool is normalized
         # just-in-time; events the live stream already normalized pass through.
-        if isinstance(event, dict) and isinstance(event.get("event"), dict):
+        if EndpointIngestionAdapter.is_endpoint_record(event):
+            event = EndpointIngestionAdapter.transform(event)
+        elif isinstance(event, dict) and isinstance(event.get("event"), dict):
             if OfficerIngestionAdapter.is_officer_event(event):
                 event = OfficerIngestionAdapter.transform_officer_event(event)
         return run.process_event(event)

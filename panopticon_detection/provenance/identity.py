@@ -1,4 +1,13 @@
-"""L1 -- process identity resolution by time-interval stabbing.
+"""L1 -- canonical exact references and legacy time-interval resolution.
+
+Endpoint record 1.0 uses verified exact or source-scoped references exclusively.
+These populate a separate entity index and never consult the legacy PID/time
+timeline. Unresolved references cannot inherit identity or ancestry. Native and
+source IDs remain separate until an explicit verified alias contract exists.
+
+The historical description below applies only to legacy Officer telemetry.
+Its PID/time joins are heuristic: missing starts/stops and clock discontinuities
+can invalidate inferred identity. They are not proof of a canonical instance.
 
 The problem this exists to solve
 --------------------------------
@@ -43,7 +52,7 @@ from __future__ import annotations
 import bisect
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 # An event whose timestamp cannot be parsed. Kept distinct from "no timestamp"
@@ -69,7 +78,7 @@ def parse_timestamp(value: Any) -> datetime:
     except ValueError:
         return UNKNOWN_TIME
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(tz=None).replace(tzinfo=None)
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed
 
 
@@ -122,6 +131,11 @@ class ProcessIncarnation:
     # without inference every lineage would stop at the first such process.
     inferred: bool = False
 
+    # Canonical identity is independent of wall-clock intervals. start_time is
+    # first observed time for an activity-only placeholder, not a guessed birth.
+    identity_model: str = "legacy_interval"
+    last_observed: Optional[datetime] = None
+
     def covers(self, when: datetime, max_lifetime: timedelta) -> bool:
         """Whether this incarnation was live at ``when``."""
         if when == UNKNOWN_TIME or when < self.start_time:
@@ -150,6 +164,7 @@ class ProcessRegistry:
         default_factory=dict, repr=False
     )
     _by_node_id: Dict[str, ProcessIncarnation] = field(default_factory=dict, repr=False)
+    _canonical: Dict[str, ProcessIncarnation] = field(default_factory=dict, repr=False)
 
     # ------------------------------------------------------------------
     # Observation
@@ -158,6 +173,8 @@ class ProcessRegistry:
         """Record a process-creation event. Returns the new incarnation, or
         ``None`` when the event carries no PID or no usable timestamp -- both
         make it unindexable, and guessing would defeat the point of the index."""
+        if event.get("identity_model") == "endpoint_record_v1":
+            return self._observe_canonical(event)
         proc = event.get("process") or {}
         pid = proc.get("pid")
         host_id = event.get("host_id") or "UNKNOWN_HOST"
@@ -232,6 +249,11 @@ class ProcessRegistry:
         only ``event.type: "start"``. Implemented now so that adding the ``stop``
         event upstream needs no change here.
         """
+        if event.get("identity_model") == "endpoint_record_v1":
+            incarnation = self._observe_canonical(event)
+            if incarnation is not None:
+                incarnation.end_time = parse_timestamp(event.get("timestamp"))
+            return incarnation
         proc = event.get("process") or {}
         pid = proc.get("pid")
         host_id = event.get("host_id") or "UNKNOWN_HOST"
@@ -274,12 +296,67 @@ class ProcessRegistry:
 
     def resolve_event(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
         """Resolve the process responsible for any normalized event."""
+        if event.get("identity_model") == "endpoint_record_v1":
+            return self._observe_canonical(event)
         proc = event.get("process") or {}
         return self.resolve(
             event.get("host_id") or "UNKNOWN_HOST",
             proc.get("pid"),
             parse_timestamp(event.get("timestamp")),
         )
+
+    def _observe_canonical(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
+        """Exact/source-scoped IDs only. Never consult or populate PID timelines.
+
+        A network event can establish a known entity before its create event
+        arrives. Unresolved observations cannot inherit even an apparently live
+        process with the same PID. Source/native identities remain separate.
+        """
+        reference = event.get("process_reference")
+        if not reference or reference.get("resolution") not in {"native_exact", "source_scoped"}:
+            return None
+        node_id = reference.get("entity_id")
+        if not node_id:
+            return None
+        when = parse_timestamp(event.get("timestamp"))
+        if when == UNKNOWN_TIME:
+            return None
+        proc = event.get("process") or {}
+        host_id = event["host_id"]
+        incarnation = self._canonical.get(node_id)
+        if incarnation is None:
+            incarnation = ProcessIncarnation(
+                node_id=node_id, host_id=host_id, pid=reference["observed_pid"],
+                start_time=when, entity_id=node_id,
+                inferred=event.get("event_type") != "process_create",
+                identity_model="endpoint_record_v1",
+            )
+            self._canonical[node_id] = incarnation
+            self._by_node_id[node_id] = incarnation
+        if incarnation.host_id != host_id or incarnation.pid != reference["observed_pid"]:
+            raise ValueError("canonical process scope collision")
+        incarnation.last_observed = max(incarnation.last_observed or when, when)
+        if event.get("event_type") == "process_create":
+            incarnation.start_time = when
+            incarnation.inferred = False
+        for attribute, value in (
+            ("name", (proc.get("name") or "").lower()),
+            ("executable", proc.get("executable")),
+            ("command_line", proc.get("command_line")),
+            ("user", proc.get("user")),
+            ("sha256", proc.get("sha256") or proc.get("file_hash")),
+        ):
+            if value:
+                setattr(incarnation, attribute, value)
+        if reference["resolution"] == "native_exact":
+            incarnation.start_time_ticks = int(reference["native_creation_ticks"])
+        parent_ref = event.get("parent_reference")
+        if parent_ref and parent_ref.get("entity_id") and parent_ref["entity_id"] != node_id:
+            # Explicit proof supplies this edge; a missing parent's creation
+            # remains unknown. No placeholder PID/time join is permitted.
+            incarnation.parent_pid = parent_ref["observed_pid"]
+            incarnation.parent_node_id = parent_ref["entity_id"]
+        return incarnation
 
     def get(self, node_id: str) -> Optional[ProcessIncarnation]:
         return self._by_node_id.get(node_id)
@@ -341,6 +418,11 @@ class ProcessRegistry:
                 # Evict the key itself, not just its contents -- the previous
                 # correlation engine leaked one dict key per (host, pid) forever.
                 del self._timeline[key]
+        for node_id, incarnation in list(self._canonical.items()):
+            if (incarnation.last_observed or incarnation.start_time) < before:
+                del self._canonical[node_id]
+                self._by_node_id.pop(node_id, None)
+                removed += 1
         return removed
 
     def __len__(self) -> int:

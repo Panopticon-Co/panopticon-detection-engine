@@ -20,10 +20,11 @@ that one method, so their behaviour cannot drift apart.
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Callable, Dict, List, Optional
 
 from panopticon_detection.alerting.active_response import ActiveResponseEngine
-from panopticon_detection.alerting.alert import Alert
+from panopticon_detection.alerting.alert import Alert, _stable_alert_id
 from panopticon_detection.alerting.formatter import AlertFormatter
 from panopticon_detection.provenance.tagging import tag_from_detection
 
@@ -78,9 +79,17 @@ class DetectionRun:
         self.campaign_alerts_count = 0
         self.risk_breach_alerts_count = 0
         self.active_responses_count = 0
+        self._endpoint_context = None
 
     # ------------------------------------------------------------------
     def _emit(self, alert: Alert, produced: List[Alert]) -> None:
+        if self._endpoint_context is not None:
+            alert.endpoint_context = copy.deepcopy(self._endpoint_context)
+            alert.alert_id = _stable_alert_id(
+                alert.rule_id,
+                {"identity_model": "endpoint_record_v1", "endpoint": self._endpoint_context["endpoint"],
+                 "event_id": self._endpoint_context["record_id"]}, alert.evidence,
+            )
         produced.append(alert)
         self.all_alerts.append(alert)
         if alert.active_response:
@@ -91,6 +100,12 @@ class DetectionRun:
     def process_event(self, event: Dict[str, Any]) -> List[Alert]:
         """Run every detector against one event; return the alerts produced."""
         produced: List[Alert] = []
+        self._endpoint_context = (
+            {"record_id": event["event_id"], "kind": event["record_kind"],
+             "category": event["telemetry_category"], "endpoint": event["endpoint"],
+             "provenance": event["provenance"], "subject": event["process_reference"]}
+            if event.get("identity_model") == "endpoint_record_v1" else None
+        )
         self.events_count += 1
         host_id = event.get("host_id") or "UNKNOWN_HOST"
         ts = event.get("timestamp", "")
