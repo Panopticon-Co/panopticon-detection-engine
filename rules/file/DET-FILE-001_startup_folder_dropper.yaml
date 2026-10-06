@@ -17,6 +17,7 @@ logic:
       operator: contains
       value: "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\"
 
+level: 12
 severity: high
 confidence: 0.8
 

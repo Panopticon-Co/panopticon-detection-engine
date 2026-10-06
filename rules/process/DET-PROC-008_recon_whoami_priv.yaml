@@ -22,6 +22,7 @@ logic:
           operator: contains
           value: /groups
 
+level: 10
 severity: medium
 confidence: 0.80
 

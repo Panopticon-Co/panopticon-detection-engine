@@ -2,10 +2,11 @@
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from panopticon_detection.evaluator.matcher import ConditionMatcher, extract_field
-from panopticon_detection.provenance.identity import ProcessRegistry
+from panopticon_detection.provenance.identity import ProcessRegistry, parse_timestamp
 from panopticon_detection.rules.schema import Condition, LogicNode, Rule
 from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
 
@@ -33,8 +34,9 @@ class RuleEvaluator:
         self.registry = registry
         self.threat_intel = threat_intel or ThreatIntelEngine()
         self._rules_by_type: Dict[str, List[Rule]] = {}
-        # Tracks matched rule IDs per host for `depends_on_rule` (Wazuh <if_sid>)
-        self._matched_rules_history: Dict[str, Set[str]] = {}
+        # host -> rule id -> event time it last matched, for `depends_on_rule`
+        # (Wazuh <if_sid>). Timed so prune() can bound it.
+        self._matched_rules_history: Dict[str, Dict[str, datetime]] = {}
         # Per-rule exception counts -- observable evidence that a specific rule
         # is broken, without letting it silently disable unrelated rules.
         self.rule_errors: Dict[str, int] = {}
@@ -63,7 +65,7 @@ class RuleEvaluator:
         for rule in candidate_rules:
             # 1. Rule Inheritance Check (Wazuh <if_sid>)
             if rule.depends_on_rule:
-                host_history = self._matched_rules_history.get(host_id, set())
+                host_history = self._matched_rules_history.get(host_id, {})
                 if rule.depends_on_rule not in host_history:
                     continue  # Parent rule hasn't triggered yet!
 
@@ -75,13 +77,27 @@ class RuleEvaluator:
                 if self._evaluate_logic_node(rule.logic, event):
                     evidence = self._extract_evidence(rule, event)
                     matches.append(DetectionResult(rule=rule, event=event, matched_evidence=evidence))
-                    self._matched_rules_history.setdefault(host_id, set()).add(rule.id)
+                    self._matched_rules_history.setdefault(host_id, {})[rule.id] = (
+                        parse_timestamp(event.get("timestamp"))
+                    )
             except Exception:
                 self.rule_errors[rule.id] = self.rule_errors.get(rule.id, 0) + 1
                 _log.exception("rule %s raised while evaluating event_type=%s", rule.id, event_type)
                 continue
 
         return matches
+
+    def prune(self, before: datetime) -> int:
+        """Forget rule matches older than ``before`` (or with no usable time)."""
+        removed = 0
+        for host_id, history in list(self._matched_rules_history.items()):
+            stale = [rid for rid, ts in history.items() if ts < before]
+            for rid in stale:
+                del history[rid]
+            removed += len(stale)
+            if not history:
+                del self._matched_rules_history[host_id]
+        return removed
 
     def _evaluate_logic_node(self, node: LogicNode, event: Dict[str, Any]) -> bool:
         """Recursively evaluates boolean logic tree with short-circuiting."""

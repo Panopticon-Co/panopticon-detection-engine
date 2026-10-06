@@ -16,6 +16,7 @@ logic:
       operator: contains
       value: "LD_PRELOAD="
 
+level: 12
 severity: high
 confidence: 0.80
 

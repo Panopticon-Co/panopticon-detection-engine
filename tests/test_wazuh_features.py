@@ -66,6 +66,7 @@ def test_active_response_resolution():
 def test_rule_inheritance_depends_on():
     parent_rule = Rule(
         id="RULE-PARENT",
+        level=7,
         name="Parent Rule",
         event_type="process_create",
         logic=LogicNode(all=[Condition(field="process.name", operator="equals", value="parent.exe")]),
@@ -73,6 +74,7 @@ def test_rule_inheritance_depends_on():
 
     child_rule = Rule(
         id="RULE-CHILD",
+        level=7,
         name="Child Rule (Inherits from Parent)",
         event_type="process_create",
         depends_on_rule="RULE-PARENT",

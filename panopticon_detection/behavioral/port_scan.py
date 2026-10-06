@@ -6,8 +6,10 @@ and vertical port scans (probing multiple ports on a single machine).
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Set
+from datetime import datetime
+from typing import Any, Dict, List
+
+from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 
 
 @dataclass
@@ -30,10 +32,12 @@ class PortScanDetector:
         horizontal_ip_threshold: int = 5,
         vertical_port_threshold: int = 6,
         time_window_seconds: int = 30,
+        latch_ttl_seconds: float = 3600.0,
     ):
         self.horizontal_threshold = horizontal_ip_threshold
         self.vertical_threshold = vertical_port_threshold
         self.time_window = time_window_seconds
+        self.latch_ttl_seconds = latch_ttl_seconds
 
         # Key: (host_id, port) -> deque of (timestamp, dest_ip)
         self.horizontal_sweeps: Dict[str, deque] = defaultdict(deque)
@@ -41,8 +45,13 @@ class PortScanDetector:
         # Key: (host_id, dest_ip) -> deque of (timestamp, port)
         self.vertical_scans: Dict[str, deque] = defaultdict(deque)
 
-        # Suppress repeat alerts
-        self.alerted_scans: Set[str] = set()
+        # key -> event time of the last alert. Suppresses repeats for the TTL
+        # only; a permanent latch would hide a genuine scan hours later.
+        self.alerted_scans: Dict[str, float] = {}
+
+    def _latched(self, key: str, now_ts: float) -> bool:
+        last = self.alerted_scans.get(key)
+        return last is not None and now_ts - last < self.latch_ttl_seconds
 
     def ingest_connection(self, event: Dict[str, Any]) -> List[PortScanMatch]:
         """Analyzes network connection for scanning behavior."""
@@ -59,7 +68,9 @@ class PortScanDetector:
         if not dest_ip or not dest_port or net.get("direction") == "inbound":
             return []
 
-        now_ts = self._parse_timestamp(event.get("timestamp"))
+        now_ts = event_epoch(event.get("timestamp"))
+        if now_ts is None:
+            return []
         cutoff = now_ts - self.time_window
         matches: List[PortScanMatch] = []
 
@@ -72,13 +83,13 @@ class PortScanDetector:
             h_queue.popleft()
 
         distinct_ips = {ip for _, ip in h_queue}
-        if len(distinct_ips) >= self.horizontal_threshold and h_key not in self.alerted_scans:
-            self.alerted_scans.add(h_key)
+        if len(distinct_ips) >= self.horizontal_threshold and not self._latched(h_key, now_ts):
+            self.alerted_scans[h_key] = now_ts
             matches.append(
                 PortScanMatch(
                     scan_type="Horizontal Subnet Sweep (Lateral Reconnaissance)",
                     host_id=host_id,
-                    target_summary=f"Port {dest_port} across {len(distinct_ips)} distinct internal endpoints",
+                    target_summary=f"Port {dest_port} across {len(distinct_ips)} distinct endpoints",
                     probed_count=len(distinct_ips),
                     time_window_seconds=self.time_window,
                     process_name=proc.get("name", "unknown"),
@@ -92,6 +103,7 @@ class PortScanDetector:
                     },
                 )
             )
+            h_queue.clear()
 
         # 2. Check Vertical Port Scan (Same host, same target IP -> multiple ports)
         v_key = f"{host_id}:{dest_ip}"
@@ -102,8 +114,8 @@ class PortScanDetector:
             v_queue.popleft()
 
         distinct_ports = {port for _, port in v_queue}
-        if len(distinct_ports) >= self.vertical_threshold and v_key not in self.alerted_scans:
-            self.alerted_scans.add(v_key)
+        if len(distinct_ports) >= self.vertical_threshold and not self._latched(v_key, now_ts):
+            self.alerted_scans[v_key] = now_ts
             matches.append(
                 PortScanMatch(
                     scan_type="Vertical Target Port Enumeration",
@@ -122,17 +134,20 @@ class PortScanDetector:
                     },
                 )
             )
+            v_queue.clear()
 
         return matches
 
-    @staticmethod
-    def _parse_timestamp(ts_val: Any) -> float:
-        if isinstance(ts_val, (int, float)):
-            return float(ts_val)
-        if isinstance(ts_val, str):
-            try:
-                clean_ts = ts_val.replace("Z", "+00:00")
-                return datetime.fromisoformat(clean_ts).timestamp()
-            except Exception:
-                pass
-        return datetime.now(timezone.utc).timestamp()
+    def prune(self, before: datetime) -> int:
+        """Drop sweep windows and latches with no activity since ``before``."""
+        cutoff = naive_utc_epoch(before)
+        removed = 0
+        for table in (self.horizontal_sweeps, self.vertical_scans):
+            stale = [k for k, q in table.items() if not q or q[-1][0] < cutoff]
+            for k in stale:
+                del table[k]
+            removed += len(stale)
+        expired = [k for k, ts in self.alerted_scans.items() if ts < cutoff]
+        for k in expired:
+            del self.alerted_scans[k]
+        return removed + len(expired)

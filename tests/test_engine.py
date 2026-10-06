@@ -89,12 +89,14 @@ def test_one_broken_rule_does_not_disable_other_candidate_rules_for_the_same_eve
     # could blind unrelated rules of the same event_type indefinitely.
     broken_rule = Rule(
         id="DET-BROKEN-001",
+        level=7,
         name="Deliberately broken rule",
         event_type="process_create",
         logic=LogicNode(all=[Condition(field="process.name", operator="regex", value="[")]),
     )
     healthy_rule = Rule(
         id="DET-HEALTHY-001",
+        level=7,
         name="Always matches powershell",
         event_type="process_create",
         logic=LogicNode(all=[Condition(field="process.name", operator="equals", value="powershell.exe")]),

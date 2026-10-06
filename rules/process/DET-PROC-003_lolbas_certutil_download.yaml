@@ -22,6 +22,7 @@ logic:
           operator: regex
           value: "http[s]?://"
 
+level: 12
 severity: high
 confidence: 0.90
 
@@ -32,7 +33,7 @@ evidence:
   - process.user
 
 mitre:
-  tactic: Ingress Tool Transfer
+  tactic: Command and Control
   technique: T1105
   name: "Ingress Tool Transfer: Certutil"
 

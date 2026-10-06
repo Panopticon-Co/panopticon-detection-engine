@@ -22,6 +22,7 @@ logic:
       operator: regex
       value: ">>?\\s*/etc/cron"
 
+level: 12
 severity: high
 confidence: 0.75
 

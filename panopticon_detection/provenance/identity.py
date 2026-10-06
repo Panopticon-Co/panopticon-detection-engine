@@ -43,7 +43,7 @@ from __future__ import annotations
 import bisect
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 # An event whose timestamp cannot be parsed. Kept distinct from "no timestamp"
@@ -69,8 +69,30 @@ def parse_timestamp(value: Any) -> datetime:
     except ValueError:
         return UNKNOWN_TIME
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(tz=None).replace(tzinfo=None)
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed
+
+
+def event_epoch(value: Any) -> Optional[float]:
+    """Event time as a UTC epoch, or ``None`` when absent or unparseable.
+
+    Stateful detectors key their windows on this. Returning ``None`` rather
+    than falling back to wall-clock time keeps a replay deterministic: an event
+    with no usable time is skipped, exactly as the graph skips it.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    parsed = parse_timestamp(value)
+    if parsed == UNKNOWN_TIME:
+        return None
+    return parsed.replace(tzinfo=timezone.utc).timestamp()
+
+
+def naive_utc_epoch(when: datetime) -> float:
+    """Epoch for a naive-UTC ``datetime`` such as a prune cutoff."""
+    return when.replace(tzinfo=timezone.utc).timestamp()
 
 
 def derive_node_id(host_id: str, pid: int, start_time: datetime) -> str:

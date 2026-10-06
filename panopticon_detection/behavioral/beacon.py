@@ -7,8 +7,10 @@ by analyzing connection time-delta distributions and mathematical Coefficient of
 import math
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, Optional
+
+from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 
 
 @dataclass
@@ -30,13 +32,20 @@ class BeaconMatch:
 class C2BeaconDetector:
     """Maintains connection interval histories and identifies automated periodic beaconing."""
 
-    def __init__(self, min_samples: int = 4, max_cv_threshold: float = 0.22):
+    def __init__(
+        self,
+        min_samples: int = 4,
+        max_cv_threshold: float = 0.22,
+        latch_ttl_seconds: float = 3600.0,
+    ):
         self.min_samples = min_samples
         self.max_cv_threshold = max_cv_threshold
+        self.latch_ttl_seconds = latch_ttl_seconds
         # Key: (host_id, dest_ip, dest_port) -> deque of float timestamps
         self.connection_history: Dict[str, deque] = {}
-        # Avoid repeat alerts for active beacons
-        self.alerted_beacons: set = set()
+        # key -> event time of the last alert. Suppresses repeats for the TTL
+        # only, so a beacon that resumes later is reported again.
+        self.alerted_beacons: Dict[str, float] = {}
 
     def ingest_connection(self, event: Dict[str, Any]) -> Optional[BeaconMatch]:
         """Analyzes an outbound network connection for periodic beaconing."""
@@ -53,11 +62,14 @@ class C2BeaconDetector:
         if not dest_ip or net.get("direction") == "inbound":
             return None
 
-        key = f"{host_id}:{dest_ip}:{dest_port}"
-        if key in self.alerted_beacons:
+        now_ts = event_epoch(event.get("timestamp"))
+        if now_ts is None:
             return None
 
-        now_ts = self._parse_timestamp(event.get("timestamp"))
+        key = f"{host_id}:{dest_ip}:{dest_port}"
+        last_alert = self.alerted_beacons.get(key)
+        if last_alert is not None and now_ts - last_alert < self.latch_ttl_seconds:
+            return None
 
         if key not in self.connection_history:
             self.connection_history[key] = deque(maxlen=20)
@@ -87,7 +99,8 @@ class C2BeaconDetector:
 
         # Periodic beaconing matches when CV is low (indicating regular rhythm / heartbeat)
         if cv <= self.max_cv_threshold:
-            self.alerted_beacons.add(key)
+            self.alerted_beacons[key] = now_ts
+            history.clear()
             confidence = round(max(0.85, 1.0 - (cv * 1.5)), 2)
 
             evidence = {
@@ -117,14 +130,13 @@ class C2BeaconDetector:
 
         return None
 
-    @staticmethod
-    def _parse_timestamp(ts_val: Any) -> float:
-        if isinstance(ts_val, (int, float)):
-            return float(ts_val)
-        if isinstance(ts_val, str):
-            try:
-                clean_ts = ts_val.replace("Z", "+00:00")
-                return datetime.fromisoformat(clean_ts).timestamp()
-            except Exception:
-                pass
-        return datetime.now(timezone.utc).timestamp()
+    def prune(self, before: datetime) -> int:
+        """Drop histories and latches with no activity since ``before``."""
+        cutoff = naive_utc_epoch(before)
+        stale = [k for k, h in self.connection_history.items() if not h or h[-1] < cutoff]
+        for k in stale:
+            del self.connection_history[k]
+        expired = [k for k, ts in self.alerted_beacons.items() if ts < cutoff]
+        for k in expired:
+            del self.alerted_beacons[k]
+        return len(stale) + len(expired)

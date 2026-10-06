@@ -30,7 +30,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set
 
 from panopticon_detection.alerting.alert import Alert
@@ -194,9 +194,10 @@ class CampaignDetector:
     horizon: timedelta = timedelta(hours=6)
     max_depth: int = 12
 
-    # Stage sets already reported, so a campaign is not re-emitted every time
-    # the graph grows another edge around it.
-    _reported: Set[FrozenSet[str]] = field(default_factory=set, repr=False)
+    # Stage sets already reported -> anchor time, so a campaign is not
+    # re-emitted every time the graph grows another edge around it. Timed so
+    # prune() can drop entries whose edges the graph has already dropped.
+    _reported: Dict[FrozenSet[str], datetime] = field(default_factory=dict, repr=False)
 
     def on_tagged_edge(self, edge: Edge, tag: Tag) -> Optional[Campaign]:
         """Called after ``tag`` is attached to ``edge``. Returns a campaign when
@@ -230,7 +231,7 @@ class CampaignDetector:
         identity = frozenset(e.edge_id for e in stage_edges)
         if identity in self._reported:
             return None
-        self._reported.add(identity)
+        self._reported[identity] = edge.ts
 
         campaign = Campaign(
             campaign_id="CMP-"
@@ -255,6 +256,13 @@ class CampaignDetector:
             campaign.lineage = self.registry.lineage(root.node_id)
 
         return campaign
+
+    def prune(self, before: datetime) -> int:
+        """Forget reported stage sets anchored before ``before``."""
+        stale = [k for k, ts in self._reported.items() if ts < before]
+        for k in stale:
+            del self._reported[k]
+        return len(stale)
 
     # ------------------------------------------------------------------
     def _root_process(self, nodes: Dict[str, Any], anchor: Edge):

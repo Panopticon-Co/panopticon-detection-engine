@@ -21,6 +21,8 @@ logic:
       operator: contains
       value: /dev/tcp/
 
+level: 14
+active_response: TERMINATE_PROCESS
 severity: critical
 confidence: 0.90
 

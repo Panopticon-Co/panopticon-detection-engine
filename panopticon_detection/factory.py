@@ -44,16 +44,34 @@ class DetectionContext:
         graph: ProvenanceGraph,
         registry: ProcessRegistry,
         campaign_detector: CampaignDetector,
+        run: DetectionRun,
     ) -> None:
         self.graph = graph
         self.registry = registry
         self.campaign_detector = campaign_detector
+        self.run = run
 
     def prune(self, before: datetime) -> Dict[str, int]:
-        """Drop graph edges and process incarnations older than ``before``."""
+        """Drop every piece of detection state older than ``before``.
+
+        ``before`` is naive UTC, the same convention as event timestamps after
+        ``identity.parse_timestamp``. Covers the graph and registry plus every
+        stateful detector, so a long-running worker stays bounded.
+        """
+        run = self.run
+        detector_state = (
+            run.evaluator.prune(before)
+            + run.threshold_engine.prune(before)
+            + run.risk_scorer.prune(before)
+            + run.beacon_detector.prune(before)
+            + run.port_scan_detector.prune(before)
+            + run.ransomware_shield.prune(before)
+        )
         return {
             "edges_removed": self.graph.prune(before),
             "processes_removed": self.registry.prune(before),
+            "campaigns_forgotten": self.campaign_detector.prune(before),
+            "detector_state_removed": detector_state,
         }
 
     def stats(self) -> Dict[str, int]:
@@ -97,4 +115,4 @@ def build_detection_run(
         ransomware_shield=RansomwareShield(burst_threshold=4, burst_window_seconds=5.0),
         emit=emit,
     )
-    return run, DetectionContext(graph, registry, campaign_detector)
+    return run, DetectionContext(graph, registry, campaign_detector, run)

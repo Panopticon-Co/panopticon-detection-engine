@@ -10,17 +10,13 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from panopticon_detection.alerting.alert import Alert
+from panopticon_detection.provenance.identity import UNKNOWN_TIME, parse_timestamp
 
 
 def _parse_ts(value: Any) -> Optional[datetime]:
-    """Best-effort ISO-8601 parse; ``None`` means "cannot decay from this"."""
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+    """Naive-UTC parse; ``None`` means "cannot decay from this"."""
+    parsed = parse_timestamp(value)
+    return None if parsed == UNKNOWN_TIME else parsed
 
 
 @dataclass
@@ -163,11 +159,33 @@ class EntityRiskScorer:
                 "host_id": profile.host_id,
                 "reason": f"Host Threat Meter crossed critical breach threshold ({profile.current_score}/100)",
             },
-            mitre_tactic="Initial Access & Execution",
-            mitre_technique="T1059",
+            # An accumulation of unrelated detections has no single technique;
+            # the contributing rules' own mappings are in the timeline.
+            mitre_tactic=None,
+            mitre_technique=None,
             compliance=["PCI-DSS_10.6", "NIST_800-53_SI-4"],
             tags=["attack.risk_score", "host_compromise", "threat_meter"],
         )
+
+    def prune(self, before: datetime) -> int:
+        """Drop timeline records older than ``before``, and hosts idle since then.
+
+        A host idle past the retention window has decayed toward zero anyway;
+        without this the timeline grew by one record per detection forever.
+        """
+        removed = 0
+        for host_id, profile in list(self.host_profiles.items()):
+            if profile.last_seen is not None and profile.last_seen < before:
+                del self.host_profiles[host_id]
+                removed += 1
+                continue
+            kept = [
+                r for r in profile.event_timeline
+                if (_parse_ts(r.timestamp) or before) >= before
+            ]
+            removed += len(profile.event_timeline) - len(kept)
+            profile.event_timeline = kept
+        return removed
 
     def get_host_score(self, host_id: str) -> int:
         return self.host_profiles.get(host_id, HostRiskProfile(host_id=host_id)).current_score

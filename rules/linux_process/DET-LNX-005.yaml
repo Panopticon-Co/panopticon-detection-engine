@@ -18,6 +18,8 @@ logic:
       operator: regex
       value: ">>?\\s*.*authorized_keys"
 
+level: 14
+active_response: TERMINATE_PROCESS
 severity: critical
 confidence: 0.80
 

@@ -29,6 +29,7 @@ logic:
           operator: contains
           value: "\\ProgramData\\"
 
+level: 12
 severity: high
 confidence: 0.75
 
