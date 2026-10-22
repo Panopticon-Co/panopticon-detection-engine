@@ -291,3 +291,17 @@ def test_fetch_refuses_a_download_with_the_wrong_hash(tmp_path, monkeypatch):
     assert not target.exists()
     dataset_cli._download("https://example.invalid/x.zip", hashlib.sha256(payload).hexdigest(), target)
     assert target.read_bytes() == payload
+
+
+def test_macos_appledouble_members_are_not_read_as_recordings(tmp_path):
+    # 14 of OTRF's atomic recordings were zipped on a Mac and carry binary
+    # __MACOSX/._<name>.json resource forks next to the real JSON.
+    import zipfile
+
+    good = {"Channel": "Microsoft-Windows-Sysmon/Operational", "EventID": 1, "Image": "C:\\x.exe"}
+    path = tmp_path / "rec.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("rec.json", json.dumps(good) + "\n")
+        archive.writestr("__MACOSX/._rec.json", b"\x00\x05\x16\x07\x00\x02\x00\x00\xb4\xff")
+        archive.writestr("nested/._other.json", b"\x00\x05\x16\x07")
+    assert read_records(path) == [good]

@@ -71,7 +71,6 @@ dataset-level mapping in the manifest, with that caveat stated.
 
 from __future__ import annotations
 
-import io
 import json
 import re
 import statistics
@@ -106,25 +105,40 @@ _SHA256_RE = re.compile(r"SHA256=([0-9A-Fa-f]{64})")
 # --------------------------------------------------------------------- input
 
 
+def _is_recording(member: str) -> bool:
+    """A ``.json`` archive member that is data, not macOS AppleDouble metadata.
+
+    Archives zipped on a Mac carry ``__MACOSX/._<name>.json`` resource-fork
+    files: binary, not JSON, and they made 14 OTRF recordings unreadable.
+    """
+    leaf = member.replace("\\", "/").rsplit("/", 1)[-1]
+    return (
+        member.lower().endswith(".json")
+        and not member.startswith("__MACOSX/")
+        and "/__MACOSX/" not in member
+        and not leaf.startswith("._")
+    )
+
+
 def read_records(path: Path) -> List[Dict[str, Any]]:
     """Every JSON record in an OTRF file: ``.zip``, ``.tar.gz`` or JSON lines."""
     path = Path(path)
     name = path.name.lower()
     if name.endswith(".zip"):
         with zipfile.ZipFile(path) as archive:
-            members = sorted(m for m in archive.namelist() if m.lower().endswith(".json"))
+            members = sorted(m for m in archive.namelist() if _is_recording(m))
             return [r for m in members for r in _json_lines(archive.read(m).decode("utf-8"))]
     if name.endswith((".tar.gz", ".tgz")):
         with tarfile.open(path, "r:gz") as archive:
             members = sorted(
-                (m for m in archive.getmembers() if m.isfile() and m.name.lower().endswith(".json")),
+                (m for m in archive.getmembers() if m.isfile() and _is_recording(m.name)),
                 key=lambda m: m.name,
             )
             records: List[Dict[str, Any]] = []
             for member in members:
                 handle = archive.extractfile(member)
                 if handle is not None:
-                    records.extend(_json_lines(io.TextIOWrapper(handle, encoding="utf-8").read()))
+                    records.extend(_json_lines(handle.read().decode("utf-8")))
             return records
     return list(_json_lines(path.read_text(encoding="utf-8")))
 
