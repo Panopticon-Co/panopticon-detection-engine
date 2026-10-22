@@ -65,17 +65,12 @@ def _row_key(dataset_id: str, record: Dict[str, Any], index: int) -> str:
 
 
 def _slim(normalized: Dict[str, Any]) -> Dict[str, Any]:
-    """The parts of a normalized event the featurizer reads (plus ids for audit)."""
-    process = normalized.get("process") or {}
-    parent = normalized.get("parent") or {}
-    user = normalized.get("user") or {}
-    return {
-        "event_id": normalized.get("event_id"),
-        "event_type": normalized.get("event_type"),
-        "process": {k: process.get(k) for k in ("name", "executable", "command_line")},
-        "parent": {"name": parent.get("name")},
-        "user": {"name": user.get("name"), "domain": user.get("domain")},
-    }
+    """The full normalized event minus the raw copy the adapter keeps.
+
+    Kept whole so the rules-only baseline can replay exactly what the engine
+    would receive; the featurizer reads only the fields it documents.
+    """
+    return {k: v for k, v in normalized.items() if k != "_raw_officer_event"}
 
 
 def rows_for(

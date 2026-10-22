@@ -33,7 +33,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         choices=["attack_data", "otrf", "otrf_compound", "botsv1"],
     )
 
+    exp = sub.add_parser("experiment", help="train, evaluate, export the bundle")
+    exp.add_argument("--version", default="v1")
+
     args = parser.parse_args(argv)
+    if args.step == "experiment":
+        import json
+
+        from pdtrain.experiment import run
+
+        results = run(DATA, REPO, export_dir=DATA / "models" / args.version)
+        out = DATA / "experiment"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "results.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {out / 'results.json'}")
+        return 0
     if args.step == "label":
         import json
 

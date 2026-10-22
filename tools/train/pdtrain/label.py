@@ -46,7 +46,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from panopticon_detection.ml.featurizer import integrity_category, normalize_text
 from pdtrain.normalize import read_rows
 
-LABELLER_VERSION = 1
+LABELLER_VERSION = 3
 
 
 def leaf(path: Optional[str]) -> str:
@@ -79,7 +79,7 @@ BACKGROUND_IMAGES = frozenset(
         "aitagent.exe", "installagent.exe", "wifitask.exe", "locationnotificationwindows.exe",
         "wudfhost.exe", "spoolsv.exe", "splwow64.exe", "osppsvc.exe", "sdclt.exe", "mobsync.exe",
         "hubtaskhost.exe", "skypehost.exe", "devicedisplayobjectprovider.exe", "gpupdate.exe",
-        "dsregcmd.exe", "vssvc.exe", "msiexec.exe",
+        "dsregcmd.exe", "vssvc.exe", "msiexec.exe", "waasmedicagent.exe", "sedlauncher.exe",
         # Defender
         "msmpeng.exe", "mpcmdrun.exe", "nissrv.exe", "mpdefendercoreservice.exe",
         # lab telemetry / management agents
@@ -112,7 +112,26 @@ DEFENSIVE_IMAGES = frozenset({"raccine.exe", "yara64.exe", "yara32.exe", "yara.e
 
 # Lab telemetry installs: anything whose lineage runs through these paths is the
 # recording infrastructure (Splunk forwarder helpers spawn cmd/btool/openssl).
-_INFRA_PATH_MARKERS = ("\\splunkuniversalforwarder\\", "\\splunk\\bin\\")
+_INFRA_PATH_MARKERS = (
+    "\\splunkuniversalforwarder\\", "\\splunk\\bin\\",
+    "\\packages\\plugins\\microsoft.",  # Azure VM extensions (CustomScript, NetworkWatcher, ...)
+)
+
+# Browsers: always excluded (see label_attack_recording).
+BROWSER_IMAGES = frozenset(
+    {"firefox.exe", "chrome.exe", "msedge.exe", "iexplore.exe", "brave.exe", "opera.exe", "vivaldi.exe"}
+)
+
+# Cloud / update agents: their whole subtree is platform activity, not the
+# attack (found by the label audit: Azure guest-agent logman/CustomScript
+# runs, Defender signature updates, the Edge updater).
+INFRA_ROOT_IMAGES = frozenset(
+    {
+        "waappagent.exe", "windowsazureguestagent.exe", "collectguestlogs.exe",
+        "am_delta.exe", "am_delta_patch.exe", "mpsigstub.exe",
+        "microsoftedgeupdate.exe", "msedgeupdate.exe", "dismhost.exe", "networkwatcheragent.exe",
+    }
+)
 
 # BOTSv1's documented scenarios: (host prefix, parent leaf, image leaf, scenario).
 _BOTSV1_ROOTS: Tuple[Tuple[str, Optional[str], str, str], ...] = (
@@ -182,9 +201,24 @@ def label_attack_recording(
     malicious: Dict[str, bool] = {}
 
     def is_infrastructure(row: Dict[str, Any]) -> bool:
-        paths = [row.get("image"), row.get("parent_image")]
-        paths += [a.get("image") for a in _lineage(row, by_guid)]
-        return any(m in (p or "").lower() for p in paths for m in _INFRA_PATH_MARKERS)
+        lineage = _lineage(row, by_guid)
+        paths = [row.get("image"), row.get("parent_image")] + [a.get("image") for a in lineage]
+        if any(m in (p or "").lower() for p in paths for m in _INFRA_PATH_MARKERS):
+            return True
+        if any(leaf(p) in INFRA_ROOT_IMAGES for p in paths):
+            return True
+        # OTRF compound recordings ship packet captures taken with `netsh trace`;
+        # its stop routine runs a diagnostics script (cscript -> reg export, ...).
+        if row["source"] == "otrf_compound":
+            for node in [row] + lineage:
+                if leaf(node.get("image")) == "netsh.exe" and " trace " in f" {(node.get('command_line') or '').lower()} ":
+                    return True
+        return False
+
+    def is_store_app(row: Dict[str, Any]) -> bool:
+        return "\\program files\\windowsapps\\" in (row.get("image") or "").lower() and leaf(
+            row.get("parent_image")
+        ) in ("svchost.exe", "runtimebroker.exe", "explorer.exe")
 
     def is_background(row: Dict[str, Any]) -> bool:
         if is_infrastructure(row):
@@ -207,9 +241,18 @@ def label_attack_recording(
             row.update(label=None, label_rule="excluded/console_host")
         elif image in DEFENSIVE_IMAGES:
             row.update(label=None, label_rule="excluded/defensive_tool")
+        elif image in BROWSER_IMAGES:
+            # Browser sub-processes (renderer, GPU, ...) carry no attacker signal
+            # even when an attack opened the browser.
+            row.update(label=None, label_rule="excluded/browser")
+        elif is_infrastructure(row):
+            # Recording / cloud infrastructure wins over inherited labels: an
+            # attack that restarts the Splunk forwarder does not make the
+            # forwarder's own helpers malicious.
+            row.update(label=0, label_rule="benign/infrastructure")
         elif not ancestor_malicious and is_background(row):
             row.update(label=0, label_rule="benign/background")
-        elif not ancestor_malicious and image in INTERACTIVE_IMAGES:
+        elif not ancestor_malicious and (image in INTERACTIVE_IMAGES or is_store_app(row)):
             row.update(label=None, label_rule="excluded/interactive")
         else:
             row.update(label=1, label_rule="malicious/attack_recording")
