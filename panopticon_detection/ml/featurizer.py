@@ -34,12 +34,14 @@ from panopticon_detection.enrichment import classify_path
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 
-FEATURIZER_VERSION = 1
+FEATURIZER_VERSION = 2
 
 # ------------------------------------------------------------- normalisation
 
 _GUID = re.compile(r"\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?")
 _HEX = re.compile(r"\b(?:0x)?[0-9a-f]{8,}\b")
+# Per-run random file names (PowerShell Add-Type's csc.exe temp files, etc.).
+_RANDOM_FILE = re.compile(r"\b[a-z0-9]{8}\.(cmdline|dll|pdb|out|err|tmp|0)\b")
 _DIGITS = re.compile(r"\d{3,}")
 _USER_DIR = re.compile(r"([a-z]:\\users\\)[^\\\"' ]+")
 _SYSTEM_DIRS = re.compile(r"[a-z]:\\windows\\(?:system32|syswow64|sysnative)")
@@ -63,6 +65,7 @@ def normalize_text(value: Optional[str]) -> str:
     text = _SYSTEM_DIRS.sub("win_system_dir", text)
     text = _WINDOWS_DIR.sub("win_dir", text)
     text = _PROGRAM_FILES.sub("program_files_dir", text)
+    text = _RANDOM_FILE.sub(r"<rand>.\1", text)
     text = _HEX.sub("<hex>", text)
     text = _DIGITS.sub("<n>", text)
     return _SPACES.sub(" ", text).strip()
