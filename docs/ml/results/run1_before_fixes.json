@@ -1,0 +1,2171 @@
+{
+  "seed": 20261023,
+  "gates": {
+    "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap 95% CI of the difference > 0); PR-AUC beats LR",
+    "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host",
+    "G3": "E3 recall at alert within 15 percentage points of E2",
+    "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
+    "G5": "calibrated ECE <= 0.10 (OOF)",
+    "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer"
+  },
+  "budgets_fp_per_host_hour": {
+    "alert": 1.0,
+    "high": 0.1
+  },
+  "data": {
+    "pool": {
+      "rows": 5037,
+      "malicious": 4563,
+      "benign": 474,
+      "groups": 138,
+      "observed_host_hours": 202.236169,
+      "benign_raw_events": 50365
+    },
+    "E3_otrf": {
+      "rows": 296,
+      "malicious": 113
+    },
+    "E4_holdout_host": {
+      "rows": 262,
+      "malicious": 26,
+      "raw_events": 588,
+      "observed_host_hours": 4.300461
+    },
+    "E5_winlolbin": {
+      "rows": 1000,
+      "malicious": 500
+    },
+    "train_test_duplicate_keys": 0
+  },
+  "tuning": {
+    "grid": [
+      {
+        "params": {
+          "num_leaves": 15,
+          "min_data_in_leaf": 20
+        },
+        "oof_pr_auc": 0.954443,
+        "best_iterations": [
+          93,
+          159,
+          215,
+          353,
+          150
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 15,
+          "min_data_in_leaf": 50
+        },
+        "oof_pr_auc": 0.94366,
+        "best_iterations": [
+          101,
+          101,
+          316,
+          444,
+          165
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 31,
+          "min_data_in_leaf": 20
+        },
+        "oof_pr_auc": 0.95484,
+        "best_iterations": [
+          74,
+          69,
+          193,
+          271,
+          106
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 31,
+          "min_data_in_leaf": 50
+        },
+        "oof_pr_auc": 0.958654,
+        "best_iterations": [
+          95,
+          154,
+          198,
+          394,
+          139
+        ]
+      }
+    ],
+    "chosen": {
+      "num_leaves": 31,
+      "min_data_in_leaf": 50
+    },
+    "note": "selected on the same OOF folds used for E2 (4 configs): slightly optimistic"
+  },
+  "E1_random_split_ceiling": {
+    "n": 5037,
+    "positives": 4563,
+    "groups": 138,
+    "metrics": {
+      "pr_auc": {
+        "value": 0.999241,
+        "ci95": [
+          0.998169,
+          0.999774
+        ]
+      },
+      "roc_auc": {
+        "value": 0.993506,
+        "ci95": [
+          0.984769,
+          0.997115
+        ]
+      },
+      "recall@alert": {
+        "value": 0.539776,
+        "ci95": [
+          0.475778,
+          0.597681
+        ]
+      },
+      "precision@alert": {
+        "value": 0.999594,
+        "ci95": [
+          0.998569,
+          1.0
+        ]
+      },
+      "recall@high": {
+        "value": 0.241727,
+        "ci95": [
+          0.191204,
+          0.285404
+        ]
+      },
+      "precision@high": {
+        "value": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      }
+    }
+  },
+  "E2_group_oof": {
+    "model_A": {
+      "n": 5037,
+      "positives": 4563,
+      "groups": 138,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.958654,
+          "ci95": [
+            0.87229,
+            0.999198
+          ]
+        },
+        "roc_auc": {
+          "value": 0.774888,
+          "ci95": [
+            0.525725,
+            0.988593
+          ]
+        },
+        "recall@alert": {
+          "value": 0.255314,
+          "ci95": [
+            0.154308,
+            0.359889
+          ]
+        },
+        "precision@alert": {
+          "value": 0.925338,
+          "ci95": [
+            0.75982,
+            1.0
+          ]
+        },
+        "recall@high": {
+          "value": 0.120754,
+          "ci95": [
+            0.056368,
+            0.197133
+          ]
+        },
+        "precision@high": {
+          "value": 0.992793,
+          "ci95": [
+            0.966925,
+            1.0
+          ]
+        }
+      },
+      "thresholds_raw": {
+        "alert": 8.126779,
+        "high": 9.991681
+      },
+      "ece_oof": 0.036678,
+      "brier_oof": 0.050735,
+      "calibration": {
+        "a": 0.42759,
+        "b": 0.51493
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.988943,
+        "high": 0.079115
+      }
+    },
+    "model_B": {
+      "n": 5037,
+      "positives": 4563,
+      "groups": 138,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.95539,
+          "ci95": [
+            0.862878,
+            0.999196
+          ]
+        },
+        "roc_auc": {
+          "value": 0.768494,
+          "ci95": [
+            0.513511,
+            0.988201
+          ]
+        },
+        "recall@alert": {
+          "value": 0.248521,
+          "ci95": [
+            0.155133,
+            0.346376
+          ]
+        },
+        "precision@alert": {
+          "value": 0.924959,
+          "ci95": [
+            0.762688,
+            1.0
+          ]
+        },
+        "recall@high": {
+          "value": 0.06728,
+          "ci95": [
+            0.027193,
+            0.118946
+          ]
+        },
+        "precision@high": {
+          "value": 0.987138,
+          "ci95": [
+            0.940299,
+            1.0
+          ]
+        }
+      },
+      "thresholds_raw": {
+        "alert": 7.934676,
+        "high": 9.737468
+      },
+      "ece_oof": 0.031116,
+      "brier_oof": 0.051133,
+      "calibration": {
+        "a": 0.439474,
+        "b": 0.535169
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.993887,
+        "high": 0.098894
+      }
+    },
+    "logistic_regression": {
+      "n": 5037,
+      "positives": 4563,
+      "groups": 138,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.97678,
+          "ci95": [
+            0.930584,
+            0.999391
+          ]
+        },
+        "roc_auc": {
+          "value": 0.842507,
+          "ci95": [
+            0.661577,
+            0.99066
+          ]
+        },
+        "recall@alert": {
+          "value": 0.554241,
+          "ci95": [
+            0.439037,
+            0.661408
+          ]
+        },
+        "precision@alert": {
+          "value": 0.964531,
+          "ci95": [
+            0.885215,
+            1.0
+          ]
+        },
+        "recall@high": {
+          "value": 0.23822,
+          "ci95": [
+            0.181943,
+            0.290655
+          ]
+        },
+        "precision@high": {
+          "value": 0.987284,
+          "ci95": [
+            0.962306,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.993887,
+        "high": 0.074171
+      }
+    },
+    "heuristic": {
+      "n": 5037,
+      "positives": 4563,
+      "groups": 138,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.96247,
+          "ci95": [
+            0.922597,
+            0.987605
+          ]
+        },
+        "roc_auc": {
+          "value": 0.791825,
+          "ci95": [
+            0.722489,
+            0.857051
+          ]
+        },
+        "recall@alert": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "precision@alert": {
+          "value": 0.905896,
+          "ci95": [
+            0.824222,
+            0.964563
+          ]
+        },
+        "recall@high": {
+          "value": 0.239097,
+          "ci95": [
+            0.17903,
+            0.303815
+          ]
+        },
+        "precision@high": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 246.118191,
+        "high": 0.0
+      }
+    },
+    "rules_only": {
+      "n": 5037,
+      "positives": 4563,
+      "groups": 138,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.910138,
+          "ci95": [
+            0.822163,
+            0.971879
+          ]
+        },
+        "roc_auc": {
+          "value": 0.538522,
+          "ci95": [
+            0.474144,
+            0.634776
+          ]
+        },
+        "recall@alert": {
+          "value": 0.034188,
+          "ci95": [
+            0.023772,
+            0.049663
+          ]
+        },
+        "precision@alert": {
+          "value": 0.861878,
+          "ci95": [
+            0.664554,
+            0.994259
+          ]
+        },
+        "recall@high": {
+          "value": 0.002411,
+          "ci95": [
+            0.000479,
+            0.004765
+          ]
+        },
+        "precision@high": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 12.648578,
+        "high": 0.0
+      },
+      "any_rule_fired": {
+        "recall": 0.306597,
+        "fp_per_host_hour": 13.553461
+      }
+    },
+    "paired": {
+      "A_vs_lr_pr_auc": {
+        "diff": -0.018126,
+        "ci95": [
+          -0.059081,
+          0.000292
+        ]
+      },
+      "A_vs_lr_recall_alert": {
+        "diff": -0.298926,
+        "ci95": [
+          -0.404912,
+          -0.194765
+        ]
+      },
+      "A_vs_rules_recall_alert": {
+        "diff": 0.221126,
+        "ci95": [
+          0.1201,
+          0.326114
+        ]
+      },
+      "A_vs_heuristic_recall_alert": {
+        "diff": -0.744686,
+        "ci95": [
+          -0.845692,
+          -0.640111
+        ]
+      },
+      "B_vs_A_pr_auc": {
+        "diff": -0.003264,
+        "ci95": [
+          -0.014989,
+          0.001144
+        ]
+      }
+    },
+    "per_group_recall_A_alert": {
+      "T:T1003": {
+        "detected": 0,
+        "total": 185
+      },
+      "T:T1016": {
+        "detected": 9,
+        "total": 35
+      },
+      "T:T1018": {
+        "detected": 131,
+        "total": 300
+      },
+      "T:T1020": {
+        "detected": 0,
+        "total": 4
+      },
+      "T:T1021": {
+        "detected": 0,
+        "total": 155
+      },
+      "T:T1027": {
+        "detected": 41,
+        "total": 54
+      },
+      "T:T1033": {
+        "detected": 27,
+        "total": 64
+      },
+      "T:T1036": {
+        "detected": 0,
+        "total": 87
+      },
+      "T:T1037": {
+        "detected": 0,
+        "total": 15
+      },
+      "T:T1040": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1046": {
+        "detected": 2,
+        "total": 16
+      },
+      "T:T1047": {
+        "detected": 38,
+        "total": 61
+      },
+      "T:T1048": {
+        "detected": 2,
+        "total": 300
+      },
+      "T:T1049": {
+        "detected": 0,
+        "total": 5
+      },
+      "T:T1053": {
+        "detected": 56,
+        "total": 124
+      },
+      "T:T1055": {
+        "detected": 0,
+        "total": 58
+      },
+      "T:T1057": {
+        "detected": 4,
+        "total": 7
+      },
+      "T:T1059": {
+        "detected": 0,
+        "total": 300
+      },
+      "T:T1068": {
+        "detected": 56,
+        "total": 130
+      },
+      "T:T1069": {
+        "detected": 19,
+        "total": 41
+      },
+      "T:T1070": {
+        "detected": 83,
+        "total": 128
+      },
+      "T:T1071": {
+        "detected": 2,
+        "total": 3
+      },
+      "T:T1078": {
+        "detected": 12,
+        "total": 20
+      },
+      "T:T1082": {
+        "detected": 0,
+        "total": 38
+      },
+      "T:T1087": {
+        "detected": 5,
+        "total": 34
+      },
+      "T:T1090": {
+        "detected": 5,
+        "total": 34
+      },
+      "T:T1105": {
+        "detected": 0,
+        "total": 47
+      },
+      "T:T1112": {
+        "detected": 37,
+        "total": 142
+      },
+      "T:T1125": {
+        "detected": 2,
+        "total": 2
+      },
+      "T:T1127": {
+        "detected": 60,
+        "total": 79
+      },
+      "T:T1135": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1136": {
+        "detected": 0,
+        "total": 45
+      },
+      "T:T1140": {
+        "detected": 1,
+        "total": 16
+      },
+      "T:T1185": {
+        "detected": 0,
+        "total": 6
+      },
+      "T:T1189": {
+        "detected": 0,
+        "total": 6
+      },
+      "T:T1190": {
+        "detected": 0,
+        "total": 14
+      },
+      "T:T1195": {
+        "detected": 1,
+        "total": 13
+      },
+      "T:T1197": {
+        "detected": 8,
+        "total": 14
+      },
+      "T:T1200": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1201": {
+        "detected": 0,
+        "total": 12
+      },
+      "T:T1202": {
+        "detected": 1,
+        "total": 7
+      },
+      "T:T1204": {
+        "detected": 0,
+        "total": 67
+      },
+      "T:T1210": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1216": {
+        "detected": 0,
+        "total": 8
+      },
+      "T:T1218": {
+        "detected": 186,
+        "total": 299
+      },
+      "T:T1219": {
+        "detected": 0,
+        "total": 28
+      },
+      "T:T1220": {
+        "detected": 9,
+        "total": 10
+      },
+      "T:T1222": {
+        "detected": 0,
+        "total": 53
+      },
+      "T:T1482": {
+        "detected": 5,
+        "total": 5
+      },
+      "T:T1485": {
+        "detected": 6,
+        "total": 8
+      },
+      "T:T1486": {
+        "detected": 0,
+        "total": 10
+      },
+      "T:T1490": {
+        "detected": 43,
+        "total": 51
+      },
+      "T:T1497": {
+        "detected": 2,
+        "total": 9
+      },
+      "T:T1505": {
+        "detected": 0,
+        "total": 56
+      },
+      "T:T1526": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1531": {
+        "detected": 0,
+        "total": 40
+      },
+      "T:T1542": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1543": {
+        "detected": 0,
+        "total": 62
+      },
+      "T:T1546": {
+        "detected": 142,
+        "total": 165
+      },
+      "T:T1547": {
+        "detected": 0,
+        "total": 126
+      },
+      "T:T1548": {
+        "detected": 0,
+        "total": 96
+      },
+      "T:T1550": {
+        "detected": 10,
+        "total": 16
+      },
+      "T:T1552": {
+        "detected": 0,
+        "total": 6
+      },
+      "T:T1553": {
+        "detected": 25,
+        "total": 36
+      },
+      "T:T1555": {
+        "detected": 0,
+        "total": 7
+      },
+      "T:T1556": {
+        "detected": 4,
+        "total": 4
+      },
+      "T:T1558": {
+        "detected": 0,
+        "total": 25
+      },
+      "T:T1560": {
+        "detected": 0,
+        "total": 15
+      },
+      "T:T1561": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1562": {
+        "detected": 0,
+        "total": 282
+      },
+      "T:T1563": {
+        "detected": 3,
+        "total": 4
+      },
+      "T:T1564": {
+        "detected": 0,
+        "total": 8
+      },
+      "T:T1566": {
+        "detected": 24,
+        "total": 91
+      },
+      "T:T1567": {
+        "detected": 0,
+        "total": 2
+      },
+      "T:T1569": {
+        "detected": 38,
+        "total": 51
+      },
+      "T:T1572": {
+        "detected": 0,
+        "total": 19
+      },
+      "T:T1574": {
+        "detected": 23,
+        "total": 49
+      },
+      "T:T1587": {
+        "detected": 0,
+        "total": 2
+      },
+      "T:T1588": {
+        "detected": 24,
+        "total": 40
+      },
+      "T:T1590": {
+        "detected": 10,
+        "total": 15
+      },
+      "T:T1592": {
+        "detected": 0,
+        "total": 2
+      },
+      "T:T1595": {
+        "detected": 0,
+        "total": 29
+      },
+      "T:T1608": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1649": {
+        "detected": 0,
+        "total": 21
+      },
+      "T:T1685": {
+        "detected": 0,
+        "total": 1
+      },
+      "botsv1:po1s0n1vy_webshell": {
+        "detected": 0,
+        "total": 20
+      },
+      "otrf_compound:LSASS_campaign_01": {
+        "detected": 0,
+        "total": 10
+      },
+      "otrf_compound:LSASS_campaign_02": {
+        "detected": 0,
+        "total": 4
+      },
+      "otrf_compound:LSASS_campaign_03": {
+        "detected": 0,
+        "total": 4
+      },
+      "otrf_compound:LSASS_campaign_04": {
+        "detected": 0,
+        "total": 7
+      },
+      "otrf_compound:LSASS_campaign_05": {
+        "detected": 0,
+        "total": 2
+      },
+      "otrf_compound:LSASS_campaign_06": {
+        "detected": 0,
+        "total": 2
+      },
+      "otrf_compound:LSASS_campaign_07": {
+        "detected": 0,
+        "total": 2
+      },
+      "otrf_compound:apt29": {
+        "detected": 9,
+        "total": 85
+      }
+    }
+  },
+  "tests": {
+    "E3_otrf_leave_source_out": {
+      "model_A": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.955562,
+            "ci95": [
+              0.895234,
+              0.994424
+            ]
+          },
+          "roc_auc": {
+            "value": 0.966149,
+            "ci95": [
+              0.91128,
+              0.98784
+            ]
+          },
+          "recall@alert": {
+            "value": 0.00885,
+            "ci95": [
+              0.0,
+              0.034889
+            ]
+          },
+          "precision@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      },
+      "model_B": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.956034,
+            "ci95": [
+              0.898818,
+              0.994476
+            ]
+          },
+          "roc_auc": {
+            "value": 0.965762,
+            "ci95": [
+              0.908509,
+              0.987857
+            ]
+          },
+          "recall@alert": {
+            "value": 0.079646,
+            "ci95": [
+              0.022715,
+              0.155751
+            ]
+          },
+          "precision@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      },
+      "logistic_regression": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.959419,
+            "ci95": [
+              0.905736,
+              0.993739
+            ]
+          },
+          "roc_auc": {
+            "value": 0.968761,
+            "ci95": [
+              0.90917,
+              0.986506
+            ]
+          },
+          "recall@alert": {
+            "value": 0.371681,
+            "ci95": [
+              0.251806,
+              0.519537
+            ]
+          },
+          "precision@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.106195,
+            "ci95": [
+              0.052215,
+              0.183104
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "heuristic": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.57076,
+            "ci95": [
+              0.335819,
+              0.915109
+            ]
+          },
+          "roc_auc": {
+            "value": 0.660622,
+            "ci95": [
+              0.572107,
+              0.746435
+            ]
+          },
+          "recall@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "precision@alert": {
+            "value": 0.381757,
+            "ci95": [
+              0.137365,
+              0.870326
+            ]
+          },
+          "recall@high": {
+            "value": 0.115044,
+            "ci95": [
+              0.0306,
+              0.244502
+            ]
+          },
+          "precision@high": {
+            "value": 0.928571,
+            "ci95": [
+              0.666667,
+              1.0
+            ]
+          }
+        }
+      },
+      "rules_only": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.443396,
+            "ci95": [
+              0.19752,
+              0.883729
+            ]
+          },
+          "roc_auc": {
+            "value": 0.579936,
+            "ci95": [
+              0.532047,
+              0.658007
+            ]
+          },
+          "recall@alert": {
+            "value": 0.026549,
+            "ci95": [
+              0.0,
+              0.065811
+            ]
+          },
+          "precision@alert": {
+            "value": 0.375,
+            "ci95": [
+              0.0,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      }
+    },
+    "E5_winlolbin_ood": {
+      "model_A": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.536097,
+            "ci95": [
+              0.181697,
+              0.668982
+            ]
+          },
+          "roc_auc": {
+            "value": 0.538216,
+            "ci95": [
+              0.489082,
+              0.593534
+            ]
+          },
+          "recall@alert": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@alert": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      },
+      "model_B": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.548441,
+            "ci95": [
+              0.19582,
+              0.683235
+            ]
+          },
+          "roc_auc": {
+            "value": 0.558976,
+            "ci95": [
+              0.514292,
+              0.614189
+            ]
+          },
+          "recall@alert": {
+            "value": 0.04,
+            "ci95": [
+              0.015921,
+              0.071752
+            ]
+          },
+          "precision@alert": {
+            "value": 0.571429,
+            "ci95": [
+              0.166667,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      },
+      "logistic_regression": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.582903,
+            "ci95": [
+              0.205055,
+              0.716042
+            ]
+          },
+          "roc_auc": {
+            "value": 0.593248,
+            "ci95": [
+              0.540084,
+              0.630118
+            ]
+          },
+          "recall@alert": {
+            "value": 0.226,
+            "ci95": [
+              0.15276,
+              0.273817
+            ]
+          },
+          "precision@alert": {
+            "value": 0.656977,
+            "ci95": [
+              0.259375,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.05,
+            "ci95": [
+              0.026662,
+              0.087466
+            ]
+          },
+          "precision@high": {
+            "value": 0.609756,
+            "ci95": [
+              0.213115,
+              1.0
+            ]
+          }
+        }
+      },
+      "heuristic": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.64068,
+            "ci95": [
+              0.319596,
+              0.74339
+            ]
+          },
+          "roc_auc": {
+            "value": 0.6714,
+            "ci95": [
+              0.608629,
+              0.780444
+            ]
+          },
+          "recall@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "precision@alert": {
+            "value": 0.5,
+            "ci95": [
+              0.181167,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.192,
+            "ci95": [
+              0.124387,
+              0.299424
+            ]
+          },
+          "precision@high": {
+            "value": 0.864865,
+            "ci95": [
+              0.577314,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "E4_holdout_host_raw_stream": {
+      "observed_host_hours": 4.300461,
+      "raw_events": 588,
+      "raw_malicious": 27,
+      "model_A": {
+        "alert": {
+          "threshold": 8.126779,
+          "fp_events": 3,
+          "fp_per_host_hour": 0.6976,
+          "recall_malicious_events": 0.0
+        },
+        "high": {
+          "threshold": 9.991681,
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0,
+          "recall_malicious_events": 0.0
+        },
+        "top_benign_scores": [
+          {
+            "score": 8.894,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 8.833,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 8.833,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 7.242,
+            "parent": "explorer.exe",
+            "image": "onedrive.exe",
+            "command_line": "\"C:\\Users\\bob.smith\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+          },
+          {
+            "score": 7.021,
+            "parent": "explorer.exe",
+            "image": "winword.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\WINWORD.EXE\" /n /f \"D:\\Miranda_Tate_unveiled.dotm\""
+          },
+          {
+            "score": 6.317,
+            "parent": "explorer.exe",
+            "image": "hkcmd.exe",
+            "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+          },
+          {
+            "score": 6.16,
+            "parent": "explorer.exe",
+            "image": "rundll32.exe",
+            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+          },
+          {
+            "score": 6.053,
+            "parent": "igfxcuiservice.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+          },
+          {
+            "score": 5.477,
+            "parent": "explorer.exe",
+            "image": "igfxtray.exe",
+            "command_line": "\"C:\\Windows\\System32\\igfxtray.exe\""
+          },
+          {
+            "score": 5.465,
+            "parent": "explorer.exe",
+            "image": "bootcamp.exe",
+            "command_line": "\"C:\\Program Files\\Boot Camp\\Bootcamp.exe\""
+          },
+          {
+            "score": 5.465,
+            "parent": "explorer.exe",
+            "image": "bootcamp.exe",
+            "command_line": "\"C:\\Program Files\\Boot Camp\\Bootcamp.exe\""
+          },
+          {
+            "score": 5.392,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 5.392,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 5.392,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 5.392,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          }
+        ]
+      },
+      "model_B": {
+        "alert": {
+          "threshold": 7.934676,
+          "fp_events": 3,
+          "fp_per_host_hour": 0.6976,
+          "recall_malicious_events": 0.0
+        },
+        "high": {
+          "threshold": 9.737468,
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0,
+          "recall_malicious_events": 0.0
+        },
+        "top_benign_scores": [
+          {
+            "score": 9.093,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 9.002,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 8.88,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 7.819,
+            "parent": "explorer.exe",
+            "image": "onedrive.exe",
+            "command_line": "\"C:\\Users\\bob.smith\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+          },
+          {
+            "score": 7.794,
+            "parent": "explorer.exe",
+            "image": "winword.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\WINWORD.EXE\" /n /f \"D:\\Miranda_Tate_unveiled.dotm\""
+          },
+          {
+            "score": 6.875,
+            "parent": "igfxcuiservice.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+          },
+          {
+            "score": 6.789,
+            "parent": "explorer.exe",
+            "image": "hkcmd.exe",
+            "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+          },
+          {
+            "score": 6.464,
+            "parent": "explorer.exe",
+            "image": "rundll32.exe",
+            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+          },
+          {
+            "score": 6.046,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 6.046,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 6.046,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 6.046,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 6.046,
+            "parent": "explorer.exe",
+            "image": "explorer.exe",
+            "command_line": "\"C:\\Windows\\explorer.exe\""
+          },
+          {
+            "score": 5.917,
+            "parent": "explorer.exe",
+            "image": "bootcamp.exe",
+            "command_line": "\"C:\\Program Files\\Boot Camp\\Bootcamp.exe\""
+          },
+          {
+            "score": 5.917,
+            "parent": "explorer.exe",
+            "image": "bootcamp.exe",
+            "command_line": "\"C:\\Program Files\\Boot Camp\\Bootcamp.exe\""
+          }
+        ]
+      },
+      "rules_only_any_fired": {
+        "fp_events": 51,
+        "fp_per_host_hour": 11.859194,
+        "recall_malicious_events": 0.333333
+      }
+    }
+  },
+  "robustness_E3_variant_A": {
+    "n": 113,
+    "baseline_recall_alert": 0.00885,
+    "caret": {
+      "recall_alert": 0.0,
+      "mean_raw_score_change": 0.036489
+    },
+    "case": {
+      "recall_alert": 0.00885,
+      "mean_raw_score_change": 0.0
+    },
+    "envvar": {
+      "recall_alert": 0.00885,
+      "mean_raw_score_change": -0.026958
+    },
+    "whitespace": {
+      "recall_alert": 0.00885,
+      "mean_raw_score_change": -0.014484
+    },
+    "argswap": {
+      "recall_alert": 0.00885,
+      "mean_raw_score_change": 0.012843
+    },
+    "renamed_binary": {
+      "recall_alert": 0.0,
+      "mean_raw_score_change": 0.539435
+    }
+  },
+  "ablations_oof_pr_auc": {
+    "full_A": 0.958654,
+    "full_B": 0.95539,
+    "no_cmdline_ngrams": 0.938642,
+    "names_only": 0.961085
+  },
+  "leakage": {
+    "source_predictability_auc": {
+      "attack_data": 0.534881,
+      "botsv1": 0.37587,
+      "otrf_compound": 0.553961
+    },
+    "top_features_A": [
+      {
+        "feature": "path#754",
+        "gain": 3326.91,
+        "tokens": [
+          "splunkuniversalforwarder"
+        ],
+        "harness_token": true
+      },
+      {
+        "feature": "parent#70",
+        "gain": 1938.93,
+        "tokens": [
+          "ex",
+          "^s",
+          "_2"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "pair#260",
+        "gain": 1718.89,
+        "tokens": [
+          "cscript.exe->cmd.exe",
+          "wsmprovhost.exe->m.exe"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "user_category=user",
+        "gain": 1573.25,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_special_char_ratio",
+        "gain": 1182.44,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2462",
+        "gain": 932.46,
+        "tokens": [
+          "users",
+          "office",
+          "fltmc.exe unload"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_length",
+        "gain": 705.11,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2708",
+        "gain": 640.29,
+        "tokens": [
+          "config",
+          "user2changepw",
+          "sysinfo.txt",
+          "resbca0.tmp c"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name_length",
+        "gain": 592.4,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "path_depth",
+        "gain": 577.66,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2852",
+        "gain": 575.86,
+        "tokens": [
+          "show",
+          "btool web",
+          "isphantom 0",
+          "apphelp.dll"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#541",
+        "gain": 533.68,
+        "tokens": [
+          "reg",
+          "netsh",
+          "kx5eon23xskaxv5njfthuktoadp1hhw",
+          "encodedcomman"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_entropy",
+        "gain": 492.27,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#15",
+        "gain": 435.5,
+        "tokens": [
+          "we",
+          "xp",
+          "rt"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#41",
+        "gain": 387.98,
+        "tokens": [
+          "rs",
+          "id"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#69",
+        "gain": 344.77,
+        "tokens": [
+          "ts",
+          "u.",
+          "(1",
+          "cg"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_token_count",
+        "gain": 332.22,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#3",
+        "gain": 332.0,
+        "tokens": [
+          "ll",
+          "ai",
+          "nj",
+          "bj"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#1363",
+        "gain": 281.93,
+        "tokens": [
+          "users <user>",
+          "<rand>.dll",
+          "nlfsm.tmp",
+          "temp res90d1.tmp"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#223",
+        "gain": 268.32,
+        "tokens": [
+          "ho",
+          "to",
+          "pn",
+          "n6"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#190",
+        "gain": 263.76,
+        "tokens": [
+          "^p",
+          "ma",
+          "ny"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#117",
+        "gain": 261.69,
+        "tokens": [
+          "sc",
+          "nn",
+          "og",
+          "1."
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#47",
+        "gain": 253.82,
+        "tokens": [
+          "c.",
+          "rv",
+          "gi",
+          "-w"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#217",
+        "gain": 251.96,
+        "tokens": [
+          "tu",
+          "su",
+          "yl"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "user_category=system",
+        "gain": 250.49,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#210",
+        "gain": 246.3,
+        "tokens": [
+          "l.",
+          "^r"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#172",
+        "gain": 226.9,
+        "tokens": [
+          "xe",
+          "or",
+          "ce"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#163",
+        "gain": 216.76,
+        "tokens": [
+          "ws",
+          "vc",
+          "nw",
+          ".a"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#159",
+        "gain": 204.8,
+        "tokens": [
+          "r.",
+          "-c"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#1472",
+        "gain": 198.07,
+        "tokens": [
+          "btool",
+          "--no-sandbox --gpu-preferences",
+          "3eclose"
+        ],
+        "harness_token": false
+      }
+    ],
+    "top_features_B": [
+      {
+        "feature": "path#754",
+        "gain": 3254.7,
+        "tokens": [
+          "splunkuniversalforwarder"
+        ],
+        "harness_token": true
+      },
+      {
+        "feature": "integrity=system",
+        "gain": 1784.29,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#70",
+        "gain": 1756.54,
+        "tokens": [
+          "ex",
+          "^s",
+          "_2"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "pair#260",
+        "gain": 1262.6,
+        "tokens": [
+          "cscript.exe->cmd.exe",
+          "wsmprovhost.exe->m.exe"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_special_char_ratio",
+        "gain": 1203.51,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2462",
+        "gain": 915.65,
+        "tokens": [
+          "users",
+          "office",
+          "fltmc.exe unload"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2708",
+        "gain": 865.6,
+        "tokens": [
+          "config",
+          "user2changepw",
+          "sysinfo.txt",
+          "resbca0.tmp c"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_length",
+        "gain": 680.72,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name_length",
+        "gain": 647.75,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#541",
+        "gain": 621.16,
+        "tokens": [
+          "reg",
+          "netsh",
+          "kx5eon23xskaxv5njfthuktoadp1hhw",
+          "encodedcomman"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2852",
+        "gain": 570.53,
+        "tokens": [
+          "show",
+          "btool web",
+          "isphantom 0",
+          "apphelp.dll"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_entropy",
+        "gain": 505.94,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#15",
+        "gain": 482.91,
+        "tokens": [
+          "we",
+          "xp",
+          "rt"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#67",
+        "gain": 443.81,
+        "tokens": [
+          "cs"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_token_count",
+        "gain": 413.78,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#210",
+        "gain": 408.54,
+        "tokens": [
+          "l.",
+          "^r"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#47",
+        "gain": 397.29,
+        "tokens": [
+          "c.",
+          "rv",
+          "gi",
+          "-w"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "path#525",
+        "gain": 375.14,
+        "tokens": [
+          "bin",
+          "route.exe"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#41",
+        "gain": 366.97,
+        "tokens": [
+          "rs",
+          "id"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#223",
+        "gain": 357.44,
+        "tokens": [
+          "ho",
+          "to",
+          "pn",
+          "n6"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "path_depth",
+        "gain": 340.89,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#192",
+        "gain": 287.12,
+        "tokens": [
+          "t.",
+          "^2"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2805",
+        "gain": 278.12,
+        "tokens": [
+          "splunkuniversalforwarder",
+          "bin advancedrun",
+          "-nologo -noprofile",
+          "sytghh"
+        ],
+        "harness_token": true
+      },
+      {
+        "feature": "cmd#1363",
+        "gain": 241.94,
+        "tokens": [
+          "users <user>",
+          "<rand>.dll",
+          "nlfsm.tmp",
+          "temp res90d1.tmp"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#217",
+        "gain": 232.56,
+        "tokens": [
+          "tu",
+          "su",
+          "yl"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#69",
+        "gain": 231.81,
+        "tokens": [
+          "ts",
+          "u.",
+          "(1",
+          "cg"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#3",
+        "gain": 215.64,
+        "tokens": [
+          "ll",
+          "ai",
+          "nj",
+          "bj"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#1472",
+        "gain": 213.18,
+        "tokens": [
+          "btool",
+          "--no-sandbox --gpu-preferences",
+          "3eclose"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2300",
+        "gain": 212.12,
+        "tokens": [
+          "v",
+          "noprofile encoded",
+          "2 nlnat.tmp",
+          "keyfile $env"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#117",
+        "gain": 210.56,
+        "tokens": [
+          "sc",
+          "nn",
+          "og",
+          "1."
+        ],
+        "harness_token": false
+      }
+    ],
+    "train_test_duplicate_keys": 0
+  },
+  "export": {
+    "model_id": "panopticon-process-start-lgbm",
+    "featurizer_version": 2,
+    "params": {
+      "objective": "binary",
+      "learning_rate": 0.05,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "bagging_freq": 1,
+      "lambda_l2": 1.0,
+      "verbose": -1,
+      "deterministic": true,
+      "num_threads": 1,
+      "seed": 20261023,
+      "zero_as_missing": false,
+      "force_col_wise": true,
+      "num_leaves": 31,
+      "min_data_in_leaf": 50
+    },
+    "engine_git_sha": "5e92fb71fc2fa34fe4b6742041cf0c32aadc0a14",
+    "versions": {
+      "lightgbm": "4.7.0",
+      "scikit_learn": "1.9.1",
+      "numpy": "2.5.4",
+      "python": "3.12.12"
+    },
+    "pins_sha256": "56cb9ac34110607a35663583f0996689c1ccc8a05c6daea0b82a722461d3bf80",
+    "labels_sha256": "532119ec7d5dcef4882b1d6a22e97709e320db6fe4e547afcbdf93114580c5c3",
+    "pool_rows": 5037,
+    "files": {
+      "A": {
+        "model.json": "0e4237ffd3283f995a88f5b4b1f658449e785780c8b773e9a49bb1ebd69d8c1a",
+        "features.json": "59f32516dfcaba19e62da1397ae5f0f5c31327344dad99931bc7e0fa12519600",
+        "calibration.json": "283f29f76c95182eb7505935b6b27d09ffc6f074333988623cc52b05125b7660",
+        "thresholds.json": "40da3d3e0aad4e7447d551b9b84c4bc9347e04b4f25c62abf6775c9f57b7cd3a",
+        "golden.json": "b5bc860349efb0fd6f88582cb82e9c7ad7da628fb00e1b887ba03f252704a372",
+        "golden_max_abs_error": 0.0,
+        "rounds": 154
+      },
+      "B": {
+        "model.json": "292714b17e96fbac020bb49fb8ce341888403e28ffe02ef7d7ca5212b5eef181",
+        "features.json": "30bf9792645df57395556707f174c7691bafa5994836cba8006b0919edf03197",
+        "calibration.json": "cb6afdac8f130fee384ac2054b1d59097acabd9679818b7c13597d033bb8434f",
+        "thresholds.json": "f30a56305ecb72503de2dc160c0a2213544160cb14b3f2cd726def3e98082ec7",
+        "golden.json": "b5b7b91d5253041b9879cc427a6fec2f1244998b1077e8baaaa3d4797ca3df56",
+        "golden_max_abs_error": 0.0,
+        "rounds": 176
+      }
+    }
+  }
+}
