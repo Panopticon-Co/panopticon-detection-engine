@@ -147,12 +147,25 @@ def test_profile_paths_are_normalised_per_user():
     )
 
 
+def test_carets_do_not_change_tokens():
+    plain = {"process": {"name": "powershell.exe", "executable": r"C:\Windows\System32\cmd.exe",
+                         "command_line": "cmd /c powershell -enc AAA"}, "parent": {"name": "winword.exe"}}
+    caret = json.loads(json.dumps(plain))
+    caret["process"]["command_line"] = "cmd /c p^o^w^e^r^s^h^e^l^l -e^n^c AAA"
+    assert F.normalize_text("p^o^w^e^r^s^h^e^l^l -e^n^c AAA") == "powershell -enc aaa"
+    hashed = {i for i, name in enumerate(F.FEATURE_NAMES) if "#" in name}  # the token buckets
+    assert {i: v for i, v in F.featurize(plain).items() if i in hashed} == {
+        i: v for i, v in F.featurize(caret).items() if i in hashed
+    }
+
+
 @pytest.mark.parametrize(
     "name,domain,expected",
     [
         ("SYSTEM", "NT AUTHORITY", "system"),
         ("WS01$", "CORP", "system"),
         ("NETWORK SERVICE", "NT AUTHORITY", "service"),
+        ("SERVICIO DE RED", None, "service"),
         ("alice", "CORP", "user"),
         (None, None, "unknown"),
     ],

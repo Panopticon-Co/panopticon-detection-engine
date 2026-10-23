@@ -34,7 +34,7 @@ from panopticon_detection.enrichment import classify_path
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 
-FEATURIZER_VERSION = 2
+FEATURIZER_VERSION = 3
 
 # ------------------------------------------------------------- normalisation
 
@@ -59,7 +59,9 @@ def normalize_text(value: Optional[str]) -> str:
     """
     if not value:
         return ""
-    text = str(value).lower().replace("/", "\\")
+    # cmd.exe ignores carets outside quotes ("p^o^w^e^r^s^h^e^l^l"); drop them so
+    # the evasion does not change the tokens (featurizer v3).
+    text = str(value).replace("^", "").lower().replace("/", "\\")
     text = _GUID.sub("<guid>", text)
     text = _USER_DIR.sub(r"\1<user>", text)
     text = _SYSTEM_DIRS.sub("win_system_dir", text)
@@ -141,7 +143,7 @@ for _namespace, _buckets in _HASHED:
 _BUCKETS: Dict[str, int] = dict(_HASHED)
 
 _SYSTEM_ACCOUNTS = ("system", "local system")
-_SERVICE_ACCOUNTS = ("local service", "network service")
+_SERVICE_ACCOUNTS = ("local service", "network service", "servicio local", "servicio de red")
 _NT_AUTHORITY = ("nt authority", "nt-autorität", "autorite nt")
 
 
