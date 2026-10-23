@@ -224,6 +224,15 @@ def normalize_all(raw: Path, out_dir: Path, sources: List[str], workers: int = 6
             files = sorted(str(p) for p in (raw / "botsv1").glob("*.json.gz"))
             rows = [row for chunk in pool.map(_botsv1_one, files) for row in chunk]
             summary["botsv1"] = _write(rows, out_dir, "botsv1", files)
+    if "optc" in sources:
+        from pdtrain.optc import read_ecar_process_creates
+
+        files = sorted((raw / "optc").glob("benign/*/*.json.gz"))
+        rows = []
+        for path in files:
+            dataset = f"optc:{path.parent.name}/{path.name.split('.')[0]}"
+            rows.extend(read_ecar_process_creates(path, dataset))
+        summary["optc"] = _write(rows, out_dir, "optc", [str(p.relative_to(raw)) for p in files])
     if "officer_vm" in sources:
         from pdtrain.officer_vm import prepare, read_package
 

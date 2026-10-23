@@ -48,6 +48,21 @@ def _int(value: Any) -> Optional[int]:
     return number if number >= 0 else None  # eCAR uses -1 for "not available"
 
 
+_DEVICE_PREFIX = "\\device\\harddiskvolume"
+
+
+def drive_path(path: Optional[str]) -> Optional[str]:
+    """``\\Device\\HarddiskVolume1\\x`` -> ``C:\\x`` (eCAR reports kernel device paths;
+    Sysmon and the agent report drive paths, and path features must mean the same)."""
+    if not path or not path.lower().startswith(_DEVICE_PREFIX):
+        return path
+    rest = path[len(_DEVICE_PREFIX):]
+    digits = len(rest) - len(rest.lstrip("0123456789"))
+    if digits == 0 or not rest[digits:].startswith("\\"):
+        return path
+    return "C:" + rest[digits:]
+
+
 def row_from_ecar(record: Dict[str, Any], dataset: str) -> Optional[Dict[str, Any]]:
     if record.get("object") != "PROCESS" or record.get("action") != "CREATE":
         return None
@@ -55,11 +70,16 @@ def row_from_ecar(record: Dict[str, Any], dataset: str) -> Optional[Dict[str, An
     host = str(record.get("hostname") or "UNKNOWN_HOST")
     when = _when(record.get("timestamp") or record.get("timestamp_ms"))
     pid, ppid = _int(record.get("pid")), _int(record.get("ppid"))
-    image = props.get("image_path")
+    image = drive_path(props.get("image_path"))
+    if image and "\\" not in image:
+        # 28% of OpTC process creates name the image without a path ("PING.EXE").
+        # The Officer agent always reports a full path, and every OpTC row is
+        # benign, so these rows teach "no path => benign": excluded (run v5).
+        return None
     if when is None or pid is None or not image:
         return None
     name, domain = C.split_account(props.get("user") or record.get("principal"))
-    parent_image = props.get("parent_image_path")
+    parent_image = drive_path(props.get("parent_image_path"))
     process = {
         "entity_id": C.process_entity_id(host, pid, when),
         "pid": pid,
@@ -96,6 +116,9 @@ def row_from_ecar(record: Dict[str, Any], dataset: str) -> Optional[Dict[str, An
         "command_line": props.get("command_line"),
         "parent_command_line": None,
         "integrity": None,
+        "label": 0,
+        "label_rule": "benign/optc_benign_period",
+        "group": f"optc:{host}",
         "event": {k: v for k, v in normalized.items() if k != "_raw_officer_event"},
     }
 

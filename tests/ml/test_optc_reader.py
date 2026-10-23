@@ -45,3 +45,19 @@ def test_other_records_and_unusable_ones_are_skipped(tmp_path):
     rows = list(read_ecar_process_creates(path, "optc:test"))
     assert len(rows) == 2
     assert rows[1]["utc"] == "2019-09-19T14:11:12.345Z"
+
+
+def test_kernel_device_paths_become_drive_paths():
+    from pdtrain.optc import drive_path
+
+    assert drive_path("\\Device\\HarddiskVolume1\\Python27\\python.exe") == "C:\\Python27\\python.exe"
+    assert drive_path("PING.EXE") == "PING.EXE"
+    assert drive_path("\\Device\\HarddiskVolumeX\\y") == "\\Device\\HarddiskVolumeX\\y"
+    row = row_from_ecar({**RECORD, "properties": {**RECORD["properties"],
+                         "parent_image_path": "\\Device\\HarddiskVolume2\\Windows\\explorer.exe"}}, "t")
+    assert row["parent_image"] == "C:\\Windows\\explorer.exe"
+
+
+def test_bare_image_names_are_excluded():
+    bare = {**RECORD, "properties": {**RECORD["properties"], "image_path": "PING.EXE"}}
+    assert row_from_ecar(bare, "t") is None

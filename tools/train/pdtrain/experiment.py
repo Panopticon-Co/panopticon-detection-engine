@@ -70,7 +70,8 @@ GATES = {
     "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap "
           "95% CI of the difference > 0); PR-AUC beats LR",
     "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; "
-          "same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3",
+          "same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3; "
+          "same budget on E7 (OpTC held-out host range, planned in the training plan) -- before run v4",
     "G3": "E3 recall at alert within 15 percentage points of E2",
     "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
     "G5": "calibrated ECE <= 0.10 (OOF)",
@@ -111,7 +112,7 @@ def labelled_raw(rows_dir: Path, sources: Sequence[str]) -> List[Dict[str, Any]]
         for _, rows in sorted(grouped.items()):
             if source == "botsv1":
                 label_botsv1(rows)
-            elif source == "officer_vm":
+            elif source in ("officer_vm", "optc"):
                 pass  # labelled benign by pdtrain.officer_vm
             else:
                 label_attack_recording(rows, technique_group)
@@ -124,9 +125,14 @@ def labelled_raw(rows_dir: Path, sources: Sequence[str]) -> List[Dict[str, Any]]
 # Agent-recorded benign data (pdtrain.officer_vm) is split by time: rows before
 # OFFICER_SPLIT[0] may train (when OFFICER_SPLIT[1]), the rest are test E6.
 OFFICER_SPLIT: List[Any] = [None, False]
+# OpTC benign: one 25-host range trains (when enabled), the other is test E7.
+OPTC_HOLDOUT = "AIA-201-225"
+OPTC_TRAIN: List[bool] = [False]
 
 
 def role(row: Dict[str, Any]) -> str:
+    if row["source"] == "optc":
+        return "E7" if OPTC_HOLDOUT in row["dataset"] else ("pool" if OPTC_TRAIN[0] else "E7")
     if row["source"] == "officer_vm":
         cutoff, train = OFFICER_SPLIT
         return "pool" if train and cutoff is not None and row["utc"] < cutoff else "E6"
@@ -541,8 +547,12 @@ def _cap_officer(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train: bool = False) -> Dict[str, Any]:
+def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train: bool = False,
+        optc_train: bool = False) -> Dict[str, Any]:
     sources = ["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"]
+    if (data / "rows" / "optc.jsonl.gz").exists():
+        sources.append("optc")
+    OPTC_TRAIN[0] = optc_train
     rows = read_labelled(data / "labelled")
     raw = labelled_raw(data / "rows", sources)
 
@@ -556,12 +566,14 @@ def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train
     excluded_infra = sum(1 for r in rows if role(r) == "pool" and is_lab_infrastructure(r))
     pool_rows = [r for r in rows if role(r) == "pool" and not is_lab_infrastructure(r)]
     officer_pool = _cap_officer([r for r in pool_rows if r["source"] == "officer_vm"])
-    pool = cap_groups([r for r in pool_rows if r["source"] != "officer_vm"], CAP_PER_GROUP) + officer_pool
+    optc_pool = _cap_officer([r for r in pool_rows if r["source"] == "optc"])
+    pool = cap_groups([r for r in pool_rows if r["source"] not in ("officer_vm", "optc")], CAP_PER_GROUP)
+    pool += officer_pool + optc_pool
     pool.sort(key=lambda r: r["row_id"])
     e3 = [r for r in rows if role(r) == "E3"]
     e4 = [r for r in rows if role(r) == "E4"]
     e5 = winlolbin_rows(data / "raw")
-    e6_keys = {r["dedup_key"] for r in rows if role(r) == "E6"}
+    e6_keys = {r["dedup_key"] for r in rows if role(r) in ("E6", "E7")}
     duplicates_across = len({r["dedup_key"] for r in pool} & ({r["dedup_key"] for r in e3 + e4} | e6_keys))
 
     y = np.array([r["label"] for r in pool])
@@ -594,6 +606,8 @@ def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train
             "E5_winlolbin": {"rows": len(e5), "malicious": sum(r["label"] for r in e5)},
             "officer_vm": {"split_cutoff_utc": cutoff, "first_half_in_training": officer_train,
                            "training_rows_after_image_cap": len(officer_pool)},
+            "optc": {"first_range_in_training": optc_train, "held_out_range": OPTC_HOLDOUT,
+                     "training_rows_after_image_cap": len(optc_pool)},
             "train_test_duplicate_keys": duplicates_across,
             "pool_lab_infrastructure_rows_excluded": excluded_infra,
             "run": 2,
@@ -725,27 +739,29 @@ def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train
     }
     tests["E4_holdout_host_raw_stream"] = e4_res
 
-    # E6: agent-recorded benign stream, held-out (second half by time, or all of it).
-    raw_e6 = [r for r in raw if role(r) == "E6"]
-    if raw_e6:
-        e6_hours = observed_hours(raw_e6)
-        e6_res: Dict[str, Any] = {"observed_host_hours": e6_hours, "raw_events": len(raw_e6)}
-        lr_e6 = final_lr.decision_function(scaler.transform(matrix(raw_e6, "A")))
+    for test_role, test_name in (("E6", "E6_agent_benign_raw_stream"), ("E7", "E7_optc_benign_raw_stream")):
+        stream = [r for r in raw if role(r) == test_role]
+        if not stream:
+            continue
+        hours = observed_hours(stream)
+        res: Dict[str, Any] = {"observed_host_hours": hours, "raw_events": len(stream),
+                               "hosts": len({r["host"] for r in stream})}
+        lr_s = final_lr.decision_function(scaler.transform(matrix(stream, "A")))
         for name, s, t in (
-            ("model_A", score("A", raw_e6), variants["A"]["thresholds"]),
-            ("logistic_regression", lr_e6, base_t["lr"]),
-            ("heuristic", np.array([heuristic_score(r) for r in raw_e6]), base_t["heuristic"]),
+            ("model_A", score("A", stream), variants["A"]["thresholds"]),
+            ("logistic_regression", lr_s, base_t["lr"]),
+            ("heuristic", np.array([heuristic_score(r) for r in stream]), base_t["heuristic"]),
         ):
-            e6_res[name] = {n: {"fp_events": int((s >= th).sum()), "fp_per_host_hour": float((s >= th).sum() / e6_hours)}
-                            for n, th in t.items()}
+            res[name] = {n: {"fp_events": int((s >= th).sum()), "fp_per_host_hour": float((s >= th).sum() / hours)}
+                         for n, th in t.items()}
             if name == "model_A":
-                e6_res[name]["top_scores"] = [
-                    {"score": round(float(s[i]), 3), "parent": leaf(raw_e6[i]["parent_image"]),
-                     "image": leaf(raw_e6[i]["image"]), "command_line": (raw_e6[i]["command_line"] or "")[:160]}
+                res[name]["top_scores"] = [
+                    {"score": round(float(s[i]), 3), "parent": leaf(stream[i]["parent_image"]),
+                     "image": leaf(stream[i]["image"]), "command_line": (stream[i]["command_line"] or "")[:160]}
                     for i in np.argsort(-s)[:20]]
-        fired = sum(1 for r in raw_e6 if rules.get(r["row_id"], 0.0) > 0)
-        e6_res["rules_only_any_fired"] = {"fp_events": fired, "fp_per_host_hour": fired / e6_hours}
-        tests["E6_agent_benign_raw_stream"] = e6_res
+        fired = sum(1 for r in stream if rules.get(r["row_id"], 0.0) > 0)
+        res["rules_only_any_fired"] = {"fp_events": fired, "fp_per_host_hour": fired / hours}
+        tests[test_name] = res
     results["tests"] = tests
 
     # -------------------------------------------------- robustness (E3 positives, variant A)

@@ -10367,6 +10367,18 @@
   "url": "https://s3.amazonaws.com/botsdataset/botsv1/json-by-sourcetype/botsv1.XmlWinEventLog-Microsoft-Windows-Sysmon-Operational.json.gz",
   "licence": "CC0-1.0"
  },
+ "optc/benign/19Sep19/AIA-201-225.ecar-last.json.gz": {
+  "sha256": "56f0698fdc7e2b477df99b100caf98834e0e80a80e29e81fdb289227bea232a7",
+  "bytes": 1463991555,
+  "url": "https://drive.usercontent.google.com/download?id=1rFGhX76Msjqdl39yfK5fAuZDLNhKI-Mb&export=download&confirm=t",
+  "licence": "public-domain"
+ },
+ "optc/benign/19Sep19/AIA-51-75.ecar-last.json.gz": {
+  "sha256": "50f8bf1eefbdc9bee4b172d6d5fce7cde81dd8833e66ee5ceda3ab0273835f6b",
+  "bytes": 1701493537,
+  "url": "https://drive.usercontent.google.com/download?id=1RVK5tuJr1vJ_c-8JWy36SRFZB3u6cSzx&export=download&confirm=t",
+  "licence": "public-domain"
+ },
  "otrf/_tree.json": {
   "sha256": "4e4e53879dfe0adee7b15fca66ffc3464b485a06283f8f488428583e121d1c3b",
   "bytes": 229052,
