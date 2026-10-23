@@ -10367,10 +10367,40 @@
   "url": "https://s3.amazonaws.com/botsdataset/botsv1/json-by-sourcetype/botsv1.XmlWinEventLog-Microsoft-Windows-Sysmon-Operational.json.gz",
   "licence": "CC0-1.0"
  },
+ "optc/benign/19Sep19/AIA-151-175.ecar-last.json.gz": {
+  "sha256": "e3b8a01f5c5f082dfef355e3782dc87dc71db45eabc95148bcce78d9b3353f0b",
+  "bytes": 1497858347,
+  "url": "https://drive.usercontent.google.com/download?id=1xtw-nEzQ3frCrNRwQvoejpkaISEYxxYN&export=download&confirm=t",
+  "licence": "public-domain"
+ },
  "optc/benign/19Sep19/AIA-201-225.ecar-last.json.gz": {
   "sha256": "56f0698fdc7e2b477df99b100caf98834e0e80a80e29e81fdb289227bea232a7",
   "bytes": 1463991555,
   "url": "https://drive.usercontent.google.com/download?id=1rFGhX76Msjqdl39yfK5fAuZDLNhKI-Mb&export=download&confirm=t",
+  "licence": "public-domain"
+ },
+ "optc/benign/19Sep19/AIA-251-275.ecar-last.json.gz": {
+  "sha256": "70c5139f201b6c1dd24d3e81ce0e5cbc00235a4f1e94391531efbd40265d9d44",
+  "bytes": 1719854312,
+  "url": "https://drive.usercontent.google.com/download?id=1RCtidxc6couVTZ57vo1wsfedWDWG8aEr&export=download&confirm=t",
+  "licence": "public-domain"
+ },
+ "optc/benign/19Sep19/AIA-301-325.ecar-last.json.gz": {
+  "sha256": "acc2a294cb5bf020b4d4e4d8ab62e653d567261cbaf2cb3a386aaca582d56f26",
+  "bytes": 1697823644,
+  "url": "https://drive.usercontent.google.com/download?id=1JCbeH_zFsTIEFbCRbblsHn80y0HrxMRi&export=download&confirm=t",
+  "licence": "public-domain"
+ },
+ "optc/benign/19Sep19/AIA-351-375.ecar-last.json.gz": {
+  "sha256": "e1c385965e6529f56f5721d86a1deb8a02edc22a1c99ae946a856fe54ec377fb",
+  "bytes": 1723577113,
+  "url": "https://drive.usercontent.google.com/download?id=13FYJnzpX5mq9dq3ttRlQ5OurXs8IacGQ&export=download&confirm=t",
+  "licence": "public-domain"
+ },
+ "optc/benign/19Sep19/AIA-401-425.ecar-last.json.gz": {
+  "sha256": "02ab1ba026a2b56e69e86007dcc6d91eeb818e7a4bd5009290ce30ef1c769e63",
+  "bytes": 1728289949,
+  "url": "https://drive.usercontent.google.com/download?id=1-KuheVIYtdE1pl2LmdJKx7_G4yRYkqdj&export=download&confirm=t",
   "licence": "public-domain"
  },
  "optc/benign/19Sep19/AIA-51-75.ecar-last.json.gz": {

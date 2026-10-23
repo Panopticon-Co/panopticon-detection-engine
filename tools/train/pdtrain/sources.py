@@ -100,6 +100,19 @@ OPTC_BENIGN = (
         url=_DRIVE.format(id="1rFGhX76Msjqdl39yfK5fAuZDLNhKI-Mb"),
         licence="public-domain",
     ),
+    # Run v6: five more 25-host ranges, same day, for training diversity
+    # (downloaded by the project owner; anonymous downloads hit the Drive quota).
+    *(
+        StaticFile(key=f"optc/benign/19Sep19/{rng}.ecar-last.json.gz", url=_DRIVE.format(id=fid),
+                   licence="public-domain")
+        for rng, fid in (
+            ("AIA-151-175", "1xtw-nEzQ3frCrNRwQvoejpkaISEYxxYN"),
+            ("AIA-251-275", "1RCtidxc6couVTZ57vo1wsfedWDWG8aEr"),
+            ("AIA-301-325", "1JCbeH_zFsTIEFbCRbblsHn80y0HrxMRi"),
+            ("AIA-351-375", "13FYJnzpX5mq9dq3ttRlQ5OurXs8IacGQ"),
+            ("AIA-401-425", "1-KuheVIYtdE1pl2LmdJKx7_G4yRYkqdj"),
+        )
+    ),
 )
 
 LICENCES: Dict[str, str] = {
