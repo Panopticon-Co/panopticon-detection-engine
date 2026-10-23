@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 
 class ModelError(ValueError):
@@ -28,7 +28,7 @@ class _Tree:
     # Parallel arrays; node i is internal when feature[i] >= 0, else a leaf.
     feature: List[int]
     threshold: List[float]
-    nan_left: List[bool]
+    nan_left: List[Optional[bool]]  # None: missing_type None (NaN counts as 0.0)
     left: List[int]
     right: List[int]
     value: List[float]
@@ -39,8 +39,12 @@ class _Tree:
         while feature[i] >= 0:
             v = x.get(feature[i], 0.0)
             if v != v:  # NaN
-                i = self.left[i] if self.nan_left[i] else self.right[i]
-            elif v <= threshold[i]:
+                nan_left = self.nan_left[i]
+                if nan_left is not None:  # missing_type NaN: the learned default direction
+                    i = self.left[i] if nan_left else self.right[i]
+                    continue
+                v = 0.0  # missing_type None: LightGBM treats a missing value as zero
+            if v <= threshold[i]:
                 i = self.left[i]
             else:
                 i = self.right[i]
@@ -76,7 +80,7 @@ def _compile(root: Dict[str, Any], n_features: int) -> _Tree:
         if not (0 <= feature < n_features) or not math.isfinite(threshold):
             raise ModelError(f"bad split (feature {feature}, threshold {threshold})")
         tree.feature[index], tree.threshold[index] = feature, threshold
-        tree.nan_left[index] = bool(node.get("default_left", True)) if missing == "NaN" else False
+        tree.nan_left[index] = bool(node.get("default_left", True)) if missing == "NaN" else None
         tree.left[index] = visit(node["left_child"])
         tree.right[index] = visit(node["right_child"])
         return index

@@ -102,3 +102,23 @@ def test_linear_model_scores_and_rejects_bad_dumps():
     with pytest.raises(ModelError):
         LinearModel.from_dump({**dump, "coef": [float("nan"), 0.0, 0.0]})
     assert isinstance(load_model(_dump()), TreeModel)
+
+
+def test_nan_follows_lightgbm_for_both_missing_types():
+    """A NaN on a split trained without NaN is treated as 0.0, exactly as LightGBM does."""
+    lgb = pytest.importorskip("lightgbm")
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(400, 3))
+    x[:200, 2] = np.nan  # feature 2 sees NaN in training -> missing_type NaN
+    y = ((x[:, 0] > 0.1) ^ np.isnan(x[:, 2])).astype(int)
+    booster = lgb.train({"objective": "binary", "verbose": -1, "num_leaves": 4, "min_data_in_leaf": 5,
+                         "deterministic": True, "num_threads": 1, "seed": 1}, lgb.Dataset(x, label=y),
+                        num_boost_round=20)
+    model = TreeModel.from_dump(booster.dump_model())
+    probes = np.array([[np.nan, 0.0, np.nan], [np.nan, 1.0, 0.5], [0.3, np.nan, np.nan], [-1.0, 0.0, 1.0]])
+    expected = booster.predict(probes, raw_score=True)
+    for row, want in zip(probes, expected):
+        vector = {i: float(v) for i, v in enumerate(row)}
+        assert model.raw_score(vector) == pytest.approx(want, abs=1e-9)
