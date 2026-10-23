@@ -49,6 +49,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     osp = sub.add_parser("optc-split", help="OpTC eCAR -> per-host canonical runs (all mapped families)")
     osp.add_argument("--ranges", nargs="+", default=["AIA-51-75", "AIA-201-225"])
 
+    ctx = sub.add_parser("context-loeo", help="context model (L1) decision run on replayed processes")
+    ctx.add_argument("--version", default="ctx1")
+
     lo = sub.add_parser("loeo", help="leave-one-environment-out evaluation of named recipes (pdtrain.loeo)")
     lo.add_argument("--recipes", nargs="+", default=["v6_recipe"])
     lo.add_argument("--out", default="baseline")
@@ -73,6 +76,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         from pdtrain.optc_replay import split_all
 
         print(json.dumps(split_all(DATA / "raw", DATA / "canonical", args.ranges), indent=2))
+        return 0
+    if args.step == "context-loeo":
+        import json
+
+        from pdtrain.context_loeo import run as run_context
+
+        result = run_context(DATA, REPO, args.version)
+        path = DATA / "experiment" / f"context_{args.version}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {path}")
         return 0
     if args.step == "replay":
         import json
