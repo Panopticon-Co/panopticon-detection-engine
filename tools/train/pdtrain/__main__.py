@@ -42,6 +42,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
     sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels (final test)")
+    fin = sub.add_parser("final-test", help="score the untouched ATLASv2 test once with a frozen bundle")
+    fin.add_argument("--version", required=True)
 
     args = parser.parse_args(argv)
     if args.step == "comiset":
@@ -54,6 +56,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         manifest = stream(DATA / "rows", spool, Path(__file__).resolve().parent.parent / "pins.json")
         print(json.dumps(manifest, indent=2), flush=True)
         return 0 if manifest["complete"] else 1
+    if args.step == "final-test":
+        import json
+
+        from pdtrain.final_test import run as final_run
+
+        result = final_run(DATA, REPO, args.version)
+        out = DATA / "experiment" / f"final_test_{args.version}.json"
+        out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {out}")
+        return 0
     if args.step == "atlasv2":
         import json
         import tempfile

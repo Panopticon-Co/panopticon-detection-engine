@@ -76,6 +76,8 @@ GATES = {
     "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
     "G5": "calibrated ECE <= 0.10 (OOF)",
     "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer",
+    "E9": "final test (pdtrain.final_test, pre-registered 2026-10-23 before run v6): ATLASv2 scored once "
+          "with the frozen bundle via the pure-Python scorer; pass = <= 1 FP/host-hour at alert (variant A)",
 }
 HARNESS_TOKENS = ("atomic", "invoke-atomictest", "pathtoatomics", "attackrange", "attack_range",
                   "splunk", "externalpayloads", "mordor", "theshire", "waynecorp", "ssm-")
