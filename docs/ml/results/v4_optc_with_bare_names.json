@@ -1,2491 +1,2491 @@
 {
-  "seed": 20261023,
-  "gates": {
-    "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap 95% CI of the difference > 0); PR-AUC beats LR",
-    "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3; same budget on E7 (OpTC held-out host range, planned in the training plan) -- before run v4",
-    "G3": "E3 recall at alert within 15 percentage points of E2",
-    "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
-    "G5": "calibrated ECE <= 0.10 (OOF)",
-    "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer"
+ "seed": 20261023,
+ "gates": {
+  "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap 95% CI of the difference > 0); PR-AUC beats LR",
+  "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3; same budget on E7 (OpTC held-out host range, planned in the training plan) -- before run v4",
+  "G3": "E3 recall at alert within 15 percentage points of E2",
+  "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
+  "G5": "calibrated ECE <= 0.10 (OOF)",
+  "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer"
+ },
+ "budgets_fp_per_host_hour": {
+  "alert": 1.0,
+  "high": 0.1
+ },
+ "data": {
+  "pool": {
+   "rows": 5318,
+   "malicious": 4514,
+   "benign": 804,
+   "groups": 159,
+   "observed_host_hours": 327.499121,
+   "benign_raw_events": 85461
   },
-  "budgets_fp_per_host_hour": {
-    "alert": 1.0,
-    "high": 0.1
+  "E3_otrf": {
+   "rows": 296,
+   "malicious": 113
   },
-  "data": {
-    "pool": {
-      "rows": 5318,
-      "malicious": 4514,
-      "benign": 804,
-      "groups": 159,
-      "observed_host_hours": 327.499121,
-      "benign_raw_events": 85461
-    },
-    "E3_otrf": {
-      "rows": 296,
-      "malicious": 113
-    },
-    "E4_holdout_host": {
-      "rows": 262,
-      "malicious": 26,
-      "raw_events": 588,
-      "observed_host_hours": 4.300461
-    },
-    "E5_winlolbin": {
-      "rows": 1000,
-      "malicious": 500
-    },
-    "officer_vm": {
-      "split_cutoff_utc": "2026-10-22T22:59:59.005Z",
-      "first_half_in_training": true,
-      "training_rows_after_image_cap": 306
-    },
-    "optc": {
-      "first_range_in_training": true,
-      "held_out_range": "AIA-201-225",
-      "training_rows_after_image_cap": 346
-    },
-    "train_test_duplicate_keys": 0,
-    "pool_lab_infrastructure_rows_excluded": 378,
-    "run": 2
+  "E4_holdout_host": {
+   "rows": 262,
+   "malicious": 26,
+   "raw_events": 588,
+   "observed_host_hours": 4.300461
   },
-  "tuning": {
-    "grid": [
-      {
-        "params": {
-          "num_leaves": 15,
-          "min_data_in_leaf": 20
-        },
-        "oof_pr_auc": 0.971245,
-        "best_iterations": [
-          163,
-          234,
-          183,
-          19,
-          80
-        ]
-      },
-      {
-        "params": {
-          "num_leaves": 15,
-          "min_data_in_leaf": 50
-        },
-        "oof_pr_auc": 0.976427,
-        "best_iterations": [
-          148,
-          286,
-          297,
-          12,
-          113
-        ]
-      },
-      {
-        "params": {
-          "num_leaves": 31,
-          "min_data_in_leaf": 20
-        },
-        "oof_pr_auc": 0.971005,
-        "best_iterations": [
-          129,
-          149,
-          118,
-          16,
-          62
-        ]
-      },
-      {
-        "params": {
-          "num_leaves": 31,
-          "min_data_in_leaf": 50
-        },
-        "oof_pr_auc": 0.962449,
-        "best_iterations": [
-          292,
-          218,
-          196,
-          12,
-          87
-        ]
-      }
-    ],
-    "chosen": {
-      "num_leaves": 15,
-      "min_data_in_leaf": 50
-    },
-    "note": "selected on the same OOF folds used for E2 (4 configs): slightly optimistic"
+  "E5_winlolbin": {
+   "rows": 1000,
+   "malicious": 500
   },
-  "E1_random_split_ceiling": {
-    "n": 5318,
-    "positives": 4514,
-    "groups": 159,
-    "metrics": {
-      "pr_auc": {
-        "value": 0.997481,
-        "ci95": [
-          0.993548,
-          0.999746
-        ]
-      },
-      "roc_auc": {
-        "value": 0.988423,
-        "ci95": [
-          0.98235,
-          0.997015
-        ]
-      },
-      "recall@alert": {
-        "value": 0.935755,
-        "ci95": [
-          0.912867,
-          0.953505
-        ]
-      },
-      "precision@alert": {
-        "value": 0.992714,
-        "ci95": [
-          0.981639,
-          0.99918
-        ]
-      },
-      "recall@high": {
-        "value": 0.612539,
-        "ci95": [
-          0.551965,
-          0.666545
-        ]
-      },
-      "precision@high": {
-        "value": 0.998555,
-        "ci95": [
-          0.99634,
-          1.0
-        ]
-      }
-    }
+  "officer_vm": {
+   "split_cutoff_utc": "2026-10-22T22:59:59.005Z",
+   "first_half_in_training": true,
+   "training_rows_after_image_cap": 306
   },
-  "E2_group_oof": {
-    "model_A": {
-      "n": 5318,
-      "positives": 4514,
-      "groups": 159,
-      "metrics": {
-        "pr_auc": {
-          "value": 0.976427,
-          "ci95": [
-            0.927226,
-            0.999117
-          ]
-        },
-        "roc_auc": {
-          "value": 0.910404,
-          "ci95": [
-            0.853883,
-            0.989241
-          ]
-        },
-        "recall@alert": {
-          "value": 0.790873,
-          "ci95": [
-            0.725531,
-            0.854263
-          ]
-        },
-        "precision@alert": {
-          "value": 0.970109,
-          "ci95": [
-            0.909551,
-            0.999458
-          ]
-        },
-        "recall@high": {
-          "value": 0.278467,
-          "ci95": [
-            0.190187,
-            0.378923
-          ]
-        },
-        "precision@high": {
-          "value": 0.988208,
-          "ci95": [
-            0.958409,
-            1.0
-          ]
-        }
-      },
-      "thresholds_raw": {
-        "alert": 2.986204,
-        "high": 5.963287
-      },
-      "ece_oof": 0.0224,
-      "brier_oof": 0.060793,
-      "calibration": {
-        "a": 0.893277,
-        "b": -0.562884
-      },
-      "fp_per_host_hour_oof": {
-        "alert": 0.998476,
-        "high": 0.09771
-      }
-    },
-    "model_B": {
-      "n": 5318,
-      "positives": 4514,
-      "groups": 159,
-      "metrics": {
-        "pr_auc": {
-          "value": 0.991895,
-          "ci95": [
-            0.976128,
-            0.999584
-          ]
-        },
-        "roc_auc": {
-          "value": 0.978155,
-          "ci95": [
-            0.924458,
-            0.997859
-          ]
-        },
-        "recall@alert": {
-          "value": 0.644218,
-          "ci95": [
-            0.489119,
-            0.776885
-          ]
-        },
-        "precision@alert": {
-          "value": 0.993509,
-          "ci95": [
-            0.979968,
-            1.0
-          ]
-        },
-        "recall@high": {
-          "value": 0.166371,
-          "ci95": [
-            0.08654,
-            0.259862
-          ]
-        },
-        "precision@high": {
-          "value": 0.986859,
-          "ci95": [
-            0.950158,
-            1.0
-          ]
-        }
-      },
-      "thresholds_raw": {
-        "alert": 5.284463,
-        "high": 9.138566
-      },
-      "ece_oof": 0.008018,
-      "brier_oof": 0.014634,
-      "calibration": {
-        "a": 0.938839,
-        "b": -0.145736
-      },
-      "fp_per_host_hour_oof": {
-        "alert": 0.714506,
-        "high": 0.033588
-      }
-    },
-    "logistic_regression": {
-      "n": 5318,
-      "positives": 4514,
-      "groups": 159,
-      "metrics": {
-        "pr_auc": {
-          "value": 0.970388,
-          "ci95": [
-            0.912225,
-            0.999535
-          ]
-        },
-        "roc_auc": {
-          "value": 0.903816,
-          "ci95": [
-            0.84808,
-            0.995139
-          ]
-        },
-        "recall@alert": {
-          "value": 0.63735,
-          "ci95": [
-            0.572229,
-            0.695175
-          ]
-        },
-        "precision@alert": {
-          "value": 0.978571,
-          "ci95": [
-            0.935064,
-            1.0
-          ]
-        },
-        "recall@high": {
-          "value": 0.067346,
-          "ci95": [
-            0.032134,
-            0.117763
-          ]
-        },
-        "precision@high": {
-          "value": 0.952978,
-          "ci95": [
-            0.828565,
-            1.0
-          ]
-        }
-      },
-      "fp_per_host_hour_oof": {
-        "alert": 0.992369,
-        "high": 0.058015
-      }
-    },
-    "heuristic": {
-      "n": 5318,
-      "positives": 4514,
-      "groups": 159,
-      "metrics": {
-        "pr_auc": {
-          "value": 0.922181,
-          "ci95": [
-            0.841455,
-            0.969229
-          ]
-        },
-        "roc_auc": {
-          "value": 0.731928,
-          "ci95": [
-            0.677317,
-            0.785004
-          ]
-        },
-        "recall@alert": {
-          "value": 0.437085,
-          "ci95": [
-            0.357172,
-            0.512021
-          ]
-        },
-        "precision@alert": {
-          "value": 0.939524,
-          "ci95": [
-            0.866579,
-            0.978942
-          ]
-        },
-        "recall@high": {
-          "value": 0.123172,
-          "ci95": [
-            0.072683,
-            0.18613
-          ]
-        },
-        "precision@high": {
-          "value": 0.987567,
-          "ci95": [
-            0.955381,
-            1.0
-          ]
-        }
-      },
-      "fp_per_host_hour_oof": {
-        "alert": 0.958781,
-        "high": 0.073283
-      }
-    },
-    "rules_only": {
-      "n": 5318,
-      "positives": 4514,
-      "groups": 159,
-      "metrics": {
-        "pr_auc": {
-          "value": 0.879708,
-          "ci95": [
-            0.771625,
-            0.949943
-          ]
-        },
-        "roc_auc": {
-          "value": 0.602743,
-          "ci95": [
-            0.56232,
-            0.64016
-          ]
-        },
-        "recall@alert": {
-          "value": 0.298848,
-          "ci95": [
-            0.232466,
-            0.373416
-          ]
-        },
-        "precision@alert": {
-          "value": 0.944678,
-          "ci95": [
-            0.887329,
-            0.976851
-          ]
-        },
-        "recall@high": {
-          "value": 0.023261,
-          "ci95": [
-            0.01229,
-            0.038116
-          ]
-        },
-        "precision@high": {
-          "value": 0.963303,
-          "ci95": [
-            0.886356,
-            1.0
-          ]
-        }
-      },
-      "fp_per_host_hour_oof": {
-        "alert": 0.287024,
-        "high": 0.012214
-      },
-      "any_rule_fired": {
-        "recall": 0.298848,
-        "fp_per_host_hour": 0.287024
-      }
-    },
-    "paired": {
-      "A_vs_lr_pr_auc": {
-        "diff": 0.006039,
-        "ci95": [
-          -0.001328,
-          0.020731
-        ]
-      },
-      "A_vs_lr_recall_alert": {
-        "diff": 0.153522,
-        "ci95": [
-          0.056891,
-          0.237802
-        ]
-      },
-      "A_vs_rules_recall_alert": {
-        "diff": 0.492025,
-        "ci95": [
-          0.373203,
-          0.608012
-        ]
-      },
-      "A_vs_heuristic_recall_alert": {
-        "diff": 0.353788,
-        "ci95": [
-          0.252917,
-          0.452269
-        ]
-      },
-      "B_vs_A_pr_auc": {
-        "diff": 0.015468,
-        "ci95": [
-          -0.013073,
-          0.064519
-        ]
-      }
-    },
-    "per_group_recall_A_alert": {
-      "T:T1003": {
-        "detected": 167,
-        "total": 182
-      },
-      "T:T1016": {
-        "detected": 30,
-        "total": 34
-      },
-      "T:T1018": {
-        "detected": 212,
-        "total": 300
-      },
-      "T:T1020": {
-        "detected": 3,
-        "total": 4
-      },
-      "T:T1021": {
-        "detected": 29,
-        "total": 155
-      },
-      "T:T1027": {
-        "detected": 50,
-        "total": 53
-      },
-      "T:T1033": {
-        "detected": 62,
-        "total": 63
-      },
-      "T:T1036": {
-        "detected": 71,
-        "total": 85
-      },
-      "T:T1037": {
-        "detected": 12,
-        "total": 14
-      },
-      "T:T1040": {
-        "detected": 0,
-        "total": 1
-      },
-      "T:T1046": {
-        "detected": 5,
-        "total": 16
-      },
-      "T:T1047": {
-        "detected": 60,
-        "total": 60
-      },
-      "T:T1048": {
-        "detected": 164,
-        "total": 300
-      },
-      "T:T1049": {
-        "detected": 4,
-        "total": 5
-      },
-      "T:T1053": {
-        "detected": 90,
-        "total": 122
-      },
-      "T:T1055": {
-        "detected": 32,
-        "total": 58
-      },
-      "T:T1057": {
-        "detected": 3,
-        "total": 7
-      },
-      "T:T1059": {
-        "detected": 259,
-        "total": 300
-      },
-      "T:T1068": {
-        "detected": 109,
-        "total": 130
-      },
-      "T:T1069": {
-        "detected": 41,
-        "total": 41
-      },
-      "T:T1070": {
-        "detected": 115,
-        "total": 123
-      },
-      "T:T1071": {
-        "detected": 3,
-        "total": 3
-      },
-      "T:T1078": {
-        "detected": 17,
-        "total": 18
-      },
-      "T:T1082": {
-        "detected": 36,
-        "total": 37
-      },
-      "T:T1087": {
-        "detected": 32,
-        "total": 33
-      },
-      "T:T1090": {
-        "detected": 17,
-        "total": 34
-      },
-      "T:T1105": {
-        "detected": 30,
-        "total": 47
-      },
-      "T:T1112": {
-        "detected": 135,
-        "total": 141
-      },
-      "T:T1125": {
-        "detected": 2,
-        "total": 2
-      },
-      "T:T1127": {
-        "detected": 62,
-        "total": 78
-      },
-      "T:T1135": {
-        "detected": 1,
-        "total": 1
-      },
-      "T:T1136": {
-        "detected": 44,
-        "total": 44
-      },
-      "T:T1140": {
-        "detected": 14,
-        "total": 16
-      },
-      "T:T1185": {
-        "detected": 2,
-        "total": 6
-      },
-      "T:T1189": {
-        "detected": 5,
-        "total": 5
-      },
-      "T:T1190": {
-        "detected": 9,
-        "total": 14
-      },
-      "T:T1195": {
-        "detected": 13,
-        "total": 13
-      },
-      "T:T1197": {
-        "detected": 14,
-        "total": 14
-      },
-      "T:T1200": {
-        "detected": 0,
-        "total": 1
-      },
-      "T:T1201": {
-        "detected": 9,
-        "total": 12
-      },
-      "T:T1202": {
-        "detected": 7,
-        "total": 7
-      },
-      "T:T1204": {
-        "detected": 66,
-        "total": 67
-      },
-      "T:T1210": {
-        "detected": 1,
-        "total": 1
-      },
-      "T:T1216": {
-        "detected": 6,
-        "total": 8
-      },
-      "T:T1218": {
-        "detected": 259,
-        "total": 297
-      },
-      "T:T1219": {
-        "detected": 18,
-        "total": 28
-      },
-      "T:T1220": {
-        "detected": 10,
-        "total": 10
-      },
-      "T:T1222": {
-        "detected": 44,
-        "total": 52
-      },
-      "T:T1482": {
-        "detected": 5,
-        "total": 5
-      },
-      "T:T1485": {
-        "detected": 6,
-        "total": 7
-      },
-      "T:T1486": {
-        "detected": 8,
-        "total": 9
-      },
-      "T:T1490": {
-        "detected": 49,
-        "total": 50
-      },
-      "T:T1497": {
-        "detected": 8,
-        "total": 9
-      },
-      "T:T1505": {
-        "detected": 36,
-        "total": 56
-      },
-      "T:T1526": {
-        "detected": 1,
-        "total": 1
-      },
-      "T:T1531": {
-        "detected": 40,
-        "total": 40
-      },
-      "T:T1542": {
-        "detected": 0,
-        "total": 1
-      },
-      "T:T1543": {
-        "detected": 59,
-        "total": 61
-      },
-      "T:T1546": {
-        "detected": 158,
-        "total": 163
-      },
-      "T:T1547": {
-        "detected": 108,
-        "total": 124
-      },
-      "T:T1548": {
-        "detected": 83,
-        "total": 93
-      },
-      "T:T1550": {
-        "detected": 13,
-        "total": 16
-      },
-      "T:T1552": {
-        "detected": 6,
-        "total": 6
-      },
-      "T:T1553": {
-        "detected": 35,
-        "total": 35
-      },
-      "T:T1555": {
-        "detected": 7,
-        "total": 7
-      },
-      "T:T1556": {
-        "detected": 4,
-        "total": 4
-      },
-      "T:T1558": {
-        "detected": 22,
-        "total": 23
-      },
-      "T:T1560": {
-        "detected": 13,
-        "total": 15
-      },
-      "T:T1561": {
-        "detected": 1,
-        "total": 1
-      },
-      "T:T1562": {
-        "detected": 200,
-        "total": 278
-      },
-      "T:T1563": {
-        "detected": 3,
-        "total": 4
-      },
-      "T:T1564": {
-        "detected": 6,
-        "total": 8
-      },
-      "T:T1566": {
-        "detected": 72,
-        "total": 90
-      },
-      "T:T1567": {
-        "detected": 2,
-        "total": 2
-      },
-      "T:T1569": {
-        "detected": 48,
-        "total": 50
-      },
-      "T:T1572": {
-        "detected": 19,
-        "total": 19
-      },
-      "T:T1574": {
-        "detected": 43,
-        "total": 48
-      },
-      "T:T1587": {
-        "detected": 2,
-        "total": 2
-      },
-      "T:T1588": {
-        "detected": 34,
-        "total": 40
-      },
-      "T:T1590": {
-        "detected": 14,
-        "total": 15
-      },
-      "T:T1592": {
-        "detected": 2,
-        "total": 2
-      },
-      "T:T1595": {
-        "detected": 23,
-        "total": 29
-      },
-      "T:T1608": {
-        "detected": 0,
-        "total": 1
-      },
-      "T:T1649": {
-        "detected": 17,
-        "total": 21
-      },
-      "T:T1685": {
-        "detected": 0,
-        "total": 1
-      },
-      "botsv1:po1s0n1vy_webshell": {
-        "detected": 14,
-        "total": 20
-      },
-      "otrf_compound:LSASS_campaign_01": {
-        "detected": 6,
-        "total": 10
-      },
-      "otrf_compound:LSASS_campaign_02": {
-        "detected": 0,
-        "total": 4
-      },
-      "otrf_compound:LSASS_campaign_03": {
-        "detected": 0,
-        "total": 4
-      },
-      "otrf_compound:LSASS_campaign_04": {
-        "detected": 2,
-        "total": 7
-      },
-      "otrf_compound:LSASS_campaign_05": {
-        "detected": 1,
-        "total": 2
-      },
-      "otrf_compound:LSASS_campaign_06": {
-        "detected": 0,
-        "total": 2
-      },
-      "otrf_compound:LSASS_campaign_07": {
-        "detected": 0,
-        "total": 2
-      },
-      "otrf_compound:apt29": {
-        "detected": 26,
-        "total": 85
-      }
-    }
+  "optc": {
+   "first_range_in_training": true,
+   "held_out_range": "AIA-201-225",
+   "training_rows_after_image_cap": 346
   },
-  "tests": {
-    "E3_otrf_leave_source_out": {
-      "model_A": {
-        "n": 296,
-        "positives": 113,
-        "groups": 28,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.919595,
-            "ci95": [
-              0.806299,
-              0.99435
-            ]
-          },
-          "roc_auc": {
-            "value": 0.940713,
-            "ci95": [
-              0.914723,
-              0.981587
-            ]
-          },
-          "recall@alert": {
-            "value": 0.716814,
-            "ci95": [
-              0.623024,
-              0.830209
-            ]
-          },
-          "precision@alert": {
-            "value": 0.94186,
-            "ci95": [
-              0.785637,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.017699,
-            "ci95": [
-              0.0,
-              0.04396
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "model_B": {
-        "n": 296,
-        "positives": 113,
-        "groups": 28,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.933286,
-            "ci95": [
-              0.853112,
-              0.992149
-            ]
-          },
-          "roc_auc": {
-            "value": 0.947241,
-            "ci95": [
-              0.879912,
-              0.97916
-            ]
-          },
-          "recall@alert": {
-            "value": 0.681416,
-            "ci95": [
-              0.5652,
-              0.813999
-            ]
-          },
-          "precision@alert": {
-            "value": 0.974684,
-            "ci95": [
-              0.917974,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.044248,
-            "ci95": [
-              0.016387,
-              0.078652
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "logistic_regression": {
-        "n": 296,
-        "positives": 113,
-        "groups": 28,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.936328,
-            "ci95": [
-              0.85744,
-              0.993558
-            ]
-          },
-          "roc_auc": {
-            "value": 0.94845,
-            "ci95": [
-              0.909324,
-              0.980911
-            ]
-          },
-          "recall@alert": {
-            "value": 0.371681,
-            "ci95": [
-              0.296296,
-              0.456331
-            ]
-          },
-          "precision@alert": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.017699,
-            "ci95": [
-              0.0,
-              0.05173
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "heuristic": {
-        "n": 296,
-        "positives": 113,
-        "groups": 28,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.57076,
-            "ci95": [
-              0.335819,
-              0.915109
-            ]
-          },
-          "roc_auc": {
-            "value": 0.660622,
-            "ci95": [
-              0.572107,
-              0.746435
-            ]
-          },
-          "recall@alert": {
-            "value": 0.318584,
-            "ci95": [
-              0.206234,
-              0.488922
-            ]
-          },
-          "precision@alert": {
-            "value": 0.878049,
-            "ci95": [
-              0.646954,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.079646,
-            "ci95": [
-              0.014925,
-              0.169492
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "rules_only": {
-        "n": 296,
-        "positives": 113,
-        "groups": 28,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.443396,
-            "ci95": [
-              0.19752,
-              0.883729
-            ]
-          },
-          "roc_auc": {
-            "value": 0.579936,
-            "ci95": [
-              0.532047,
-              0.658007
-            ]
-          },
-          "recall@alert": {
-            "value": 0.212389,
-            "ci95": [
-              0.113397,
-              0.35717
-            ]
-          },
-          "precision@alert": {
-            "value": 0.727273,
-            "ci95": [
-              0.399884,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.026549,
-            "ci95": [
-              0.0,
-              0.065811
-            ]
-          },
-          "precision@high": {
-            "value": 0.375,
-            "ci95": [
-              0.0,
-              1.0
-            ]
-          }
-        }
-      }
-    },
-    "E5_winlolbin_ood": {
-      "model_A": {
-        "n": 1000,
-        "positives": 500,
-        "groups": 45,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.668643,
-            "ci95": [
-              0.314456,
-              0.781134
-            ]
-          },
-          "roc_auc": {
-            "value": 0.661728,
-            "ci95": [
-              0.593697,
-              0.753296
-            ]
-          },
-          "recall@alert": {
-            "value": 0.644,
-            "ci95": [
-              0.529923,
-              0.772976
-            ]
-          },
-          "precision@alert": {
-            "value": 0.594096,
-            "ci95": [
-              0.243309,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.008,
-            "ci95": [
-              0.001868,
-              0.016089
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "model_B": {
-        "n": 1000,
-        "positives": 500,
-        "groups": 45,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.519607,
-            "ci95": [
-              0.176187,
-              0.652496
-            ]
-          },
-          "roc_auc": {
-            "value": 0.528584,
-            "ci95": [
-              0.46964,
-              0.601414
-            ]
-          },
-          "recall@alert": {
-            "value": 0.578,
-            "ci95": [
-              0.504626,
-              0.672885
-            ]
-          },
-          "precision@alert": {
-            "value": 0.523551,
-            "ci95": [
-              0.194456,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.006,
-            "ci95": [
-              0.0,
-              0.018406
-            ]
-          },
-          "precision@high": {
-            "value": 0.375,
-            "ci95": [
-              0.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "logistic_regression": {
-        "n": 1000,
-        "positives": 500,
-        "groups": 45,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.700906,
-            "ci95": [
-              0.319736,
-              0.806746
-            ]
-          },
-          "roc_auc": {
-            "value": 0.700852,
-            "ci95": [
-              0.650173,
-              0.76382
-            ]
-          },
-          "recall@alert": {
-            "value": 0.356,
-            "ci95": [
-              0.236485,
-              0.473776
-            ]
-          },
-          "precision@alert": {
-            "value": 0.780702,
-            "ci95": [
-              0.404673,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.01,
-            "ci95": [
-              0.0,
-              0.016879
-            ]
-          },
-          "precision@high": {
-            "value": 1.0,
-            "ci95": [
-              1.0,
-              1.0
-            ]
-          }
-        }
-      },
-      "heuristic": {
-        "n": 1000,
-        "positives": 500,
-        "groups": 45,
-        "metrics": {
-          "pr_auc": {
-            "value": 0.64068,
-            "ci95": [
-              0.319596,
-              0.74339
-            ]
-          },
-          "roc_auc": {
-            "value": 0.6714,
-            "ci95": [
-              0.608629,
-              0.780444
-            ]
-          },
-          "recall@alert": {
-            "value": 0.634,
-            "ci95": [
-              0.527117,
-              0.82762
-            ]
-          },
-          "precision@alert": {
-            "value": 0.646939,
-            "ci95": [
-              0.298157,
-              1.0
-            ]
-          },
-          "recall@high": {
-            "value": 0.16,
-            "ci95": [
-              0.087989,
-              0.276759
-            ]
-          },
-          "precision@high": {
-            "value": 0.851064,
-            "ci95": [
-              0.528023,
-              1.0
-            ]
-          }
-        }
-      }
-    },
-    "E4_holdout_host_raw_stream": {
-      "observed_host_hours": 4.300461,
-      "raw_events": 588,
-      "raw_malicious": 27,
-      "model_A": {
-        "alert": {
-          "threshold": 2.986204,
-          "fp_events": 38,
-          "fp_per_host_hour": 8.836262,
-          "recall_malicious_events": 0.740741
-        },
-        "high": {
-          "threshold": 5.963287,
-          "fp_events": 3,
-          "fp_per_host_hour": 0.6976,
-          "recall_malicious_events": 0.0
-        },
-        "top_benign_scores": [
-          {
-            "score": 6.833,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 6.833,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 6.789,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 4.916,
-            "parent": "sdiagnhost.exe",
-            "image": "csc.exe",
-            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\skj1oiou.cmdline\""
-          },
-          {
-            "score": 4.916,
-            "parent": "sdiagnhost.exe",
-            "image": "csc.exe",
-            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\l62oeljq.cmdline\""
-          },
-          {
-            "score": 4.916,
-            "parent": "sdiagnhost.exe",
-            "image": "csc.exe",
-            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\m7m1p90n.cmdline\""
-          },
-          {
-            "score": 4.894,
-            "parent": "explorer.exe",
-            "image": "hkcmd.exe",
-            "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
-          },
-          {
-            "score": 4.307,
-            "parent": "igfxcuiservice.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
-          },
-          {
-            "score": 4.17,
-            "parent": "explorer.exe",
-            "image": "rundll32.exe",
-            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
-          },
-          {
-            "score": 3.977,
-            "parent": "cmd.exe",
-            "image": "igfxem.exe",
-            "command_line": "igfxEM.exe"
-          },
-          {
-            "score": 3.96,
-            "parent": "explorer.exe",
-            "image": "igfxtray.exe",
-            "command_line": "\"C:\\Windows\\System32\\igfxtray.exe\""
-          },
-          {
-            "score": 3.912,
-            "parent": "cmd.exe",
-            "image": "igfxhk.exe",
-            "command_line": "igfxHK.exe"
-          },
-          {
-            "score": 3.804,
-            "parent": "cmd.exe",
-            "image": "igfxtray.exe",
-            "command_line": "igfxTray.exe"
-          },
-          {
-            "score": 3.668,
-            "parent": "explorer.exe",
-            "image": "igfxpers.exe",
-            "command_line": "\"C:\\Windows\\System32\\igfxpers.exe\""
-          },
-          {
-            "score": 3.622,
-            "parent": "splunk.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list general --no-log"
-          }
-        ]
-      },
-      "model_B": {
-        "alert": {
-          "threshold": 5.284463,
-          "fp_events": 31,
-          "fp_per_host_hour": 7.20853,
-          "recall_malicious_events": 0.962963
-        },
-        "high": {
-          "threshold": 9.138566,
-          "fp_events": 1,
-          "fp_per_host_hour": 0.232533,
-          "recall_malicious_events": 0.0
-        },
-        "top_benign_scores": [
-          {
-            "score": 9.329,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 9.119,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 8.626,
-            "parent": "csc.exe",
-            "image": "cvtres.exe",
-            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
-          },
-          {
-            "score": 8.244,
-            "parent": "explorer.exe",
-            "image": "winword.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\WINWORD.EXE\" /n /f \"D:\\Miranda_Tate_unveiled.dotm\""
-          },
-          {
-            "score": 7.966,
-            "parent": "igfxcuiservice.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
-          },
-          {
-            "score": 7.823,
-            "parent": "explorer.exe",
-            "image": "onedrive.exe",
-            "command_line": "\"C:\\Users\\bob.smith\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
-          },
-          {
-            "score": 7.571,
-            "parent": "runonce.exe",
-            "image": "bcssync.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\BCSSync.exe\" /DelayServices"
-          },
-          {
-            "score": 7.374,
-            "parent": "rundll32.exe",
-            "image": "iexplore.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Internet Explorer\\iexplore.exe\" -nohome"
-          },
-          {
-            "score": 7.143,
-            "parent": "explorer.exe",
-            "image": "rundll32.exe",
-            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
-          },
-          {
-            "score": 6.908,
-            "parent": "explorer.exe",
-            "image": "schedhlp.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
-          },
-          {
-            "score": 6.908,
-            "parent": "explorer.exe",
-            "image": "schedhlp.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
-          },
-          {
-            "score": 6.516,
-            "parent": "explorer.exe",
-            "image": "hkcmd.exe",
-            "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
-          },
-          {
-            "score": 6.449,
-            "parent": "services.exe",
-            "image": "mms_mini.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Infrastructure\\mms_mini.exe\""
-          },
-          {
-            "score": 6.449,
-            "parent": "services.exe",
-            "image": "mms_mini.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Infrastructure\\mms_mini.exe\""
-          },
-          {
-            "score": 6.233,
-            "parent": "runonce.exe",
-            "image": "tibmountermonitor.exe",
-            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\TibMounter\\TibMounterMonitor.exe\""
-          }
-        ]
-      },
-      "logistic_regression": {
-        "alert": {
-          "fp_events": 4,
-          "fp_per_host_hour": 0.930133,
-          "recall_malicious_events": 0.185185
-        },
-        "high": {
-          "fp_events": 1,
-          "fp_per_host_hour": 0.232533,
-          "recall_malicious_events": 0.0
-        }
-      },
-      "heuristic": {
-        "alert": {
-          "fp_events": 29,
-          "fp_per_host_hour": 6.743463,
-          "recall_malicious_events": 0.259259
-        },
-        "high": {
-          "fp_events": 0,
-          "fp_per_host_hour": 0.0,
-          "recall_malicious_events": 0.037037
-        }
-      },
-      "rules_only_any_fired": {
-        "fp_events": 51,
-        "fp_per_host_hour": 11.859194,
-        "recall_malicious_events": 0.333333
-      }
-    },
-    "E6_agent_benign_raw_stream": {
-      "observed_host_hours": 2.147687,
-      "raw_events": 1304,
-      "hosts": 1,
-      "model_A": {
-        "alert": {
-          "fp_events": 58,
-          "fp_per_host_hour": 27.005795
-        },
-        "high": {
-          "fp_events": 0,
-          "fp_per_host_hour": 0.0
-        },
-        "top_scores": [
-          {
-            "score": 5.362,
-            "parent": "phfzgdbv.exe",
-            "image": "phfzgdbv.exe",
-            "command_line": "phfzgdbv.exe RELAUNCHED "
-          },
-          {
-            "score": 4.765,
-            "parent": "powershell.exe",
-            "image": "w32tm.exe",
-            "command_line": "\"C:\\WINDOWS\\system32\\w32tm.exe\" /query /status"
-          },
-          {
-            "score": 4.236,
-            "parent": "integrator.exe",
-            "image": "wevtutil.exe",
-            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\msoutilstat.etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Off"
-          },
-          {
-            "score": 4.163,
-            "parent": "jre-8u511-windows-x64.exe",
-            "image": "jre-8u511-windows-x64.exe",
-            "command_line": "\"C:\\Users\\ARYANS~1\\AppData\\Local\\Temp\\jds16150218.tmp\\jre-8u511-windows-x64.exe\""
-          },
-          {
-            "score": 4.107,
-            "parent": "integrator.exe",
-            "image": "wevtutil.exe",
-            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
-          },
-          {
-            "score": 4.107,
-            "parent": "integrator.exe",
-            "image": "wevtutil.exe",
-            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
-          },
-          {
-            "score": 4.01,
-            "parent": "storedesktopextension.exe",
-            "image": "phfzgdbv.exe",
-            "command_line": "\"C:\\Users\\Aryan Sokhi\\AppData\\Local\\Temp\\20aa7fc4adf7433cbe9793db1f2d46db\\phfzgdbv.exe\" "
-          },
-          {
-            "score": 3.867,
-            "parent": "integrator.exe",
-            "image": "wevtutil.exe",
-            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\AirSpace.Etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\VFS\\Pr"
-          },
-          {
-            "score": 3.621,
-            "parent": "msedge.exe",
-            "image": "jre-8u511-windows-x64.exe",
-            "command_line": "\"C:\\Users\\Aryan Sokhi\\Downloads\\jre-8u511-windows-x64.exe\" "
-          },
-          {
-            "score": 3.392,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.Runtime.Internal, Version=10.0.0.0, Culture=neutral, Publi"
-          },
-          {
-            "score": 3.392,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.ContainerControl, Version=10.0.0.0, Culture=neutral, Publi"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.ServerDocument.v10.0, Version=10.0.0.0, Culture=neut"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.AppInfoDocument.v9.0, Version=9.0.0.0, Culture=neutral, Pu"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.ContainerControl.v10.0, Version=10.0.0.0, Culture=neutral,"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.Runtime.v10.0, Version=10.0.0.0, Culture=neutral, Pu"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.Office.Tools.Common.Implementation, Version=10.0.0.0, Culture=neutral, PublicKeyToke"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.ServerDocument.v9.0, Version=9.0.0.0, Culture=neutra"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.Runtime, Version=10.0.0.0, Culture=neutral, PublicKe"
-          },
-          {
-            "score": 3.335,
-            "parent": "msiexec.exe",
-            "image": "ngen.exe",
-            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.AddInAdapter.v9.0, Version=9.0.0.0, Culture=neutral,"
-          }
-        ]
-      },
-      "logistic_regression": {
-        "alert": {
-          "fp_events": 6,
-          "fp_per_host_hour": 2.793703
-        },
-        "high": {
-          "fp_events": 1,
-          "fp_per_host_hour": 0.465617
-        }
-      },
-      "heuristic": {
-        "alert": {
-          "fp_events": 112,
-          "fp_per_host_hour": 52.149121
-        },
-        "high": {
-          "fp_events": 11,
-          "fp_per_host_hour": 5.121789
-        }
-      },
-      "rules_only_any_fired": {
-        "fp_events": 15,
-        "fp_per_host_hour": 6.984257
-      }
-    },
-    "E7_optc_benign_raw_stream": {
-      "observed_host_hours": 100.022164,
-      "raw_events": 27903,
-      "hosts": 25,
-      "model_A": {
-        "alert": {
-          "fp_events": 108,
-          "fp_per_host_hour": 1.079761
-        },
-        "high": {
-          "fp_events": 0,
-          "fp_per_host_hour": 0.0
-        },
-        "top_scores": [
-          {
-            "score": 4.519,
-            "parent": "powershell.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\Windows\\system32\\winrm.cmd\" quickconfig -quiet -transport:https\""
-          },
-          {
-            "score": 3.967,
-            "parent": "explorer.exe",
-            "image": "mmc.exe",
-            "command_line": "\"C:\\Windows\\system32\\mmc.exe\" \"C:\\Windows\\system32\\compmgmt.msc\" /s"
-          },
-          {
-            "score": 3.58,
-            "parent": "gpscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\enable_test_signing.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          },
-          {
-            "score": 3.294,
-            "parent": "wscript.exe",
-            "image": "cmd.exe",
-            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
-          }
-        ]
-      },
-      "logistic_regression": {
-        "alert": {
-          "fp_events": 0,
-          "fp_per_host_hour": 0.0
-        },
-        "high": {
-          "fp_events": 0,
-          "fp_per_host_hour": 0.0
-        }
-      },
-      "heuristic": {
-        "alert": {
-          "fp_events": 2026,
-          "fp_per_host_hour": 20.255511
-        },
-        "high": {
-          "fp_events": 2,
-          "fp_per_host_hour": 0.019996
-        }
-      },
-      "rules_only_any_fired": {
-        "fp_events": 8353,
-        "fp_per_host_hour": 83.511491
-      }
-    }
-  },
-  "robustness_E3_variant_A": {
-    "n": 113,
-    "baseline_recall_alert": 0.716814,
-    "caret": {
-      "recall_alert": 0.548673,
-      "mean_raw_score_change": -0.755788
-    },
-    "case": {
-      "recall_alert": 0.716814,
-      "mean_raw_score_change": 0.0
-    },
-    "envvar": {
-      "recall_alert": 0.716814,
-      "mean_raw_score_change": 0.01888
-    },
-    "whitespace": {
-      "recall_alert": 0.716814,
-      "mean_raw_score_change": -0.015074
-    },
-    "argswap": {
-      "recall_alert": 0.716814,
-      "mean_raw_score_change": 0.004436
-    },
-    "renamed_binary": {
-      "recall_alert": 0.778761,
-      "mean_raw_score_change": 0.537605
-    }
-  },
-  "ablations_oof_pr_auc": {
-    "full_A": 0.976427,
-    "full_B": 0.991895,
-    "no_cmdline_ngrams": 0.972003,
-    "names_only": 0.947476
-  },
-  "leakage": {
-    "source_predictability_auc": {
-      "attack_data": 0.880764,
-      "botsv1": 0.303152,
-      "officer_vm": 0.075619,
-      "optc": 0.947701,
-      "otrf_compound": 0.619458
-    },
-    "top_features_A": [
-      {
-        "feature": "user_category=user",
-        "gain": 2696.33,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "path_depth",
-        "gain": 1835.64,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "path_class=unknown",
-        "gain": 1821.68,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "name_length",
-        "gain": 1773.32,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "path_class=program_files",
-        "gain": 1722.09,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "path_class=system",
-        "gain": 1546.77,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "name#50",
-        "gain": 1419.6,
-        "tokens": [
-          "os",
-          "py",
-          "wa",
-          "t<"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd#3011",
-        "gain": 1108.06,
-        "tokens": [
-          "program_files_dir",
-          "--ignore-submodules dirty",
-          "--service",
-          "echo check"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent_missing",
-        "gain": 1099.97,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "pair#281",
-        "gain": 742.95,
-        "tokens": [
-          "python.exe->cmd.exe"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_length",
-        "gain": 723.08,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_entropy",
-        "gain": 711.7,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "path#169",
-        "gain": 687.53,
-        "tokens": [
-          "c",
-          "maintenanceservice.exe"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#15",
-        "gain": 606.9,
-        "tokens": [
-          "we",
-          "xp",
-          "rt"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#4",
-        "gain": 592.89,
-        "tokens": [
-          "ho",
-          "ta",
-          "pi",
-          "gl"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_token_count",
-        "gain": 557.63,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "name#223",
-        "gain": 552.49,
-        "tokens": [
-          "ho",
-          "to",
-          "pn",
-          "n6"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#115",
-        "gain": 537.74,
-        "tokens": [
-          "n.",
-          "tc",
-          "7."
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "path#464",
-        "gain": 535.58,
-        "tokens": [
-          "program_files_dir"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#66",
-        "gain": 515.72,
-        "tokens": [
-          ".e",
-          "lo",
-          "x."
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd#3532",
-        "gain": 463.65,
-        "tokens": [
-          "win_dir microsoft.net",
-          "-retry 3",
-          "v hidefileext",
-          "service --no-pre-read-main-dll"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "path#780",
-        "gain": 445.09,
-        "tokens": [
-          "framework64",
-          "rdrcef.exe"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_special_char_ratio",
-        "gain": 401.99,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#232",
-        "gain": 398.34,
-        "tokens": [
-          "s.",
-          "cl",
-          "a3"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#210",
-        "gain": 378.96,
-        "tokens": [
-          "l.",
-          "^r"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_has_ip",
-        "gain": 371.68,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#13",
-        "gain": 336.49,
-        "tokens": [
-          "ch",
-          "^t",
-          "hh",
-          "1)"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#41",
-        "gain": 331.59,
-        "tokens": [
-          "rs",
-          "id"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#97",
-        "gain": 302.08,
-        "tokens": [
-          "st",
-          "ol",
-          "no",
-          "du"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#5",
-        "gain": 277.04,
-        "tokens": [
-          "t.",
-          "on",
-          ".c",
-          "n_"
-        ],
-        "harness_token": false
-      }
-    ],
-    "top_features_B": [
-      {
-        "feature": "integrity=missing",
-        "gain": 24142.29,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "integrity=high",
-        "gain": 2186.85,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "integrity=system",
-        "gain": 1606.87,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#70",
-        "gain": 996.9,
-        "tokens": [
-          "ex",
-          "^s",
-          "_2"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name_length",
-        "gain": 679.59,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#13",
-        "gain": 468.12,
-        "tokens": [
-          "ch",
-          "^t",
-          "hh",
-          "1)"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_length",
-        "gain": 468.12,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_special_char_ratio",
-        "gain": 441.74,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_quote_count",
-        "gain": 432.87,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "integrity=medium",
-        "gain": 355.34,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "name#223",
-        "gain": 351.26,
-        "tokens": [
-          "ho",
-          "to",
-          "pn",
-          "n6"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_entropy",
-        "gain": 345.99,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd#1345",
-        "gain": 244.13,
-        "tokens": [
-          "cmd c",
-          "localmachine root",
-          "bloodhound <hex>",
-          "<hex> updates"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#50",
-        "gain": 210.32,
-        "tokens": [
-          "os",
-          "py",
-          "wa",
-          "t<"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "user_category=user",
-        "gain": 184.38,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd_token_count",
-        "gain": 181.35,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "name#210",
-        "gain": 145.99,
-        "tokens": [
-          "l.",
-          "^r"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#172",
-        "gain": 140.99,
-        "tokens": [
-          "xe",
-          "or",
-          "ce"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#69",
-        "gain": 132.13,
-        "tokens": [
-          "ts",
-          "u.",
-          "(1",
-          "cg"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "path_class=system",
-        "gain": 131.81,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd#2462",
-        "gain": 121.85,
-        "tokens": [
-          "users",
-          "office",
-          "dev",
-          "fltmc.exe unload"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#97",
-        "gain": 116.82,
-        "tokens": [
-          "st",
-          "ol",
-          "no",
-          "du"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#5",
-        "gain": 100.57,
-        "tokens": [
-          "t.",
-          "on",
-          ".c",
-          "n_"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#129",
-        "gain": 94.79,
-        "tokens": [
-          "en",
-          "og"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#146",
-        "gain": 94.74,
-        "tokens": [
-          "sv",
-          "dg",
-          "^d",
-          "di"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "name#47",
-        "gain": 94.1,
-        "tokens": [
-          "c.",
-          "gi",
-          "rv",
-          "-w"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "cmd#3098",
-        "gain": 93.41,
-        "tokens": [
-          "cmd.exe",
-          "powershell_ise.exe",
-          "2 key.snk",
-          "-encodedcommand ywbtagqaiaavagmaiablagmaaabvacaajqboafuatqbcaeuaugbfae8argbfafaaugbpaemarqbtafmatwbsafmajqakaa"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#94",
-        "gain": 92.58,
-        "tokens": [
-          "vs"
-        ],
-        "harness_token": false
-      },
-      {
-        "feature": "path_depth",
-        "gain": 90.92,
-        "tokens": [],
-        "harness_token": false
-      },
-      {
-        "feature": "parent#28",
-        "gain": 87.18,
-        "tokens": [
-          "ll",
-          "\u00aec"
-        ],
-        "harness_token": false
-      }
-    ],
-    "train_test_duplicate_keys": 0
-  },
-  "export": {
-    "model_id": "panopticon-process-start-lgbm",
-    "featurizer_version": 2,
+  "train_test_duplicate_keys": 0,
+  "pool_lab_infrastructure_rows_excluded": 378,
+  "run": 2
+ },
+ "tuning": {
+  "grid": [
+   {
     "params": {
-      "objective": "binary",
-      "learning_rate": 0.05,
-      "feature_fraction": 0.8,
-      "bagging_fraction": 0.8,
-      "bagging_freq": 1,
-      "lambda_l2": 1.0,
-      "verbose": -1,
-      "deterministic": true,
-      "num_threads": 1,
-      "seed": 20261023,
-      "zero_as_missing": false,
-      "force_col_wise": true,
-      "num_leaves": 15,
-      "min_data_in_leaf": 50
+     "num_leaves": 15,
+     "min_data_in_leaf": 20
     },
-    "engine_git_sha": "ed0dd8e7e2ed6d2f7840b0ed6751bf85be796240+dirty",
-    "versions": {
-      "lightgbm": "4.7.0",
-      "scikit_learn": "1.9.1",
-      "numpy": "2.5.4",
-      "python": "3.12.12"
+    "oof_pr_auc": 0.971245,
+    "best_iterations": [
+     163,
+     234,
+     183,
+     19,
+     80
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 15,
+     "min_data_in_leaf": 50
     },
-    "pins_sha256": "0d14c8b7778a286589f088a8a5f57e4eb1ae02576cdcf2e519b5b404a60ae78e",
-    "labels_sha256": "9f32d8b0af33530f06a7160b291f771cd5cf952ba7fa5b4468d3fbc8714fd482",
-    "pool_rows": 5318,
-    "files": {
-      "A": {
-        "model.json": "c21270b0f49815eaea7b154cf67a76dae28495021f6764a38064d6c51cd15df2",
-        "features.json": "59f32516dfcaba19e62da1397ae5f0f5c31327344dad99931bc7e0fa12519600",
-        "calibration.json": "8a15e3b15eecf6d2e2a22eebb697ac2f0d8d0ab005d6b2c01654e2c21b369613",
-        "thresholds.json": "6da7bf4227cb73304ec3ce66fbbacdbdd84e4173ceab034917abfe90aaf0b2a6",
-        "golden.json": "e345316dc2c5f4c3ff2f6e53bafa98f224e5366ee4dbc5d38d96a41a5ca6e773",
-        "golden_max_abs_error": 0.0,
-        "rounds": 148
-      },
-      "B": {
-        "model.json": "742987a9d1ed528aafc4d8614ebf5d4a5c4ba9b32aa224f4d5d1c206244d32c8",
-        "features.json": "30bf9792645df57395556707f174c7691bafa5994836cba8006b0919edf03197",
-        "calibration.json": "505ec04b42cf4850549372f28e140b265328fff8073037d115a3e4a8a65c789e",
-        "thresholds.json": "caf42f9abf523b3f81e8d2d26d8762acd7bc0201efa90b6d3d50e88e2907abba",
-        "golden.json": "dca3a3a89d9f4b617b77c2ab504662a3e91a9e5c72d98ba7a8705769f2a6e993",
-        "golden_max_abs_error": 0.0,
-        "rounds": 275
-      }
-    }
+    "oof_pr_auc": 0.976427,
+    "best_iterations": [
+     148,
+     286,
+     297,
+     12,
+     113
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 31,
+     "min_data_in_leaf": 20
+    },
+    "oof_pr_auc": 0.971005,
+    "best_iterations": [
+     129,
+     149,
+     118,
+     16,
+     62
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 31,
+     "min_data_in_leaf": 50
+    },
+    "oof_pr_auc": 0.962449,
+    "best_iterations": [
+     292,
+     218,
+     196,
+     12,
+     87
+    ]
+   }
+  ],
+  "chosen": {
+   "num_leaves": 15,
+   "min_data_in_leaf": 50
+  },
+  "note": "selected on the same OOF folds used for E2 (4 configs): slightly optimistic"
+ },
+ "E1_random_split_ceiling": {
+  "n": 5318,
+  "positives": 4514,
+  "groups": 159,
+  "metrics": {
+   "pr_auc": {
+    "value": 0.997481,
+    "ci95": [
+     0.993548,
+     0.999746
+    ]
+   },
+   "roc_auc": {
+    "value": 0.988423,
+    "ci95": [
+     0.98235,
+     0.997015
+    ]
+   },
+   "recall@alert": {
+    "value": 0.935755,
+    "ci95": [
+     0.912867,
+     0.953505
+    ]
+   },
+   "precision@alert": {
+    "value": 0.992714,
+    "ci95": [
+     0.981639,
+     0.99918
+    ]
+   },
+   "recall@high": {
+    "value": 0.612539,
+    "ci95": [
+     0.551965,
+     0.666545
+    ]
+   },
+   "precision@high": {
+    "value": 0.998555,
+    "ci95": [
+     0.99634,
+     1.0
+    ]
+   }
   }
+ },
+ "E2_group_oof": {
+  "model_A": {
+   "n": 5318,
+   "positives": 4514,
+   "groups": 159,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.976427,
+     "ci95": [
+      0.927226,
+      0.999117
+     ]
+    },
+    "roc_auc": {
+     "value": 0.910404,
+     "ci95": [
+      0.853883,
+      0.989241
+     ]
+    },
+    "recall@alert": {
+     "value": 0.790873,
+     "ci95": [
+      0.725531,
+      0.854263
+     ]
+    },
+    "precision@alert": {
+     "value": 0.970109,
+     "ci95": [
+      0.909551,
+      0.999458
+     ]
+    },
+    "recall@high": {
+     "value": 0.278467,
+     "ci95": [
+      0.190187,
+      0.378923
+     ]
+    },
+    "precision@high": {
+     "value": 0.988208,
+     "ci95": [
+      0.958409,
+      1.0
+     ]
+    }
+   },
+   "thresholds_raw": {
+    "alert": 2.986204,
+    "high": 5.963287
+   },
+   "ece_oof": 0.0224,
+   "brier_oof": 0.060793,
+   "calibration": {
+    "a": 0.893277,
+    "b": -0.562884
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.998476,
+    "high": 0.09771
+   }
+  },
+  "model_B": {
+   "n": 5318,
+   "positives": 4514,
+   "groups": 159,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.991895,
+     "ci95": [
+      0.976128,
+      0.999584
+     ]
+    },
+    "roc_auc": {
+     "value": 0.978155,
+     "ci95": [
+      0.924458,
+      0.997859
+     ]
+    },
+    "recall@alert": {
+     "value": 0.644218,
+     "ci95": [
+      0.489119,
+      0.776885
+     ]
+    },
+    "precision@alert": {
+     "value": 0.993509,
+     "ci95": [
+      0.979968,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.166371,
+     "ci95": [
+      0.08654,
+      0.259862
+     ]
+    },
+    "precision@high": {
+     "value": 0.986859,
+     "ci95": [
+      0.950158,
+      1.0
+     ]
+    }
+   },
+   "thresholds_raw": {
+    "alert": 5.284463,
+    "high": 9.138566
+   },
+   "ece_oof": 0.008018,
+   "brier_oof": 0.014634,
+   "calibration": {
+    "a": 0.938839,
+    "b": -0.145736
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.714506,
+    "high": 0.033588
+   }
+  },
+  "logistic_regression": {
+   "n": 5318,
+   "positives": 4514,
+   "groups": 159,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.970388,
+     "ci95": [
+      0.912225,
+      0.999535
+     ]
+    },
+    "roc_auc": {
+     "value": 0.903816,
+     "ci95": [
+      0.84808,
+      0.995139
+     ]
+    },
+    "recall@alert": {
+     "value": 0.63735,
+     "ci95": [
+      0.572229,
+      0.695175
+     ]
+    },
+    "precision@alert": {
+     "value": 0.978571,
+     "ci95": [
+      0.935064,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.067346,
+     "ci95": [
+      0.032134,
+      0.117763
+     ]
+    },
+    "precision@high": {
+     "value": 0.952978,
+     "ci95": [
+      0.828565,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.992369,
+    "high": 0.058015
+   }
+  },
+  "heuristic": {
+   "n": 5318,
+   "positives": 4514,
+   "groups": 159,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.922181,
+     "ci95": [
+      0.841455,
+      0.969229
+     ]
+    },
+    "roc_auc": {
+     "value": 0.731928,
+     "ci95": [
+      0.677317,
+      0.785004
+     ]
+    },
+    "recall@alert": {
+     "value": 0.437085,
+     "ci95": [
+      0.357172,
+      0.512021
+     ]
+    },
+    "precision@alert": {
+     "value": 0.939524,
+     "ci95": [
+      0.866579,
+      0.978942
+     ]
+    },
+    "recall@high": {
+     "value": 0.123172,
+     "ci95": [
+      0.072683,
+      0.18613
+     ]
+    },
+    "precision@high": {
+     "value": 0.987567,
+     "ci95": [
+      0.955381,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.958781,
+    "high": 0.073283
+   }
+  },
+  "rules_only": {
+   "n": 5318,
+   "positives": 4514,
+   "groups": 159,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.879708,
+     "ci95": [
+      0.771625,
+      0.949943
+     ]
+    },
+    "roc_auc": {
+     "value": 0.602743,
+     "ci95": [
+      0.56232,
+      0.64016
+     ]
+    },
+    "recall@alert": {
+     "value": 0.298848,
+     "ci95": [
+      0.232466,
+      0.373416
+     ]
+    },
+    "precision@alert": {
+     "value": 0.944678,
+     "ci95": [
+      0.887329,
+      0.976851
+     ]
+    },
+    "recall@high": {
+     "value": 0.023261,
+     "ci95": [
+      0.01229,
+      0.038116
+     ]
+    },
+    "precision@high": {
+     "value": 0.963303,
+     "ci95": [
+      0.886356,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.287024,
+    "high": 0.012214
+   },
+   "any_rule_fired": {
+    "recall": 0.298848,
+    "fp_per_host_hour": 0.287024
+   }
+  },
+  "paired": {
+   "A_vs_lr_pr_auc": {
+    "diff": 0.006039,
+    "ci95": [
+     -0.001328,
+     0.020731
+    ]
+   },
+   "A_vs_lr_recall_alert": {
+    "diff": 0.153522,
+    "ci95": [
+     0.056891,
+     0.237802
+    ]
+   },
+   "A_vs_rules_recall_alert": {
+    "diff": 0.492025,
+    "ci95": [
+     0.373203,
+     0.608012
+    ]
+   },
+   "A_vs_heuristic_recall_alert": {
+    "diff": 0.353788,
+    "ci95": [
+     0.252917,
+     0.452269
+    ]
+   },
+   "B_vs_A_pr_auc": {
+    "diff": 0.015468,
+    "ci95": [
+     -0.013073,
+     0.064519
+    ]
+   }
+  },
+  "per_group_recall_A_alert": {
+   "T:T1003": {
+    "detected": 167,
+    "total": 182
+   },
+   "T:T1016": {
+    "detected": 30,
+    "total": 34
+   },
+   "T:T1018": {
+    "detected": 212,
+    "total": 300
+   },
+   "T:T1020": {
+    "detected": 3,
+    "total": 4
+   },
+   "T:T1021": {
+    "detected": 29,
+    "total": 155
+   },
+   "T:T1027": {
+    "detected": 50,
+    "total": 53
+   },
+   "T:T1033": {
+    "detected": 62,
+    "total": 63
+   },
+   "T:T1036": {
+    "detected": 71,
+    "total": 85
+   },
+   "T:T1037": {
+    "detected": 12,
+    "total": 14
+   },
+   "T:T1040": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1046": {
+    "detected": 5,
+    "total": 16
+   },
+   "T:T1047": {
+    "detected": 60,
+    "total": 60
+   },
+   "T:T1048": {
+    "detected": 164,
+    "total": 300
+   },
+   "T:T1049": {
+    "detected": 4,
+    "total": 5
+   },
+   "T:T1053": {
+    "detected": 90,
+    "total": 122
+   },
+   "T:T1055": {
+    "detected": 32,
+    "total": 58
+   },
+   "T:T1057": {
+    "detected": 3,
+    "total": 7
+   },
+   "T:T1059": {
+    "detected": 259,
+    "total": 300
+   },
+   "T:T1068": {
+    "detected": 109,
+    "total": 130
+   },
+   "T:T1069": {
+    "detected": 41,
+    "total": 41
+   },
+   "T:T1070": {
+    "detected": 115,
+    "total": 123
+   },
+   "T:T1071": {
+    "detected": 3,
+    "total": 3
+   },
+   "T:T1078": {
+    "detected": 17,
+    "total": 18
+   },
+   "T:T1082": {
+    "detected": 36,
+    "total": 37
+   },
+   "T:T1087": {
+    "detected": 32,
+    "total": 33
+   },
+   "T:T1090": {
+    "detected": 17,
+    "total": 34
+   },
+   "T:T1105": {
+    "detected": 30,
+    "total": 47
+   },
+   "T:T1112": {
+    "detected": 135,
+    "total": 141
+   },
+   "T:T1125": {
+    "detected": 2,
+    "total": 2
+   },
+   "T:T1127": {
+    "detected": 62,
+    "total": 78
+   },
+   "T:T1135": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1136": {
+    "detected": 44,
+    "total": 44
+   },
+   "T:T1140": {
+    "detected": 14,
+    "total": 16
+   },
+   "T:T1185": {
+    "detected": 2,
+    "total": 6
+   },
+   "T:T1189": {
+    "detected": 5,
+    "total": 5
+   },
+   "T:T1190": {
+    "detected": 9,
+    "total": 14
+   },
+   "T:T1195": {
+    "detected": 13,
+    "total": 13
+   },
+   "T:T1197": {
+    "detected": 14,
+    "total": 14
+   },
+   "T:T1200": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1201": {
+    "detected": 9,
+    "total": 12
+   },
+   "T:T1202": {
+    "detected": 7,
+    "total": 7
+   },
+   "T:T1204": {
+    "detected": 66,
+    "total": 67
+   },
+   "T:T1210": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1216": {
+    "detected": 6,
+    "total": 8
+   },
+   "T:T1218": {
+    "detected": 259,
+    "total": 297
+   },
+   "T:T1219": {
+    "detected": 18,
+    "total": 28
+   },
+   "T:T1220": {
+    "detected": 10,
+    "total": 10
+   },
+   "T:T1222": {
+    "detected": 44,
+    "total": 52
+   },
+   "T:T1482": {
+    "detected": 5,
+    "total": 5
+   },
+   "T:T1485": {
+    "detected": 6,
+    "total": 7
+   },
+   "T:T1486": {
+    "detected": 8,
+    "total": 9
+   },
+   "T:T1490": {
+    "detected": 49,
+    "total": 50
+   },
+   "T:T1497": {
+    "detected": 8,
+    "total": 9
+   },
+   "T:T1505": {
+    "detected": 36,
+    "total": 56
+   },
+   "T:T1526": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1531": {
+    "detected": 40,
+    "total": 40
+   },
+   "T:T1542": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1543": {
+    "detected": 59,
+    "total": 61
+   },
+   "T:T1546": {
+    "detected": 158,
+    "total": 163
+   },
+   "T:T1547": {
+    "detected": 108,
+    "total": 124
+   },
+   "T:T1548": {
+    "detected": 83,
+    "total": 93
+   },
+   "T:T1550": {
+    "detected": 13,
+    "total": 16
+   },
+   "T:T1552": {
+    "detected": 6,
+    "total": 6
+   },
+   "T:T1553": {
+    "detected": 35,
+    "total": 35
+   },
+   "T:T1555": {
+    "detected": 7,
+    "total": 7
+   },
+   "T:T1556": {
+    "detected": 4,
+    "total": 4
+   },
+   "T:T1558": {
+    "detected": 22,
+    "total": 23
+   },
+   "T:T1560": {
+    "detected": 13,
+    "total": 15
+   },
+   "T:T1561": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1562": {
+    "detected": 200,
+    "total": 278
+   },
+   "T:T1563": {
+    "detected": 3,
+    "total": 4
+   },
+   "T:T1564": {
+    "detected": 6,
+    "total": 8
+   },
+   "T:T1566": {
+    "detected": 72,
+    "total": 90
+   },
+   "T:T1567": {
+    "detected": 2,
+    "total": 2
+   },
+   "T:T1569": {
+    "detected": 48,
+    "total": 50
+   },
+   "T:T1572": {
+    "detected": 19,
+    "total": 19
+   },
+   "T:T1574": {
+    "detected": 43,
+    "total": 48
+   },
+   "T:T1587": {
+    "detected": 2,
+    "total": 2
+   },
+   "T:T1588": {
+    "detected": 34,
+    "total": 40
+   },
+   "T:T1590": {
+    "detected": 14,
+    "total": 15
+   },
+   "T:T1592": {
+    "detected": 2,
+    "total": 2
+   },
+   "T:T1595": {
+    "detected": 23,
+    "total": 29
+   },
+   "T:T1608": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1649": {
+    "detected": 17,
+    "total": 21
+   },
+   "T:T1685": {
+    "detected": 0,
+    "total": 1
+   },
+   "botsv1:po1s0n1vy_webshell": {
+    "detected": 14,
+    "total": 20
+   },
+   "otrf_compound:LSASS_campaign_01": {
+    "detected": 6,
+    "total": 10
+   },
+   "otrf_compound:LSASS_campaign_02": {
+    "detected": 0,
+    "total": 4
+   },
+   "otrf_compound:LSASS_campaign_03": {
+    "detected": 0,
+    "total": 4
+   },
+   "otrf_compound:LSASS_campaign_04": {
+    "detected": 2,
+    "total": 7
+   },
+   "otrf_compound:LSASS_campaign_05": {
+    "detected": 1,
+    "total": 2
+   },
+   "otrf_compound:LSASS_campaign_06": {
+    "detected": 0,
+    "total": 2
+   },
+   "otrf_compound:LSASS_campaign_07": {
+    "detected": 0,
+    "total": 2
+   },
+   "otrf_compound:apt29": {
+    "detected": 26,
+    "total": 85
+   }
+  }
+ },
+ "tests": {
+  "E3_otrf_leave_source_out": {
+   "model_A": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.919595,
+      "ci95": [
+       0.806299,
+       0.99435
+      ]
+     },
+     "roc_auc": {
+      "value": 0.940713,
+      "ci95": [
+       0.914723,
+       0.981587
+      ]
+     },
+     "recall@alert": {
+      "value": 0.716814,
+      "ci95": [
+       0.623024,
+       0.830209
+      ]
+     },
+     "precision@alert": {
+      "value": 0.94186,
+      "ci95": [
+       0.785637,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.017699,
+      "ci95": [
+       0.0,
+       0.04396
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "model_B": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.933286,
+      "ci95": [
+       0.853112,
+       0.992149
+      ]
+     },
+     "roc_auc": {
+      "value": 0.947241,
+      "ci95": [
+       0.879912,
+       0.97916
+      ]
+     },
+     "recall@alert": {
+      "value": 0.681416,
+      "ci95": [
+       0.5652,
+       0.813999
+      ]
+     },
+     "precision@alert": {
+      "value": 0.974684,
+      "ci95": [
+       0.917974,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.044248,
+      "ci95": [
+       0.016387,
+       0.078652
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "logistic_regression": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.936328,
+      "ci95": [
+       0.85744,
+       0.993558
+      ]
+     },
+     "roc_auc": {
+      "value": 0.94845,
+      "ci95": [
+       0.909324,
+       0.980911
+      ]
+     },
+     "recall@alert": {
+      "value": 0.371681,
+      "ci95": [
+       0.296296,
+       0.456331
+      ]
+     },
+     "precision@alert": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.017699,
+      "ci95": [
+       0.0,
+       0.05173
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "heuristic": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.57076,
+      "ci95": [
+       0.335819,
+       0.915109
+      ]
+     },
+     "roc_auc": {
+      "value": 0.660622,
+      "ci95": [
+       0.572107,
+       0.746435
+      ]
+     },
+     "recall@alert": {
+      "value": 0.318584,
+      "ci95": [
+       0.206234,
+       0.488922
+      ]
+     },
+     "precision@alert": {
+      "value": 0.878049,
+      "ci95": [
+       0.646954,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.079646,
+      "ci95": [
+       0.014925,
+       0.169492
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "rules_only": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.443396,
+      "ci95": [
+       0.19752,
+       0.883729
+      ]
+     },
+     "roc_auc": {
+      "value": 0.579936,
+      "ci95": [
+       0.532047,
+       0.658007
+      ]
+     },
+     "recall@alert": {
+      "value": 0.212389,
+      "ci95": [
+       0.113397,
+       0.35717
+      ]
+     },
+     "precision@alert": {
+      "value": 0.727273,
+      "ci95": [
+       0.399884,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.026549,
+      "ci95": [
+       0.0,
+       0.065811
+      ]
+     },
+     "precision@high": {
+      "value": 0.375,
+      "ci95": [
+       0.0,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "E5_winlolbin_ood": {
+   "model_A": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.668643,
+      "ci95": [
+       0.314456,
+       0.781134
+      ]
+     },
+     "roc_auc": {
+      "value": 0.661728,
+      "ci95": [
+       0.593697,
+       0.753296
+      ]
+     },
+     "recall@alert": {
+      "value": 0.644,
+      "ci95": [
+       0.529923,
+       0.772976
+      ]
+     },
+     "precision@alert": {
+      "value": 0.594096,
+      "ci95": [
+       0.243309,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.008,
+      "ci95": [
+       0.001868,
+       0.016089
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "model_B": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.519607,
+      "ci95": [
+       0.176187,
+       0.652496
+      ]
+     },
+     "roc_auc": {
+      "value": 0.528584,
+      "ci95": [
+       0.46964,
+       0.601414
+      ]
+     },
+     "recall@alert": {
+      "value": 0.578,
+      "ci95": [
+       0.504626,
+       0.672885
+      ]
+     },
+     "precision@alert": {
+      "value": 0.523551,
+      "ci95": [
+       0.194456,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.006,
+      "ci95": [
+       0.0,
+       0.018406
+      ]
+     },
+     "precision@high": {
+      "value": 0.375,
+      "ci95": [
+       0.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "logistic_regression": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.700906,
+      "ci95": [
+       0.319736,
+       0.806746
+      ]
+     },
+     "roc_auc": {
+      "value": 0.700852,
+      "ci95": [
+       0.650173,
+       0.76382
+      ]
+     },
+     "recall@alert": {
+      "value": 0.356,
+      "ci95": [
+       0.236485,
+       0.473776
+      ]
+     },
+     "precision@alert": {
+      "value": 0.780702,
+      "ci95": [
+       0.404673,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.01,
+      "ci95": [
+       0.0,
+       0.016879
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "heuristic": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.64068,
+      "ci95": [
+       0.319596,
+       0.74339
+      ]
+     },
+     "roc_auc": {
+      "value": 0.6714,
+      "ci95": [
+       0.608629,
+       0.780444
+      ]
+     },
+     "recall@alert": {
+      "value": 0.634,
+      "ci95": [
+       0.527117,
+       0.82762
+      ]
+     },
+     "precision@alert": {
+      "value": 0.646939,
+      "ci95": [
+       0.298157,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.16,
+      "ci95": [
+       0.087989,
+       0.276759
+      ]
+     },
+     "precision@high": {
+      "value": 0.851064,
+      "ci95": [
+       0.528023,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "E4_holdout_host_raw_stream": {
+   "observed_host_hours": 4.300461,
+   "raw_events": 588,
+   "raw_malicious": 27,
+   "model_A": {
+    "alert": {
+     "threshold": 2.986204,
+     "fp_events": 38,
+     "fp_per_host_hour": 8.836262,
+     "recall_malicious_events": 0.740741
+    },
+    "high": {
+     "threshold": 5.963287,
+     "fp_events": 3,
+     "fp_per_host_hour": 0.6976,
+     "recall_malicious_events": 0.0
+    },
+    "top_benign_scores": [
+     {
+      "score": 6.833,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 6.833,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 6.789,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 4.916,
+      "parent": "sdiagnhost.exe",
+      "image": "csc.exe",
+      "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user>\\AppData\\Local\\Temp\\skj1oiou.cmdline\""
+     },
+     {
+      "score": 4.916,
+      "parent": "sdiagnhost.exe",
+      "image": "csc.exe",
+      "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user>\\AppData\\Local\\Temp\\l62oeljq.cmdline\""
+     },
+     {
+      "score": 4.916,
+      "parent": "sdiagnhost.exe",
+      "image": "csc.exe",
+      "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user>\\AppData\\Local\\Temp\\m7m1p90n.cmdline\""
+     },
+     {
+      "score": 4.894,
+      "parent": "explorer.exe",
+      "image": "hkcmd.exe",
+      "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+     },
+     {
+      "score": 4.307,
+      "parent": "igfxcuiservice.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+     },
+     {
+      "score": 4.17,
+      "parent": "explorer.exe",
+      "image": "rundll32.exe",
+      "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+     },
+     {
+      "score": 3.977,
+      "parent": "cmd.exe",
+      "image": "igfxem.exe",
+      "command_line": "igfxEM.exe"
+     },
+     {
+      "score": 3.96,
+      "parent": "explorer.exe",
+      "image": "igfxtray.exe",
+      "command_line": "\"C:\\Windows\\System32\\igfxtray.exe\""
+     },
+     {
+      "score": 3.912,
+      "parent": "cmd.exe",
+      "image": "igfxhk.exe",
+      "command_line": "igfxHK.exe"
+     },
+     {
+      "score": 3.804,
+      "parent": "cmd.exe",
+      "image": "igfxtray.exe",
+      "command_line": "igfxTray.exe"
+     },
+     {
+      "score": 3.668,
+      "parent": "explorer.exe",
+      "image": "igfxpers.exe",
+      "command_line": "\"C:\\Windows\\System32\\igfxpers.exe\""
+     },
+     {
+      "score": 3.622,
+      "parent": "splunk.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list general --no-log"
+     }
+    ]
+   },
+   "model_B": {
+    "alert": {
+     "threshold": 5.284463,
+     "fp_events": 31,
+     "fp_per_host_hour": 7.20853,
+     "recall_malicious_events": 0.962963
+    },
+    "high": {
+     "threshold": 9.138566,
+     "fp_events": 1,
+     "fp_per_host_hour": 0.232533,
+     "recall_malicious_events": 0.0
+    },
+    "top_benign_scores": [
+     {
+      "score": 9.329,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 9.119,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 8.626,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 8.244,
+      "parent": "explorer.exe",
+      "image": "winword.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\WINWORD.EXE\" /n /f \"D:\\Miranda_Tate_unveiled.dotm\""
+     },
+     {
+      "score": 7.966,
+      "parent": "igfxcuiservice.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+     },
+     {
+      "score": 7.823,
+      "parent": "explorer.exe",
+      "image": "onedrive.exe",
+      "command_line": "\"C:\\Users\\<user>\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+     },
+     {
+      "score": 7.571,
+      "parent": "runonce.exe",
+      "image": "bcssync.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\BCSSync.exe\" /DelayServices"
+     },
+     {
+      "score": 7.374,
+      "parent": "rundll32.exe",
+      "image": "iexplore.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Internet Explorer\\iexplore.exe\" -nohome"
+     },
+     {
+      "score": 7.143,
+      "parent": "explorer.exe",
+      "image": "rundll32.exe",
+      "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+     },
+     {
+      "score": 6.908,
+      "parent": "explorer.exe",
+      "image": "schedhlp.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
+     },
+     {
+      "score": 6.908,
+      "parent": "explorer.exe",
+      "image": "schedhlp.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
+     },
+     {
+      "score": 6.516,
+      "parent": "explorer.exe",
+      "image": "hkcmd.exe",
+      "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+     },
+     {
+      "score": 6.449,
+      "parent": "services.exe",
+      "image": "mms_mini.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Infrastructure\\mms_mini.exe\""
+     },
+     {
+      "score": 6.449,
+      "parent": "services.exe",
+      "image": "mms_mini.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Infrastructure\\mms_mini.exe\""
+     },
+     {
+      "score": 6.233,
+      "parent": "runonce.exe",
+      "image": "tibmountermonitor.exe",
+      "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\TibMounter\\TibMounterMonitor.exe\""
+     }
+    ]
+   },
+   "logistic_regression": {
+    "alert": {
+     "fp_events": 4,
+     "fp_per_host_hour": 0.930133,
+     "recall_malicious_events": 0.185185
+    },
+    "high": {
+     "fp_events": 1,
+     "fp_per_host_hour": 0.232533,
+     "recall_malicious_events": 0.0
+    }
+   },
+   "heuristic": {
+    "alert": {
+     "fp_events": 29,
+     "fp_per_host_hour": 6.743463,
+     "recall_malicious_events": 0.259259
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.037037
+    }
+   },
+   "rules_only_any_fired": {
+    "fp_events": 51,
+    "fp_per_host_hour": 11.859194,
+    "recall_malicious_events": 0.333333
+   }
+  },
+  "E6_agent_benign_raw_stream": {
+   "observed_host_hours": 2.147687,
+   "raw_events": 1304,
+   "hosts": 1,
+   "model_A": {
+    "alert": {
+     "fp_events": 58,
+     "fp_per_host_hour": 27.005795
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    },
+    "top_scores": [
+     {
+      "score": 5.362,
+      "parent": "phfzgdbv.exe",
+      "image": "phfzgdbv.exe",
+      "command_line": "phfzgdbv.exe RELAUNCHED "
+     },
+     {
+      "score": 4.765,
+      "parent": "powershell.exe",
+      "image": "w32tm.exe",
+      "command_line": "\"C:\\WINDOWS\\system32\\w32tm.exe\" /query /status"
+     },
+     {
+      "score": 4.236,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\msoutilstat.etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Off"
+     },
+     {
+      "score": 4.163,
+      "parent": "jre-8u511-windows-x64.exe",
+      "image": "jre-8u511-windows-x64.exe",
+      "command_line": "\"C:\\Users\\<user>\\AppData\\Local\\Temp\\jds16150218.tmp\\jre-8u511-windows-x64.exe\""
+     },
+     {
+      "score": 4.107,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+     },
+     {
+      "score": 4.107,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+     },
+     {
+      "score": 4.01,
+      "parent": "storedesktopextension.exe",
+      "image": "phfzgdbv.exe",
+      "command_line": "\"C:\\Users\\<user>\\AppData\\Local\\Temp\\20aa7fc4adf7433cbe9793db1f2d46db\\phfzgdbv.exe\" "
+     },
+     {
+      "score": 3.867,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\AirSpace.Etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\VFS\\Pr"
+     },
+     {
+      "score": 3.621,
+      "parent": "msedge.exe",
+      "image": "jre-8u511-windows-x64.exe",
+      "command_line": "\"C:\\Users\\<user>\\Downloads\\jre-8u511-windows-x64.exe\" "
+     },
+     {
+      "score": 3.392,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.Runtime.Internal, Version=10.0.0.0, Culture=neutral, Publi"
+     },
+     {
+      "score": 3.392,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.ContainerControl, Version=10.0.0.0, Culture=neutral, Publi"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.ServerDocument.v10.0, Version=10.0.0.0, Culture=neut"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.AppInfoDocument.v9.0, Version=9.0.0.0, Culture=neutral, Pu"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.ContainerControl.v10.0, Version=10.0.0.0, Culture=neutral,"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.Runtime.v10.0, Version=10.0.0.0, Culture=neutral, Pu"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.Office.Tools.Common.Implementation, Version=10.0.0.0, Culture=neutral, PublicKeyToke"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.ServerDocument.v9.0, Version=9.0.0.0, Culture=neutra"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.Runtime, Version=10.0.0.0, Culture=neutral, PublicKe"
+     },
+     {
+      "score": 3.335,
+      "parent": "msiexec.exe",
+      "image": "ngen.exe",
+      "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.AddInAdapter.v9.0, Version=9.0.0.0, Culture=neutral,"
+     }
+    ]
+   },
+   "logistic_regression": {
+    "alert": {
+     "fp_events": 6,
+     "fp_per_host_hour": 2.793703
+    },
+    "high": {
+     "fp_events": 1,
+     "fp_per_host_hour": 0.465617
+    }
+   },
+   "heuristic": {
+    "alert": {
+     "fp_events": 112,
+     "fp_per_host_hour": 52.149121
+    },
+    "high": {
+     "fp_events": 11,
+     "fp_per_host_hour": 5.121789
+    }
+   },
+   "rules_only_any_fired": {
+    "fp_events": 15,
+    "fp_per_host_hour": 6.984257
+   }
+  },
+  "E7_optc_benign_raw_stream": {
+   "observed_host_hours": 100.022164,
+   "raw_events": 27903,
+   "hosts": 25,
+   "model_A": {
+    "alert": {
+     "fp_events": 108,
+     "fp_per_host_hour": 1.079761
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    },
+    "top_scores": [
+     {
+      "score": 4.519,
+      "parent": "powershell.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\Windows\\system32\\winrm.cmd\" quickconfig -quiet -transport:https\""
+     },
+     {
+      "score": 3.967,
+      "parent": "explorer.exe",
+      "image": "mmc.exe",
+      "command_line": "\"C:\\Windows\\system32\\mmc.exe\" \"C:\\Windows\\system32\\compmgmt.msc\" /s"
+     },
+     {
+      "score": 3.58,
+      "parent": "gpscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\enable_test_signing.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     },
+     {
+      "score": 3.294,
+      "parent": "wscript.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\popup_keys_64bit.bat\" \""
+     }
+    ]
+   },
+   "logistic_regression": {
+    "alert": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    }
+   },
+   "heuristic": {
+    "alert": {
+     "fp_events": 2026,
+     "fp_per_host_hour": 20.255511
+    },
+    "high": {
+     "fp_events": 2,
+     "fp_per_host_hour": 0.019996
+    }
+   },
+   "rules_only_any_fired": {
+    "fp_events": 8353,
+    "fp_per_host_hour": 83.511491
+   }
+  }
+ },
+ "robustness_E3_variant_A": {
+  "n": 113,
+  "baseline_recall_alert": 0.716814,
+  "caret": {
+   "recall_alert": 0.548673,
+   "mean_raw_score_change": -0.755788
+  },
+  "case": {
+   "recall_alert": 0.716814,
+   "mean_raw_score_change": 0.0
+  },
+  "envvar": {
+   "recall_alert": 0.716814,
+   "mean_raw_score_change": 0.01888
+  },
+  "whitespace": {
+   "recall_alert": 0.716814,
+   "mean_raw_score_change": -0.015074
+  },
+  "argswap": {
+   "recall_alert": 0.716814,
+   "mean_raw_score_change": 0.004436
+  },
+  "renamed_binary": {
+   "recall_alert": 0.778761,
+   "mean_raw_score_change": 0.537605
+  }
+ },
+ "ablations_oof_pr_auc": {
+  "full_A": 0.976427,
+  "full_B": 0.991895,
+  "no_cmdline_ngrams": 0.972003,
+  "names_only": 0.947476
+ },
+ "leakage": {
+  "source_predictability_auc": {
+   "attack_data": 0.880764,
+   "botsv1": 0.303152,
+   "officer_vm": 0.075619,
+   "optc": 0.947701,
+   "otrf_compound": 0.619458
+  },
+  "top_features_A": [
+   {
+    "feature": "user_category=user",
+    "gain": 2696.33,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path_depth",
+    "gain": 1835.64,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path_class=unknown",
+    "gain": 1821.68,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name_length",
+    "gain": 1773.32,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path_class=program_files",
+    "gain": 1722.09,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path_class=system",
+    "gain": 1546.77,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#50",
+    "gain": 1419.6,
+    "tokens": [
+     "os",
+     "py",
+     "wa",
+     "t<"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#3011",
+    "gain": 1108.06,
+    "tokens": [
+     "program_files_dir",
+     "--ignore-submodules dirty",
+     "--service",
+     "echo check"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent_missing",
+    "gain": 1099.97,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "pair#281",
+    "gain": 742.95,
+    "tokens": [
+     "python.exe->cmd.exe"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_length",
+    "gain": 723.08,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_entropy",
+    "gain": 711.7,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path#169",
+    "gain": 687.53,
+    "tokens": [
+     "c",
+     "maintenanceservice.exe"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#15",
+    "gain": 606.9,
+    "tokens": [
+     "we",
+     "xp",
+     "rt"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#4",
+    "gain": 592.89,
+    "tokens": [
+     "ho",
+     "ta",
+     "pi",
+     "gl"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_token_count",
+    "gain": 557.63,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#223",
+    "gain": 552.49,
+    "tokens": [
+     "ho",
+     "to",
+     "pn",
+     "n6"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#115",
+    "gain": 537.74,
+    "tokens": [
+     "n.",
+     "tc",
+     "7."
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path#464",
+    "gain": 535.58,
+    "tokens": [
+     "program_files_dir"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#66",
+    "gain": 515.72,
+    "tokens": [
+     ".e",
+     "lo",
+     "x."
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#3532",
+    "gain": 463.65,
+    "tokens": [
+     "win_dir microsoft.net",
+     "-retry 3",
+     "v hidefileext",
+     "service --no-pre-read-main-dll"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path#780",
+    "gain": 445.09,
+    "tokens": [
+     "framework64",
+     "rdrcef.exe"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_special_char_ratio",
+    "gain": 401.99,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#232",
+    "gain": 398.34,
+    "tokens": [
+     "s.",
+     "cl",
+     "a3"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#210",
+    "gain": 378.96,
+    "tokens": [
+     "l.",
+     "^r"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_has_ip",
+    "gain": 371.68,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#13",
+    "gain": 336.49,
+    "tokens": [
+     "ch",
+     "^t",
+     "hh",
+     "1)"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#41",
+    "gain": 331.59,
+    "tokens": [
+     "rs",
+     "id"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#97",
+    "gain": 302.08,
+    "tokens": [
+     "st",
+     "ol",
+     "no",
+     "du"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#5",
+    "gain": 277.04,
+    "tokens": [
+     "t.",
+     "on",
+     ".c",
+     "n_"
+    ],
+    "harness_token": false
+   }
+  ],
+  "top_features_B": [
+   {
+    "feature": "integrity=missing",
+    "gain": 24142.29,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=high",
+    "gain": 2186.85,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=system",
+    "gain": 1606.87,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#70",
+    "gain": 996.9,
+    "tokens": [
+     "ex",
+     "^s",
+     "_2"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name_length",
+    "gain": 679.59,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#13",
+    "gain": 468.12,
+    "tokens": [
+     "ch",
+     "^t",
+     "hh",
+     "1)"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_length",
+    "gain": 468.12,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_special_char_ratio",
+    "gain": 441.74,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_quote_count",
+    "gain": 432.87,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=medium",
+    "gain": 355.34,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#223",
+    "gain": 351.26,
+    "tokens": [
+     "ho",
+     "to",
+     "pn",
+     "n6"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_entropy",
+    "gain": 345.99,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#1345",
+    "gain": 244.13,
+    "tokens": [
+     "cmd c",
+     "localmachine root",
+     "bloodhound <hex>",
+     "<hex> updates"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#50",
+    "gain": 210.32,
+    "tokens": [
+     "os",
+     "py",
+     "wa",
+     "t<"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "user_category=user",
+    "gain": 184.38,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_token_count",
+    "gain": 181.35,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#210",
+    "gain": 145.99,
+    "tokens": [
+     "l.",
+     "^r"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#172",
+    "gain": 140.99,
+    "tokens": [
+     "xe",
+     "or",
+     "ce"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#69",
+    "gain": 132.13,
+    "tokens": [
+     "ts",
+     "u.",
+     "(1",
+     "cg"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path_class=system",
+    "gain": 131.81,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#2462",
+    "gain": 121.85,
+    "tokens": [
+     "users",
+     "office",
+     "dev",
+     "fltmc.exe unload"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#97",
+    "gain": 116.82,
+    "tokens": [
+     "st",
+     "ol",
+     "no",
+     "du"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#5",
+    "gain": 100.57,
+    "tokens": [
+     "t.",
+     "on",
+     ".c",
+     "n_"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#129",
+    "gain": 94.79,
+    "tokens": [
+     "en",
+     "og"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#146",
+    "gain": 94.74,
+    "tokens": [
+     "sv",
+     "dg",
+     "^d",
+     "di"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#47",
+    "gain": 94.1,
+    "tokens": [
+     "c.",
+     "gi",
+     "rv",
+     "-w"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#3098",
+    "gain": 93.41,
+    "tokens": [
+     "cmd.exe",
+     "powershell_ise.exe",
+     "2 key.snk",
+     "-encodedcommand ywbtagqaiaavagmaiablagmaaabvacaajqboafuatqbcaeuaugbfae8argbfafaaugbpaemarqbtafmatwbsafmajqakaa"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#94",
+    "gain": 92.58,
+    "tokens": [
+     "vs"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path_depth",
+    "gain": 90.92,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#28",
+    "gain": 87.18,
+    "tokens": [
+     "ll",
+     "\u00aec"
+    ],
+    "harness_token": false
+   }
+  ],
+  "train_test_duplicate_keys": 0
+ },
+ "export": {
+  "model_id": "panopticon-process-start-lgbm",
+  "featurizer_version": 2,
+  "params": {
+   "objective": "binary",
+   "learning_rate": 0.05,
+   "feature_fraction": 0.8,
+   "bagging_fraction": 0.8,
+   "bagging_freq": 1,
+   "lambda_l2": 1.0,
+   "verbose": -1,
+   "deterministic": true,
+   "num_threads": 1,
+   "seed": 20261023,
+   "zero_as_missing": false,
+   "force_col_wise": true,
+   "num_leaves": 15,
+   "min_data_in_leaf": 50
+  },
+  "engine_git_sha": "ed0dd8e7e2ed6d2f7840b0ed6751bf85be796240+dirty",
+  "versions": {
+   "lightgbm": "4.7.0",
+   "scikit_learn": "1.9.1",
+   "numpy": "2.5.4",
+   "python": "3.12.12"
+  },
+  "pins_sha256": "0d14c8b7778a286589f088a8a5f57e4eb1ae02576cdcf2e519b5b404a60ae78e",
+  "labels_sha256": "9f32d8b0af33530f06a7160b291f771cd5cf952ba7fa5b4468d3fbc8714fd482",
+  "pool_rows": 5318,
+  "files": {
+   "A": {
+    "model.json": "c21270b0f49815eaea7b154cf67a76dae28495021f6764a38064d6c51cd15df2",
+    "features.json": "59f32516dfcaba19e62da1397ae5f0f5c31327344dad99931bc7e0fa12519600",
+    "calibration.json": "8a15e3b15eecf6d2e2a22eebb697ac2f0d8d0ab005d6b2c01654e2c21b369613",
+    "thresholds.json": "6da7bf4227cb73304ec3ce66fbbacdbdd84e4173ceab034917abfe90aaf0b2a6",
+    "golden.json": "e345316dc2c5f4c3ff2f6e53bafa98f224e5366ee4dbc5d38d96a41a5ca6e773",
+    "golden_max_abs_error": 0.0,
+    "rounds": 148
+   },
+   "B": {
+    "model.json": "742987a9d1ed528aafc4d8614ebf5d4a5c4ba9b32aa224f4d5d1c206244d32c8",
+    "features.json": "30bf9792645df57395556707f174c7691bafa5994836cba8006b0919edf03197",
+    "calibration.json": "505ec04b42cf4850549372f28e140b265328fff8073037d115a3e4a8a65c789e",
+    "thresholds.json": "caf42f9abf523b3f81e8d2d26d8762acd7bc0201efa90b6d3d50e88e2907abba",
+    "golden.json": "dca3a3a89d9f4b617b77c2ab504662a3e91a9e5c72d98ba7a8705769f2a6e993",
+    "golden_max_abs_error": 0.0,
+    "rounds": 275
+   }
+  }
+ }
 }
