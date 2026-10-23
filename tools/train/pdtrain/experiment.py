@@ -131,6 +131,8 @@ OPTC_TRAIN: List[bool] = [False]
 
 
 def role(row: Dict[str, Any]) -> str:
+    if row["source"] == "atlasv2":
+        return "E9"  # untouched final test: never read by the experiment (see pdtrain.final_test)
     if row["source"] == "optc":
         return "E7" if OPTC_HOLDOUT in row["dataset"] else ("pool" if OPTC_TRAIN[0] else "E7")
     if row["source"] == "officer_vm":

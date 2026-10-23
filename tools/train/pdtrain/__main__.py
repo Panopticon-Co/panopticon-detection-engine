@@ -40,7 +40,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     exp.add_argument("--optc-train", action="store_true",
                      help="train on the OpTC host range that is not held out")
 
+    sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
+    sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels (final test)")
+
     args = parser.parse_args(argv)
+    if args.step == "comiset":
+        import json
+        import tempfile
+
+        from pdtrain.comiset import stream
+
+        spool = Path(tempfile.gettempdir()) / "pdtrain-comiset-spool"
+        manifest = stream(DATA / "rows", spool, Path(__file__).resolve().parent.parent / "pins.json")
+        print(json.dumps(manifest, indent=2), flush=True)
+        return 0 if manifest["complete"] else 1
+    if args.step == "atlasv2":
+        import json
+        import tempfile
+
+        from pdtrain.atlasv2 import stream as stream_atlas
+
+        spool = Path(tempfile.gettempdir()) / "pdtrain-atlasv2-spool"
+        manifest = stream_atlas(DATA / "rows", spool, Path(__file__).resolve().parent.parent / "pins.json",
+                                DATA / "raw" / "atlasv2")
+        print(json.dumps(manifest, indent=2), flush=True)
+        return 0 if manifest["complete"] else 1
     if args.step == "experiment":
         import json
 
