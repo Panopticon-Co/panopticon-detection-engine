@@ -1879,7 +1879,7 @@
     "feature": "cmd#3007",
     "gain": 237.81,
     "tokens": [
-     "sokhi",
+     "<user>",
      "32",
      "path ds_computer",
      "iso"
@@ -1900,7 +1900,7 @@
     "feature": "cmd#2328",
     "gain": 191.69,
     "tokens": [
-     "<user> sokhi",
+     "<user> <user>",
      "- 0-9",
      "bin feeltheburn.iso",
      "byval"
