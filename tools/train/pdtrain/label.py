@@ -46,7 +46,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from panopticon_detection.ml.featurizer import integrity_category, normalize_text
 from pdtrain.normalize import read_rows
 
-LABELLER_VERSION = 3
+LABELLER_VERSION = 4
 
 
 def leaf(path: Optional[str]) -> str:
@@ -80,6 +80,10 @@ BACKGROUND_IMAGES = frozenset(
         "wudfhost.exe", "spoolsv.exe", "splwow64.exe", "osppsvc.exe", "sdclt.exe", "mobsync.exe",
         "hubtaskhost.exe", "skypehost.exe", "devicedisplayobjectprovider.exe", "gpupdate.exe",
         "dsregcmd.exe", "vssvc.exe", "msiexec.exe", "waasmedicagent.exe", "sedlauncher.exe",
+        # v4: Windows housekeeping found mislabelled in the OTRF error analysis
+        "usocoreworker.exe", "settingsynchost.exe", "cliprenew.exe", "chxsmartscreen.exe",
+        "dxgiadaptercache.exe", "wlrmdr.exe", "microsoftedgecp.exe", "raserver.exe", "upfc.exe",
+        "windows.warp.jitservice.exe", "ielowutil.exe", "officec2rclient.exe",
         # Defender
         "msmpeng.exe", "mpcmdrun.exe", "nissrv.exe", "mpdefendercoreservice.exe",
         # lab telemetry / management agents
@@ -130,6 +134,7 @@ INFRA_ROOT_IMAGES = frozenset(
         "waappagent.exe", "windowsazureguestagent.exe", "collectguestlogs.exe",
         "am_delta.exe", "am_delta_patch.exe", "mpsigstub.exe",
         "microsoftedgeupdate.exe", "msedgeupdate.exe", "dismhost.exe", "networkwatcheragent.exe",
+        "windowsazurenetagent.exe", "monitoringhost.exe",  # v4: Azure network agent, SCOM agent
     }
 )
 
