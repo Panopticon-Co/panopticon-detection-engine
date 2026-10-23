@@ -35,7 +35,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from panopticon_detection import enrichment
 from panopticon_detection.datasets import sysmon_xml as SX
@@ -195,12 +195,17 @@ class CheckpointTap:
 
 @dataclass
 class Unit:
-    """One replay: a recording (or one host's merged runs) of one source."""
+    """One replay: a recording (or one host's merged runs) of one source.
+
+    Plain data (``kind`` + ``args``) so units pickle into worker processes;
+    :func:`unit_events` turns a unit into its canonical events in time order.
+    """
 
     unit_id: str
     source: str
     dataset: str
-    events: Callable[[], Iterable[Dict[str, Any]]]  # canonical (agent schema) events in time order
+    kind: str  # attack_data_log | otrf_archive | botsv1_json | officer_rows | atlasv2_host | optc_file | inline
+    args: tuple = ()
     normalized: bool = False  # events are already engine-normalized
     weight: int = 0  # bytes on disk, to schedule big units first
 
@@ -208,10 +213,47 @@ class Unit:
     def environment(self) -> str:
         return ENVIRONMENT_OF_SOURCE[self.source]
 
+    def events(self) -> Iterable[Dict[str, Any]]:
+        return unit_events(self)
+
 
 def _adapter_events(dataset_id: str, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     events, _report = OtrfAdapter(dataset_id).normalize(records)
     return events
+
+
+def _runs(folder: Path) -> Iterator[Iterator[Dict[str, Any]]]:
+    for run in sorted(folder.glob("run-*.ndjson.gz")):
+        yield (json.loads(line) for line in gzip.open(run, "rt", encoding="utf-8"))
+
+
+def unit_events(unit: Unit) -> Iterable[Dict[str, Any]]:
+    if unit.kind == "attack_data_log":
+        return _adapter_events(unit.dataset, list(SX.read_attack_data_log(Path(unit.args[0]))))
+    if unit.kind == "otrf_archive":
+        return _adapter_events(unit.dataset, read_records(Path(unit.args[0])))
+    if unit.kind == "botsv1_json":
+        return _adapter_events(unit.dataset, list(SX.read_botsv1_json(Path(unit.args[0]))))
+    if unit.kind == "officer_rows":
+        events = []
+        with gzip.open(unit.args[0], "rt", encoding="utf-8") as handle:
+            for line in handle:
+                row = json.loads(line)
+                if row["dataset"] == unit.dataset:
+                    event = dict(row["event"])
+                    event.setdefault("event_id", row["row_id"])
+                    events.append(event)
+        return sorted(events, key=lambda e: (e.get("timestamp") or "", e.get("event_id") or ""))
+    if unit.kind == "atlasv2_host":
+        streams = [run for folder in unit.args for run in _runs(Path(folder))]
+        return heapq.merge(*streams, key=lambda e: (e["event"]["timestamp"], e["event"]["id"]))
+    if unit.kind == "optc_file":
+        from pdtrain.optc_replay import ecar_events
+
+        return ecar_events(Path(unit.args[0]), unit.dataset, unit.args[1])
+    if unit.kind == "inline":
+        return list(unit.args[0])
+    raise ValueError(f"unknown unit kind {unit.kind!r}")
 
 
 def attack_data_units(raw: Path) -> List[Unit]:
@@ -220,13 +262,9 @@ def attack_data_units(raw: Path) -> List[Unit]:
     units = []
     for rel, _meta in sorted(_attack_data_meta(raw).items()):
         path = raw / "attack_data" / rel
-        if not path.exists():
-            continue
-        dataset = "attack_data:" + rel
-        units.append(Unit(
-            f"attack_data--{_safe(rel)}", "attack_data", dataset,
-            (lambda p=path, d=dataset: _adapter_events(d, list(SX.read_attack_data_log(p)))),
-            weight=path.stat().st_size))
+        if path.exists():
+            units.append(Unit(f"attack_data--{_safe(rel)}", "attack_data", "attack_data:" + rel,
+                              "attack_data_log", (str(path),), weight=path.stat().st_size))
     return units
 
 
@@ -243,16 +281,13 @@ def otrf_units(raw: Path) -> List[Unit]:
             source = "otrf_compound"
         else:
             continue
-        dataset = "otrf:" + rel
-        units.append(Unit(f"{source}--{_safe(rel)}", source, dataset,
-                          (lambda p=path, d=dataset: _adapter_events(d, read_records(p))),
+        units.append(Unit(f"{source}--{_safe(rel)}", source, "otrf:" + rel, "otrf_archive", (str(path),),
                           weight=path.stat().st_size))
     return units
 
 
 def botsv1_units(raw: Path) -> List[Unit]:
-    return [Unit(f"botsv1--{_safe(p.name)}", "botsv1", "botsv1",
-                 (lambda p=p: _adapter_events("botsv1", list(SX.read_botsv1_json(p)))),
+    return [Unit(f"botsv1--{_safe(p.name)}", "botsv1", "botsv1", "botsv1_json", (str(p),),
                  weight=p.stat().st_size * 10)
             for p in sorted((raw / "botsv1").glob("*.json.gz"))]
 
@@ -262,22 +297,12 @@ def officer_vm_units(rows_dir: Path) -> List[Unit]:
     path = rows_dir / "officer_vm.jsonl.gz"
     if not path.exists():
         return []
-    by_dataset: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
+    counts: collections.Counter = collections.Counter()
     with gzip.open(path, "rt", encoding="utf-8") as handle:
         for line in handle:
-            row = json.loads(line)
-            event = dict(row["event"])
-            event.setdefault("event_id", row["row_id"])
-            by_dataset[row["dataset"]].append(event)
-    return [Unit(f"officer_vm--{_safe(d)}", "officer_vm", d,
-                 (lambda e=sorted(evs, key=lambda x: (x.get("timestamp") or "", x.get("event_id") or "")): e),
-                 normalized=True, weight=len(evs) * 1000)
-            for d, evs in sorted(by_dataset.items())]
-
-
-def _runs(folder: Path) -> Iterator[Iterator[Dict[str, Any]]]:
-    for run in sorted(folder.glob("run-*.ndjson.gz")):
-        yield (json.loads(line) for line in gzip.open(run, "rt", encoding="utf-8"))
+            counts[json.loads(line)["dataset"]] += 1
+    return [Unit(f"officer_vm--{_safe(d)}", "officer_vm", d, "officer_rows", (str(path),),
+                 normalized=True, weight=n * 1000) for d, n in sorted(counts.items())]
 
 
 def atlasv2_units(canonical: Path) -> List[Unit]:
@@ -286,15 +311,10 @@ def atlasv2_units(canonical: Path) -> List[Unit]:
     units = []
     for host in ("h1", "h2"):
         folders = sorted(p for p in root.glob(f"*/{host}/*") if p.is_dir())
-        if not folders:
-            continue
-
-        def events(folders=folders):
-            streams = [run for f in folders for run in _runs(f)]
-            return heapq.merge(*streams, key=lambda e: (e["event"]["timestamp"], e["event"]["id"]))
-
-        units.append(Unit(f"atlasv2--{host}", "atlasv2", f"atlasv2:{host}", events,
-                          weight=sum(r.stat().st_size for f in folders for r in f.glob("run-*")) * 20))
+        if folders:
+            units.append(Unit(f"atlasv2--{host}", "atlasv2", f"atlasv2:{host}", "atlasv2_host",
+                              tuple(str(f) for f in folders),
+                              weight=sum(r.stat().st_size for f in folders for r in f.glob("run-*")) * 20))
     return units
 
 

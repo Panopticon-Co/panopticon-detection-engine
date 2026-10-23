@@ -57,7 +57,7 @@ def test_tap_checkpoints_equal_post_hoc_extraction():
 
 
 def test_replay_unit_writes_summary_starts_and_alerts(tmp_path):
-    unit = R.Unit("u1", "officer_vm", "officer_vm:test", lambda: _events(), normalized=True)
+    unit = R.Unit("u1", "officer_vm", "officer_vm:test", "inline", (_events(),), normalized=True)
     summary = R.replay_unit(unit, ROOT, tmp_path)
     assert summary["starts"] == 2 and summary["events"] == 5
     assert summary["hosts"]["H"]["families"]["process_access"] == 1
