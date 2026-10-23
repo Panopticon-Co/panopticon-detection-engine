@@ -46,6 +46,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                      default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "atlasv2", "optc"])
     rep.add_argument("--workers", type=int, default=4)
 
+    osp = sub.add_parser("optc-split", help="OpTC eCAR -> per-host canonical runs (all mapped families)")
+    osp.add_argument("--ranges", nargs="+", default=["AIA-51-75", "AIA-201-225"])
+
     lo = sub.add_parser("loeo", help="leave-one-environment-out evaluation of named recipes (pdtrain.loeo)")
     lo.add_argument("--recipes", nargs="+", default=["v6_recipe"])
     lo.add_argument("--out", default="baseline")
@@ -64,6 +67,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     fin.add_argument("--freeze", action="store_true", help="mark the bundle as the final candidate first")
 
     args = parser.parse_args(argv)
+    if args.step == "optc-split":
+        import json
+
+        from pdtrain.optc_replay import split_all
+
+        print(json.dumps(split_all(DATA / "raw", DATA / "canonical", args.ranges), indent=2))
+        return 0
     if args.step == "replay":
         import json
 

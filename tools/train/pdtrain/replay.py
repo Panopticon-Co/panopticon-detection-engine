@@ -204,7 +204,7 @@ class Unit:
     unit_id: str
     source: str
     dataset: str
-    kind: str  # attack_data_log | otrf_archive | botsv1_json | officer_rows | atlasv2_host | optc_file | inline
+    kind: str  # attack_data_log | otrf_archive | botsv1_json | officer_rows | atlasv2_host | runs | inline
     args: tuple = ()
     normalized: bool = False  # events are already engine-normalized
     weight: int = 0  # bytes on disk, to schedule big units first
@@ -244,13 +244,9 @@ def unit_events(unit: Unit) -> Iterable[Dict[str, Any]]:
                     event.setdefault("event_id", row["row_id"])
                     events.append(event)
         return sorted(events, key=lambda e: (e.get("timestamp") or "", e.get("event_id") or ""))
-    if unit.kind == "atlasv2_host":
+    if unit.kind in ("atlasv2_host", "runs"):
         streams = [run for folder in unit.args for run in _runs(Path(folder))]
         return heapq.merge(*streams, key=lambda e: (e["event"]["timestamp"], e["event"]["id"]))
-    if unit.kind == "optc_file":
-        from pdtrain.optc_replay import ecar_events
-
-        return ecar_events(Path(unit.args[0]), unit.dataset, unit.args[1])
     if unit.kind == "inline":
         return list(unit.args[0])
     raise ValueError(f"unknown unit kind {unit.kind!r}")
@@ -411,7 +407,7 @@ def collect_units(data: Path, sources: Iterable[str]) -> List[Unit]:
     if "optc" in wanted:
         from pdtrain.optc_replay import optc_units
 
-        units += optc_units(raw)
+        units += optc_units(data / "canonical")
     return units
 
 
