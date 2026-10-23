@@ -68,3 +68,5 @@ def test_replay_unit_writes_summary_starts_and_alerts(tmp_path):
     assert any(r["t"] == "alert" for r in records)
     census = R.census_of(tmp_path)
     assert census["officer_vm"]["starts"] == 2
+    nodes = {r["name"]: r for r in records if r["t"] == "node"}
+    assert nodes["rundll32.exe"]["root"] == nodes["powershell.exe"]["root"]  # one storyline

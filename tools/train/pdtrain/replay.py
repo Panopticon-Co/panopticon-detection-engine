@@ -47,7 +47,7 @@ from panopticon_detection.ml import featurizer as F
 from panopticon_detection.provenance.graph import EdgeKind
 from panopticon_detection.provenance.identity import UNKNOWN_TIME, parse_timestamp
 
-REPLAY_VERSION = 1
+REPLAY_VERSION = 2  # 2: per-node storyline roots
 MAX_BIT_CHECKPOINTS = 8
 MAX_TOKENS = 100
 GAP_CAP_SECONDS = 3600.0
@@ -120,6 +120,7 @@ class CheckpointTap:
         self._bit_checkpoints: Dict[str, int] = collections.Counter()
         self._tokens: Dict[str, List[str]] = collections.defaultdict(list)
         self.edge_cap_nodes: set = set()
+        self._nodes: Dict[str, Dict[str, Any]] = {}  # node -> storyline root etc., at first sight
 
     # -- the detector interface ------------------------------------------------
     def evaluate(self, event: Dict[str, Any], extractor: Any) -> List[Any]:
@@ -139,6 +140,7 @@ class CheckpointTap:
         actor = registry.resolve_event(event)
         if actor is None:
             return []
+        self._see(registry, actor)
         if etype == "process_create":
             self.records.append({
                 "t": "start", "node": actor.node_id, "host": actor.host_id, "pid": actor.pid,
@@ -150,6 +152,7 @@ class CheckpointTap:
             for node_id in (edge.src, edge.dst):
                 if registry.get(node_id) is None:
                     continue
+                self._see(registry, registry.get(node_id))
                 token = _token(edge, graph, node_id)
                 if token is not None:
                     tokens = self._tokens[node_id]
@@ -185,6 +188,18 @@ class CheckpointTap:
         features = extractor.extract(process, as_of=when)
         self.records.append({"t": "cp", "node": process.node_id, "kind": kind,
                              "ts": when.isoformat(), "features": features.to_dict()})
+
+    def _see(self, registry: Any, process: Any) -> None:
+        """Remember a process's storyline root (``enrichment.tree_root``) the first time it is seen."""
+        if process.node_id in self._nodes:
+            return
+        root = enrichment.tree_root(registry, process)
+        self._nodes[process.node_id] = {"t": "node", "node": process.node_id, "host": process.host_id,
+                                        "root": root.node_id if root is not None else process.node_id,
+                                        "name": (process.name or "").lower(), "inferred": bool(process.inferred)}
+
+    def node_records(self) -> List[Dict[str, Any]]:
+        return [self._nodes[k] for k in sorted(self._nodes)]
 
     def token_records(self) -> List[Dict[str, Any]]:
         return [{"t": "tokens", "node": node, "tokens": tokens} for node, tokens in sorted(self._tokens.items())]
@@ -378,7 +393,7 @@ def replay_unit(unit: Unit, repo: Path, out_dir: Path) -> Dict[str, Any]:
     path = out_dir / unit.environment / f"{unit.unit_id}.jsonl.gz"
     path.parent.mkdir(parents=True, exist_ok=True)
     with gzip.GzipFile(path, "wb", mtime=0) as handle:
-        for record in [summary, *tap.records, *alerts, *tap.token_records()]:
+        for record in [summary, *tap.records, *alerts, *tap.token_records(), *tap.node_records()]:
             handle.write((json.dumps(record, sort_keys=True, default=str) + "\n").encode("utf-8"))
     return summary
 
