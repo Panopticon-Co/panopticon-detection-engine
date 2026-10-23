@@ -441,6 +441,10 @@ def census_of(out_dir: Path) -> Dict[str, Any]:
         for key in ("events", "starts", "checkpoints", "alerts", "edge_cap_nodes"):
             env[key] += summary.get(key, 0)
         for info in summary.get("hosts", {}).values():
+            # Only hosts with process telemetry are monitored endpoints. BOTSv1's export also
+            # names ~1,750 hosts seen only in inbound NetBIOS broadcasts from "System".
+            if not info["families"].get("process"):
+                continue
             env["host_hours"] += info["hours"]
             for fam, n in info["families"].items():
                 env["families"][fam] += n
