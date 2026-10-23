@@ -84,8 +84,11 @@ class ChunkStream(io.RawIOBase):
             self.total += len(chunk)
 
 
-def _xml_events(handle, block: int = 16 * 1024 * 1024) -> Iterator[Dict[str, Any]]:
-    """EID 1 records of an Event Viewer XML export (UTF-8 or UTF-16), read incrementally."""
+def _xml_events(handle, block: int = 16 * 1024 * 1024, only_eid1: bool = True) -> Iterator[Dict[str, Any]]:
+    """Records of an Event Viewer XML export (UTF-8 or UTF-16), read incrementally.
+
+    EID 1 only by default (the process-start tables); every event with ``only_eid1=False``.
+    """
     first = handle.read(block)
     encoding = "utf-16" if first[:2] in (b"\xff\xfe", b"\xfe\xff") else "utf-8"
     decoder = codecs.getincrementaldecoder(encoding)(errors="replace")
@@ -96,9 +99,9 @@ def _xml_events(handle, block: int = 16 * 1024 * 1024) -> Iterator[Dict[str, Any
             ready, text = text[:cut + len(_EVENT_END)], text[cut + len(_EVENT_END):]
             for match in X._EVENT_BLOCK.finditer(ready):
                 piece = match.group(0)
-                if ">1</EventID>" in piece:
+                if not only_eid1 or ">1</EventID>" in piece:
                     record = X.parse_event_xml(piece)
-                    if record is not None and record.get("EventID") == "1":
+                    if record is not None and (not only_eid1 or record.get("EventID") == "1"):
                         yield record
         data = handle.read(block)
         if not data:
@@ -167,6 +170,80 @@ def label_rows(rows: List[Dict[str, Any]], period: str, host: str, attack_labels
             row.update(label=None, label_rule="excluded/atlasv2_excluded_image")
         else:
             row.update(label=0, label_rule="benign/atlasv2_attack_day_background")
+
+
+# ------------------------------------------------------------------ all families (context model)
+
+RUN_RECORDS = 100_000  # records per sorted run: bounds memory on multi-GB exports
+
+
+def _write_run(events: List[Dict[str, Any]], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.GzipFile(path, "wb", mtime=0) as handle:
+        for event in events:
+            handle.write((json.dumps(event, sort_keys=True) + "\n").encode("utf-8"))
+
+
+def stream_all_families(out_dir: Path, spool: Path, pins_path: Optional[Path],
+                        chunks: Optional[Iterable[bytes]] = None, size: int = SIZE, log=print) -> Dict[str, Any]:
+    """Every Sysmon event of every member, as canonical agent events in time-sorted runs.
+
+    Writes ``<out_dir>/<period>/<host>/<file>/run-NNNN.ndjson.gz``. Each run holds at most
+    :data:`RUN_RECORDS` records and is sorted by event time, so a replay merges a host's runs
+    lazily. Event ids are the dataset adapter's (``OtrfAdapter``) for the same dataset ids as
+    the process-start rows, so EID 1 ids equal the existing ``row_id`` values.
+    """
+    from panopticon_detection.datasets.otrf import OtrfAdapter
+
+    source = ChunkStream(chunks if chunks is not None else ranged_chunks(URL, size, spool, log=log))
+    counts: collections.Counter = collections.Counter()
+    eid1_ids: List[str] = []
+    runs = 0
+    with tarfile.open(fileobj=io.BufferedReader(source, 1 << 20), mode="r|gz") as tar:
+        for member in tar:
+            match = _SYSMON_MEMBER.search(member.name)
+            if not match or not member.isfile():
+                continue
+            period, host, name = match.groups()
+            dataset_id = f"atlasv2:{period}/{host}/{name}"
+            folder = out_dir / period / host / name.removesuffix(".xml")
+            buffer: List[Dict[str, Any]] = []
+            index = 0
+
+            def flush() -> None:
+                nonlocal buffer, index, runs
+                if not buffer:
+                    return
+                events, _report = OtrfAdapter(dataset_id).normalize(buffer)
+                for event in events:
+                    counts[f"{period}/{host} {event['event']['category']}"] += 1
+                    if event["event"]["category"] == "process" and event["event"]["type"] == "start":
+                        eid1_ids.append(event["event"]["id"])
+                _write_run(events, folder / f"run-{index:04d}.ndjson.gz")
+                index += 1
+                runs += 1
+                buffer = []
+
+            for record in _xml_events(tar.extractfile(member), only_eid1=False):
+                counts[f"{period}/{host} sysmon_eid_{record.get('EventID')}"] += 1
+                buffer.append(record)
+                if len(buffer) >= RUN_RECORDS:
+                    flush()
+            flush()
+            log(f"[atlasv2-all] {member.name}: {index} runs", flush=True)
+    source.drain()
+    manifest = {"source": "atlasv2", "bytes": source.total, "expected_bytes": size,
+                "complete": source.total == size, "sha256": source.digest.hexdigest(), "runs": runs,
+                "process_starts": len(eid1_ids), "counts": dict(sorted(counts.items()))}
+    if manifest["complete"] and pins_path is not None and pins_path.exists():
+        pin = json.loads(pins_path.read_text()).get(PIN_KEY)
+        if pin and pin["sha256"] != manifest["sha256"]:
+            raise ValueError(f"pin mismatch for {PIN_KEY}")
+        manifest["pin_verified"] = bool(pin)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "eid1_ids.txt").write_text("\n".join(sorted(eid1_ids)) + "\n")
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    return manifest
 
 
 # ------------------------------------------------------------------ driver

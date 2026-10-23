@@ -73,3 +73,26 @@ def test_streams_sysmon_members_and_labels_attack_day(monkeypatch, tmp_path):
     assert rows["notepad.exe"]["label"] == 0 and rows["notepad.exe"]["integrity"] == "Medium"
     assert rows["payload.exe"]["label"] == 1 and rows["payload.exe"]["label_rule"] == "malicious/reapr"
     assert rows["calc.exe"]["label"] == 0
+
+
+def test_all_families_writes_sorted_runs_with_the_same_start_ids(tmp_path):
+    import pdtrain.atlasv2 as A
+
+    events = "<Events>" + "".join(
+        _EVENT.format(eid=eid, rid=rid, utc=f"2022-07-15 10:00:0{9 - rid}.000", pid=10 + rid,
+                      image="C:\\Windows\\notepad.exe")
+        for rid, eid in ((1, 1), (2, 3), (3, 1), (4, 5))
+    ) + "</Events>"
+    blob = _tar([("atlasv2/data/benign/h1/sysmon/benign-1.xml", events, "utf-16")])
+    chunks = [blob[i:i + 997] for i in range(0, len(blob), 997)]
+    manifest = A.stream_all_families(tmp_path / "canon", tmp_path / "spool", None, chunks=chunks, size=len(blob))
+    assert manifest["complete"] and manifest["process_starts"] == 2
+    run = tmp_path / "canon" / "benign" / "h1" / "benign-1" / "run-0000.ndjson.gz"
+    written = [json.loads(line) for line in gzip.open(run, "rt")]
+    times = [e["event"]["timestamp"] for e in written]
+    assert times == sorted(times) and {e["event"]["category"] for e in written} >= {"process", "network"}
+    rows_manifest = stream(tmp_path / "rows", tmp_path / "spool", None, tmp_path, chunks=chunks, size=len(blob))
+    assert rows_manifest["rows"] == 2
+    row_ids = {json.loads(line)["row_id"] for line in gzip.open(tmp_path / "rows" / "atlasv2.jsonl.gz", "rt")}
+    starts = {e["event"]["id"] for e in written if e["event"]["category"] == "process" and e["event"]["type"] == "start"}
+    assert starts == row_ids

@@ -50,7 +50,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     v7.add_argument("--recipe", help="recipe for --final-only")
 
     sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
-    sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels")
+    atl = sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels")
+    atl.add_argument("--all-families", action="store_true",
+                     help="keep every Sysmon event as canonical events in data/canonical/atlasv2 (context model)")
     fin = sub.add_parser("final-test", help="score the sealed agent recording once with a frozen bundle")
     fin.add_argument("--version", required=True)
     fin.add_argument("--source", default="officer_sealed")
@@ -106,10 +108,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         import tempfile
 
         from pdtrain.atlasv2 import stream as stream_atlas
+        from pdtrain.atlasv2 import stream_all_families
 
         spool = Path(tempfile.gettempdir()) / "pdtrain-atlasv2-spool"
-        manifest = stream_atlas(DATA / "rows", spool, Path(__file__).resolve().parent.parent / "pins.json",
-                                DATA / "raw" / "atlasv2")
+        pins = Path(__file__).resolve().parent.parent / "pins.json"
+        if args.all_families:
+            manifest = stream_all_families(DATA / "canonical" / "atlasv2", spool, pins)
+        else:
+            manifest = stream_atlas(DATA / "rows", spool, pins, DATA / "raw" / "atlasv2")
         print(json.dumps(manifest, indent=2), flush=True)
         return 0 if manifest["complete"] else 1
     if args.step == "experiment":
