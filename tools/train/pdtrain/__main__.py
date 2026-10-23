@@ -23,18 +23,20 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     norm = sub.add_parser("normalize", help="raw sources -> per-source row tables")
     norm.add_argument(
-        "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1"],
-        choices=["attack_data", "otrf", "otrf_compound", "botsv1"],
+        "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"],
+        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"],
     )
 
     lab = sub.add_parser("label", help="row tables -> labelled, de-duplicated rows")
     lab.add_argument(
-        "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1"],
-        choices=["attack_data", "otrf", "otrf_compound", "botsv1"],
+        "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"],
+        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"],
     )
 
     exp = sub.add_parser("experiment", help="train, evaluate, export the bundle")
     exp.add_argument("--version", default="v1")
+    exp.add_argument("--officer-train", action="store_true",
+                     help="train on the first half (by time) of the agent-recorded benign data")
 
     args = parser.parse_args(argv)
     if args.step == "experiment":
@@ -42,9 +44,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         from pdtrain.experiment import run
 
-        results = run(DATA, REPO, export_dir=DATA / "models" / args.version)
+        results = run(DATA, REPO, export_dir=DATA / "models" / args.version, officer_train=args.officer_train)
         out = DATA / "experiment"
         out.mkdir(parents=True, exist_ok=True)
+        (out / f"results_{args.version}.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
         (out / "results.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {out / 'results.json'}")
         return 0

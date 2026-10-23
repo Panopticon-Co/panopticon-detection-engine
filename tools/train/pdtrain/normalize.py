@@ -224,6 +224,19 @@ def normalize_all(raw: Path, out_dir: Path, sources: List[str], workers: int = 6
             files = sorted(str(p) for p in (raw / "botsv1").glob("*.json.gz"))
             rows = [row for chunk in pool.map(_botsv1_one, files) for row in chunk]
             summary["botsv1"] = _write(rows, out_dir, "botsv1", files)
+    if "officer_vm" in sources:
+        from pdtrain.officer_vm import prepare, read_package
+
+        rows, inputs, counts = [], [], {}
+        for package in sorted(p for p in (raw / "officer_vm").glob("*") if p.is_dir()):
+            records, meta = read_package(package)
+            collection = (meta.get("manifest") or {}).get("collection_id") or package.name
+            pkg_rows, counts[package.name] = prepare(records, meta, f"officer_vm:{collection}")
+            rows.extend(pkg_rows)
+            inputs.append(package.name)
+        summary["officer_vm"] = _write(rows, out_dir, "officer_vm", inputs)
+        summary["officer_vm"]["kit_issue_counts"] = counts
+        (out_dir / "officer_vm.manifest.json").write_text(json.dumps(summary["officer_vm"], indent=2) + "\n")
     return summary
 
 

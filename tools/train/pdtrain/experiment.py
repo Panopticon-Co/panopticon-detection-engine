@@ -69,7 +69,8 @@ BUDGETS = {"alert": 1.0, "high": 0.1}  # false positives per observed host-hour
 GATES = {
     "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap "
           "95% CI of the difference > 0); PR-AUC beats LR",
-    "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host",
+    "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; "
+          "same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3",
     "G3": "E3 recall at alert within 15 percentage points of E2",
     "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
     "G5": "calibrated ECE <= 0.10 (OOF)",
@@ -110,6 +111,8 @@ def labelled_raw(rows_dir: Path, sources: Sequence[str]) -> List[Dict[str, Any]]
         for _, rows in sorted(grouped.items()):
             if source == "botsv1":
                 label_botsv1(rows)
+            elif source == "officer_vm":
+                pass  # labelled benign by pdtrain.officer_vm
             else:
                 label_attack_recording(rows, technique_group)
             out.extend(rows)
@@ -118,7 +121,15 @@ def labelled_raw(rows_dir: Path, sources: Sequence[str]) -> List[Dict[str, Any]]
     return out
 
 
+# Agent-recorded benign data (pdtrain.officer_vm) is split by time: rows before
+# OFFICER_SPLIT[0] may train (when OFFICER_SPLIT[1]), the rest are test E6.
+OFFICER_SPLIT: List[Any] = [None, False]
+
+
 def role(row: Dict[str, Any]) -> str:
+    if row["source"] == "officer_vm":
+        cutoff, train = OFFICER_SPLIT
+        return "pool" if train and cutoff is not None and row["utc"] < cutoff else "E6"
     if row["source"] == "otrf":
         return "E3"
     if row["source"] == "botsv1" and (row.get("host") or "").lower().startswith(HOLDOUT_HOST):
@@ -517,17 +528,41 @@ def git_sha(repo: Path) -> str:
         return "unknown"
 
 
-def run(data: Path, repo: Path, export_dir: Optional[Path] = None) -> Dict[str, Any]:
-    sources = ["attack_data", "otrf", "otrf_compound", "botsv1"]
+OFFICER_IMAGE_CAP = 50  # per process image, training rows only (kit issue 6: git.exe dominates)
+
+
+def _cap_officer(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    by_image: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
+    for row in rows:
+        by_image[leaf(row["image"])].append(row)
+    out: List[Dict[str, Any]] = []
+    for _, members in sorted(by_image.items()):
+        out.extend(sorted(members, key=lambda r: hashlib.sha256(r["row_id"].encode()).hexdigest())[:OFFICER_IMAGE_CAP])
+    return out
+
+
+def run(data: Path, repo: Path, export_dir: Optional[Path] = None, officer_train: bool = False) -> Dict[str, Any]:
+    sources = ["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"]
     rows = read_labelled(data / "labelled")
     raw = labelled_raw(data / "rows", sources)
 
+    officer_times = sorted(_ts(r["utc"]) for r in raw if r["source"] == "officer_vm")
+    cutoff = None
+    if officer_times:
+        mid = officer_times[0] + (officer_times[-1] - officer_times[0]) / 2
+        cutoff = mid.strftime("%Y-%m-%dT%H:%M:%S.") + f"{mid.microsecond // 1000:03d}Z"
+    OFFICER_SPLIT[:] = [cutoff, officer_train]
+
     excluded_infra = sum(1 for r in rows if role(r) == "pool" and is_lab_infrastructure(r))
-    pool = cap_groups([r for r in rows if role(r) == "pool" and not is_lab_infrastructure(r)], CAP_PER_GROUP)
+    pool_rows = [r for r in rows if role(r) == "pool" and not is_lab_infrastructure(r)]
+    officer_pool = _cap_officer([r for r in pool_rows if r["source"] == "officer_vm"])
+    pool = cap_groups([r for r in pool_rows if r["source"] != "officer_vm"], CAP_PER_GROUP) + officer_pool
+    pool.sort(key=lambda r: r["row_id"])
     e3 = [r for r in rows if role(r) == "E3"]
     e4 = [r for r in rows if role(r) == "E4"]
     e5 = winlolbin_rows(data / "raw")
-    duplicates_across = len({r["dedup_key"] for r in pool} & {r["dedup_key"] for r in e3 + e4})
+    e6_keys = {r["dedup_key"] for r in rows if role(r) == "E6"}
+    duplicates_across = len({r["dedup_key"] for r in pool} & ({r["dedup_key"] for r in e3 + e4} | e6_keys))
 
     y = np.array([r["label"] for r in pool])
     groups = np.array([r["group"] for r in pool])
@@ -557,6 +592,8 @@ def run(data: Path, repo: Path, export_dir: Optional[Path] = None) -> Dict[str, 
             "E4_holdout_host": {"rows": len(e4), "malicious": sum(r["label"] for r in e4),
                                 "raw_events": len(raw_e4), "observed_host_hours": e4_hours},
             "E5_winlolbin": {"rows": len(e5), "malicious": sum(r["label"] for r in e5)},
+            "officer_vm": {"split_cutoff_utc": cutoff, "first_half_in_training": officer_train,
+                           "training_rows_after_image_cap": len(officer_pool)},
             "train_test_duplicate_keys": duplicates_across,
             "pool_lab_infrastructure_rows_excluded": excluded_infra,
             "run": 2,
@@ -687,6 +724,28 @@ def run(data: Path, repo: Path, export_dir: Optional[Path] = None) -> Dict[str, 
         "recall_malicious_events": float((rs[e4_y == 1] > 0).mean()) if (e4_y == 1).any() else None,
     }
     tests["E4_holdout_host_raw_stream"] = e4_res
+
+    # E6: agent-recorded benign stream, held-out (second half by time, or all of it).
+    raw_e6 = [r for r in raw if role(r) == "E6"]
+    if raw_e6:
+        e6_hours = observed_hours(raw_e6)
+        e6_res: Dict[str, Any] = {"observed_host_hours": e6_hours, "raw_events": len(raw_e6)}
+        lr_e6 = final_lr.decision_function(scaler.transform(matrix(raw_e6, "A")))
+        for name, s, t in (
+            ("model_A", score("A", raw_e6), variants["A"]["thresholds"]),
+            ("logistic_regression", lr_e6, base_t["lr"]),
+            ("heuristic", np.array([heuristic_score(r) for r in raw_e6]), base_t["heuristic"]),
+        ):
+            e6_res[name] = {n: {"fp_events": int((s >= th).sum()), "fp_per_host_hour": float((s >= th).sum() / e6_hours)}
+                            for n, th in t.items()}
+            if name == "model_A":
+                e6_res[name]["top_scores"] = [
+                    {"score": round(float(s[i]), 3), "parent": leaf(raw_e6[i]["parent_image"]),
+                     "image": leaf(raw_e6[i]["image"]), "command_line": (raw_e6[i]["command_line"] or "")[:160]}
+                    for i in np.argsort(-s)[:20]]
+        fired = sum(1 for r in raw_e6 if rules.get(r["row_id"], 0.0) > 0)
+        e6_res["rules_only_any_fired"] = {"fp_events": fired, "fp_per_host_hour": fired / e6_hours}
+        tests["E6_agent_benign_raw_stream"] = e6_res
     results["tests"] = tests
 
     # -------------------------------------------------- robustness (E3 positives, variant A)
