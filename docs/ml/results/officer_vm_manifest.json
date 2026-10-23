@@ -1,0 +1,20 @@
+{
+  "source": "officer_vm",
+  "rows": 2485,
+  "datasets": 1,
+  "hosts": 1,
+  "with_integrity": 0,
+  "inputs": 1,
+  "sha256": "0175ff4ccf6dbc5b330bb546ad41aea5a7362613cf326e6e6f39a7daeb94ff93",
+  "kit_issue_counts": {
+    "20261023-011457": {
+      "dropped_self_tagged": 215,
+      "dropped_self_children": 112,
+      "dropped_etw_duplicate": 2479,
+      "other_sources": 0,
+      "rows": 2485,
+      "kit_version_collected": "1.0.0",
+      "kit_version_packaged": "1.0.1"
+    }
+  }
+}

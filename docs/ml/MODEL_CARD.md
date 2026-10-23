@@ -3,7 +3,9 @@
 Structure follows Mitchell et al., *Model Cards for Model Reporting*.
 
 > **Status: NOT approved for integration.** Two of six pre-registered gates fail
-> ([EVAL_REPORT.md](EVAL_REPORT.md)). The bundle exists so the evaluation can be reproduced
+> ([EVAL_REPORT.md](EVAL_REPORT.md)). On benign data recorded with the Officer agent itself,
+> the lab-trained model raises 163 false positives per host-hour. Training on that data
+> pushes recall on unseen techniques down to 8%, below the rules (see the report's addendum). The bundle exists so the evaluation can be reproduced
 > and repeated once better benign data is available.
 
 ## Model details

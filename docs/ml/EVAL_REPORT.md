@@ -200,3 +200,57 @@ were made after test numbers existed, so run 2 is not a pristine held-out estima
 - **Performance on the agent's ETW-sourced process starts.** They lack command lines and
   users, so this model applies only to Sysmon-sourced starts.
 - **Whether OTRF label noise biases E3** beyond the qualitative count above.
+
+## Addendum (2026-10-23): benign data recorded with the Officer agent
+
+**What the data is.** The user recorded 4.5 hours of ordinary use of their own Windows VM
+(arm64, build 26100) with the Officer collection kit. The kit ran version 1.0.0; the package
+was produced by 1.0.1. After handling the kit's known issues, 2,485 Sysmon process starts
+remain (884 distinct):
+- 215 self-tagged records dropped;
+- 112 untagged children of the kit dropped;
+- 2,479 ETW duplicates removed.
+
+The recording carries no integrity level, so it serves Variant A only. Details are in
+`DATASHEET.md`; counts are in `results/officer_vm_manifest.json`.
+
+**The new test (E6).** The recording becomes test **E6**: false positives per host-hour on
+the agent's own event stream. Gate G2 was extended to cover E6 with the same budget,
+**before these runs**. Two runs:
+- **v2:** the lab-trained model; E6 is the whole recording.
+- **v3:** the first half of the recording (by time) in training, with at most 50 rows per
+  image; E6 is the second half, 2.15 h.
+
+| | v2 (lab-trained) | v3 (+ agent benign in training) |
+|---|---|---|
+| E6 FP/h, LightGBM A, alert / high | **163 / 77** | 0 / 0 |
+| E6 FP/h, logistic regression, alert | 234 | 0.5 |
+| E6 FP/h, heuristic / rules | 68 / 9.8 | 52 / 7.0 |
+| E2 recall @ ≤1 FP/h, LightGBM A (rules) | 0.59 (0.29) | **0.08** (0.29) |
+| E3 recall @ alert, LightGBM A | 0.62 | 0.00 |
+| E4 recall on the Cerber infection, A | 0.56 | 0.00 |
+
+**Reading.** Trained on lab data, the model flags this developer workstation's routine
+automation as malicious: PowerShell `Add-Type` compiling with `csc → cvtres`, and
+`powershell -NoProfile` started by tooling. Once that activity is in training, holding
+≤ 1 FP/h needs a threshold so high that the model detects almost nothing (8% of unseen
+techniques, versus 29% for the rules).
+
+**Conclusion.** Using process-start fields alone, benign developer activity and attacker
+tradecraft overlap too much to meet the false-positive budget with useful recall. **The
+verdict stays "do not integrate"**, now on agent-native evidence:
+- v3 passes G2 only by detecting nothing;
+- G1 fails against the rules (−21 pp, CI [−31, −10]).
+
+**Directions this points to:**
+1. Context the agent already has, but a single process start lacks: the provenance graph's
+   lineage, image writers and network activity.
+2. Benign data from several machines and kinds of user, so a developer's workstation isn't
+   the only "normal".
+3. Per-environment baselines (the rarity detector) rather than one global classifier.
+
+**Caveats.**
+- One VM, one user (a developer with heavy automation), 4.5 h.
+- The user's own evening testing is in the data and is treated as benign. If any attack
+  simulation was run, those rows are mislabelled.
+- Probe and heartbeat cadence (kit issue 4) was not used.

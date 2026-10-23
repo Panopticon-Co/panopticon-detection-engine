@@ -21,6 +21,7 @@ yet.
 | [OTRF Security-Datasets](https://github.com/OTRF/Security-Datasets) | MIT, © Open Threat Research Forge | commit `d9d40ef1` | 114 atomic + 11 compound recordings + metadata; 180 MB | atomic: leave-source-out test (E3); compound: training |
 | [Splunk BOTSv1](https://github.com/splunk/botsv1) | CC0-1.0 | file SHA-256 in pins | 1 Sysmon JSON export; 145 MB | realistic environment: servers train; desktop `we8105desk` is the held-out host (E4) |
 | [WinLOLBIN-GT](https://zenodo.org/records/20533434) | **CC BY 4.0**: Jeremiah, D., Rafiq, H. et al., DOI 10.5281/zenodo.20533434 | Zenodo record | 4 sample CSVs (500 rows each); 1.3 MB | out-of-distribution test only (E5); **never trained on** |
+| Officer agent recording (own VM) | collected by the project owner; not redistributed | package SHA-256 `d50df8d2…5b879d` | 6 NDJSON segments (each checksum-verified); 46 MB | agent-native benign: E6 test (v2), first half also trains (v3) |
 | [DARPA OpTC](https://github.com/FiveDirections/OpTC-data) | public domain (Distribution A) | — | **not obtained**: Google Drive quota (training-plan D3) | planned large benign false-positive test |
 
 ## Composition
@@ -64,6 +65,35 @@ occurred with both labels were dropped.
 - **WinLOLBIN-GT is generated, not captured.** Command lines are copied from LOLBAS/libLOL
   documentation, with placeholders such as `ExampleTask` and `$path`. `raw_event` is
   synthetic, and the benign rows are templated, with implausible parent→child pairs.
+
+## Officer agent recording (`tools/train/pdtrain/officer_vm.py`)
+
+**What it is.** 4.5 h of ordinary use of the project owner's Windows 11 VM (arm64),
+22–23 Oct 2026. It was collected with the Officer collection kit 1.0.0 (the package says
+1.0.1, the packaging version), in the `officer-endpoint-record-1.0` envelope format.
+
+**Kit issues handled:**
+1. **Self-tagged records** (215), with the out-of-schema `self` field, are stripped and
+   dropped.
+2. **Untagged children of self processes** (112). These are processes whose parent PID is a
+   self PID (including the supervisor and agent PIDs from `heartbeat.json`), started while
+   that parent was alive. They are dropped recursively.
+3. **Sysmon/ETW duplicate starts** (2,479). They are matched on PID + image name within 2 s,
+   and the Sysmon record is kept. ETW starts without a pair are dropped too, because the
+   model scores Sysmon-sourced starts only.
+4. **Probe cadence** isn't used for gap detection.
+5. **Both kit versions are recorded.**
+6. **`git.exe` dominates.** Training uses at most 50 rows per image; test streams keep
+   everything.
+
+**Result:** 2,485 Sysmon process starts (884 distinct), all labelled benign as the
+user-recorded ordinary use.
+
+**Known limitations:**
+- 756 starts have no parent name: Sysmon couldn't resolve the parents of long-running
+  services. The live agent behaves the same way.
+- The data includes the user's own evening testing.
+- There's no integrity level in this recording.
 
 ## Labelling (`tools/train/pdtrain/label.py`, labeller v3)
 

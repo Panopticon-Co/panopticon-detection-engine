@@ -4,9 +4,10 @@
     "attack_data",
     "otrf",
     "otrf_compound",
-    "botsv1"
+    "botsv1",
+    "officer_vm"
   ],
-  "rows_in": 73669,
+  "rows_in": 76154,
   "by_rule": {
     "attack_data benign/background": 2157,
     "attack_data benign/infrastructure": 46890,
@@ -17,6 +18,7 @@
     "attack_data malicious/attack_recording": 19857,
     "botsv1 benign/environment": 686,
     "botsv1 malicious/documented_scenario": 81,
+    "officer_vm benign/agent_recording": 2485,
     "otrf benign/background": 536,
     "otrf benign/infrastructure": 73,
     "otrf excluded/browser": 7,
@@ -30,11 +32,11 @@
     "otrf_compound excluded/interactive": 22,
     "otrf_compound malicious/attack_recording": 332
   },
-  "duplicates_removed": 65572,
+  "duplicates_removed": 67173,
   "label_conflict_keys_removed": 13,
-  "rows_out": 6500,
+  "rows_out": 7384,
   "rows_out_by_label": {
-    "0": 893,
+    "0": 1777,
     "1": 5607
   },
   "rows_out_by_source_label": {
@@ -42,11 +44,12 @@
     "attack_data 1": 5332,
     "botsv1 0": 262,
     "botsv1 1": 46,
+    "officer_vm 0": 884,
     "otrf 0": 183,
     "otrf 1": 113,
     "otrf_compound 0": 180,
     "otrf_compound 1": 116
   },
   "malicious_groups": 98,
-  "sha256": "532119ec7d5dcef4882b1d6a22e97709e320db6fe4e547afcbdf93114580c5c3"
+  "sha256": "61f86bd6709c39a2dd8b2c656ad7180e3af03a93ac31e9119468e49f141554cf"
 }
