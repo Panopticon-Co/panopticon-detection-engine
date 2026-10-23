@@ -1,0 +1,50 @@
+{
+ "model_id": "panopticon-process-start-lgbm",
+ "featurizer_version": 3,
+ "params": {
+  "objective": "binary",
+  "learning_rate": 0.05,
+  "feature_fraction": 0.8,
+  "bagging_fraction": 0.8,
+  "bagging_freq": 1,
+  "lambda_l2": 1.0,
+  "verbose": -1,
+  "deterministic": true,
+  "num_threads": 1,
+  "seed": 20261023,
+  "zero_as_missing": false,
+  "force_col_wise": true,
+  "num_leaves": 31,
+  "min_data_in_leaf": 50
+ },
+ "engine_git_sha": "e136dc7d266c30f31dcbbaaa267500cb0fdd7bd7+dirty",
+ "versions": {
+  "lightgbm": "4.7.0",
+  "scikit_learn": "1.9.1",
+  "numpy": "2.5.4",
+  "python": "3.12.12"
+ },
+ "pins_sha256": "6d65ac3b0ed4c2fe5e758aec326110d11c81d3dd7034ae65a8f3ea0887c01cab",
+ "labels_sha256": "990ff864d0733280bc8d7aa26a4411f2796b9c475956576485aeda9ddf91b994",
+ "pool_rows": 5548,
+ "files": {
+  "A": {
+   "model.json": "ad12b1630ea28d39b6ef9ecab8f2fd33e33848eebd7ef368c02a39a5e3218107",
+   "features.json": "39116ca49cb0d2ace3fbb31ab4342da0dd66a4c322ff0f6dc3db401618bb9a09",
+   "calibration.json": "f366c234165da65ba2980cb9ff50edb2fe9d39ee72255f37f5c6f328bf8ee219",
+   "thresholds.json": "5eed5378817ff40ff9d5abfd4b896791d0febdc098420adb2588b59989713aa4",
+   "golden.json": "78f5323d529ce5e7fb7f2992937fd9a747a1fd08f626c9cd48cf6fad73eed8d8",
+   "golden_max_abs_error": 5.329070518200751e-15,
+   "rounds": 161
+  },
+  "B": {
+   "model.json": "bcd8887b5743c0e12cb3dd32f6a041679d3f36d570ed2d7640dcef4659f1a55e",
+   "features.json": "6afde9233caa5c1ea68edc799e686eb1753c2a7ee05c5ad6eac592568c2878ed",
+   "calibration.json": "be5f17d034502a7f561e417c5513a5040125a8d637b020661e563793add210a8",
+   "thresholds.json": "0c69a87c22027c43ade824778a96a94f3ff3b33d505994c7c480a4c80a0615c5",
+   "golden.json": "186b1dd32fcc5f8102bef8502ab3e7273b05abea160f721af1dc6371cae0caf4",
+   "golden_max_abs_error": 4.440892098500626e-15,
+   "rounds": 153
+  }
+ }
+}

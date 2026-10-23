@@ -2,17 +2,35 @@
 
 Structure follows Mitchell et al., *Model Cards for Model Reporting*.
 
-> **Status: NOT approved for integration (run v5).**
-> - Trained with OpTC and agent-recorded benign data, it stays within ≤ 1 false positive per
->   host-hour on unseen OpTC hosts (0.65/h) and on your agent recording (0.93/h), and catches
->   57% of unseen techniques (rules: 29%).
-> - It fails G1: no significant gain over logistic regression, and it loses to a keyword
->   heuristic.
-> - It fails G2 on the BOTSv1 desktop (1.86/h).
-> - It carries environment fingerprints.
->
-> See [EVAL_REPORT.md](EVAL_REPORT.md). The v5 bundle is under `data/models/v5/`, with its
-> manifest in [`results/bundle_manifest_v5.json`](results/bundle_manifest_v5.json).
+> **Status: NOT approved for integration (run v7). The global process-start classifier line
+> ends here (pre-registered decision rule).**
+> - Evaluated leave-one-environment-out over six environments, the v7 bundle keeps every unseen
+>   environment at or below 1.16 false positives per host-hour, but detects 10% of attack rows,
+>   20 pp fewer than the engine's rules.
+> - v6's recipe, measured the same way, raises 6–31 false positives per host-hour in four of
+>   six unseen environments.
+> - See [EVAL_REPORT.md](EVAL_REPORT.md) (Verdict v7, Addendum 4). Bundle: `data/models/v7/`,
+>   manifest in [`results/bundle_manifest_v7.json`](results/bundle_manifest_v7.json).
+
+## v7 bundle (current)
+
+- **Recipe `v7_lgb_no_stats`:** LightGBM, `num_leaves` 15, `max_depth` 4, `min_data_in_leaf`
+  50, learning rate 0.05, 170 trees, monotone (+1) on the 43 indicators and the obfuscation,
+  masquerade and double-extension flags; shape statistics dropped.
+- **Featurizer v4** (`panopticon_detection.ml.featurizer`, stdlib-only, 540 features): roles
+  and identity for 137 named Windows binaries (everything else `other`), role pairs, documented
+  command-line indicators, path class and masquerade flags. No user or integrity features.
+- **Training data:** all six environments (Splunk attack_data, OTRF, BOTSv1, the agent VM,
+  OpTC, ATLASv2), 2,971 units after caps; environments weighted equally; parent-less copies at
+  30%.
+- **Thresholds:** `alert` and `high` are the strictest of the per-environment thresholds that
+  keep each training environment within 1 and 0.1 false positives per observed host-hour.
+- **Served by** `panopticon_detection.ml.scorer.load_model` (tree or linear), golden error 0.0;
+  a rebuild is bit-identical.
+- **Out of scope, unchanged:** not a malware classifier, not "zero-day detection", no
+  autonomous response, Sysmon-sourced starts only.
+
+## v1 bundle (historical)
 
 ## Model details
 

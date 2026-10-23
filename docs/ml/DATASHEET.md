@@ -138,6 +138,26 @@ benign-period, 5,098 attack-day background and 87 REAPr-matched attack starts; 2
 recall is also reported over unique featurized rows. Windows 7 and 2022-era software differ
 from the agent's Windows 10/11 targets.
 
+## Environments (v7, `tools/train/pdtrain/loeo.py`)
+
+From v7, rows are grouped into the environment they were recorded in, and each environment is
+held out entirely in turn. Units are featurized rows de-duplicated *within* an environment.
+
+| Environment | Sources | Observed host-hours | Benign / attack units |
+|---|---|---|---|
+| attack_range | Splunk attack_data | 194.2 | 270 / 5,328 |
+| mordor | OTRF atomic + compound | 5.6 | 460 / 246 |
+| botsv1 | BOTSv1 | 8.7 | 322 / 51 |
+| officer_vm | the project owner's VM | 4.5 | 884 / 0 |
+| optc | DARPA OpTC (7 ranges) | 818.6 | 5,229 / 0 |
+| atlasv2 | ATLASv2 | 512.6 | 690 / 19 |
+
+27 featurizer keys carry both labels somewhere (for example a user opening Word, which REAPr
+counts as part of an attack on ATLASv2); they are never trained on. ATLASv2's 87 attack starts
+are 32 distinct rows within ATLASv2 (19 after cross-source de-duplication), as REAPr's
+redundancy warning predicts. A sealed agent recording from another machine (`officer_sealed`)
+is reserved for a final test and never labelled or trained on.
+
 ## Labelling (`tools/train/pdtrain/label.py`, labeller v4)
 
 **v4 (run v6)** adds 12 OS housekeeping binaries to the background list

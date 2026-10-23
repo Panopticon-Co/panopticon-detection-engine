@@ -1,14 +1,43 @@
 # Evaluation report: process-start classifier
 
-Date: 2026-10-23. **Final configuration: run v5** (engine commit `a9fc512`, featurizer v2, labeller v3,
-LightGBM 4.7.0), raw numbers in [`results/v5_final.json`](results/v5_final.json), reproduced
-bit-for-bit by rebuilds. Earlier runs are kept for transparency: run 1/2 (lab data only,
-[`results/run1_before_fixes.json`](results/run1_before_fixes.json), [`results/final.json`](results/final.json)),
-v2/v3 (agent-recorded benign), v4 (OpTC with an artefact). The history is told in order below.
-Plan: [`training-plan.md`](training-plan.md) (deviations at its end). Model: [`MODEL_CARD.md`](MODEL_CARD.md).
-Data: [`DATASHEET.md`](DATASHEET.md).
+Date: 2026-10-23. **Current configuration: run v7** (leave-one-environment-out protocol,
+featurizer v4, labeller v4, LightGBM 4.7.0, selected recipe `v7_lgb_no_stats`), raw numbers in
+[`results/v7.json`](results/v7.json), the v6 recipe under the same protocol in
+[`results/v7_loeo_baseline_v6_recipe.json`](results/v7_loeo_baseline_v6_recipe.json). Earlier runs
+are kept for transparency, told in order below: run 1/2 (lab data only), v2/v3 (agent-recorded
+benign), v4/v5 (OpTC), v6 (more OpTC). Plan: [`training-plan.md`](training-plan.md) (deviations
+at its end). Model: [`MODEL_CARD.md`](MODEL_CARD.md). Data: [`DATASHEET.md`](DATASHEET.md).
 
-## Verdict (v5): do not integrate yet
+## Verdict (v7): do not integrate; the global process-start classifier stops here
+
+Under the pre-registered decision rule, if v7 fails the false-positive criterion even with the
+redesigned features, iterating this classifier on these data ends. It did:
+
+- **Honest measurement changed the picture of v6.** Holding each environment out entirely, v6's
+  recipe raises **6–31 false positives per host-hour** in four of six unseen environments
+  (your VM 31, OTRF 22.5, OpTC 18, BOTSv1 6.1). OpTC's 0.65/h in v5/v6 held only because
+  its own hosts were in training.
+- **When every environment must stay within budget, the model detects almost nothing.** The
+  best v7 candidate keeps all unseen environments at or below 1.16 FP/h, but finds 10% of
+  attack rows (macro over environments), **20 pp fewer than the engine's rules** (CI
+  [−25, −12]).
+- **Why:** each small real environment contains a few benign starts that look exactly like
+  tradecraft (BOTSv1's authorised Nessus scan running `netsh advfirewall show` and
+  `schtasks /query`, your VM's PowerShell compiling with `csc`, OTRF lab administration), and
+  process-start fields cannot tell them apart from attacks. In the low-false-positive region
+  the ranking is near chance in two of four unseen environments (partial AUC 0.52 BOTSv1,
+  0.56 OTRF; 0.69 ATLASv2, 0.83 Attack Range; 0.5 = chance).
+- **ATLASv2 in training** removed every false positive on your VM (7.1 → 0 FP/h), but added
+  some on BOTSv1 (0.12 → 1.16) and did not change recall (+1.4 pp, CI [−0.6, +3.9]).
+
+**What remains true:** the model ranks attacks above most benign activity (ROC-AUC 0.72–0.86
+in unseen environments), training is reproducible bit for bit, and the rules raise far more
+false positives than any v7 candidate in five of six environments (6.8–79 per host-hour; 0.58
+on ATLASv2). **Next steps are different
+projects, not v8:** per-site burn-in thresholds or baselines, provenance context (lineage,
+image writers), or using the score only as evidence inside rule-opened incidents.
+
+## Verdict (v5, historical): do not integrate yet
 
 Realistic benign data changed the picture. The final model was trained on lab attacks plus:
 - DARPA OpTC benign activity from 25 hosts;
@@ -398,3 +427,104 @@ They are rare and attacker-shaped, and they are genuinely benign.
    by construction.
 4. **Variant B is worse than in v5:** E2 0.99, but E4 46 false positives per hour. Missing
    integrity is now an even stronger "benign" signal. It is not evaluated further.
+
+## Addendum 4 (2026-10-23): run v7, leave-one-environment-out
+
+**What changed** (training-plan D20, D21), all committed before the first real-data run (`91f7551`):
+- **ATLASv2 became training data** before any model scored it (project-owner decision).
+- **Protocol:** six environments; each is held out entirely in turn. Rows are de-duplicated
+  *within* an environment, keys seen with both labels are never trained on (27), and attack rows
+  sharing a command template share a group (55 groups merged).
+- **Thresholds:** each training environment must meet the budget on its own observed hours
+  (minimax), replacing the pooled budget that let OpTC set the operating point.
+- **Training:** environments weighted equally; a parent-less copy of each row at the agent's
+  observed rate (30%), so a missing parent cannot mean "benign".
+- **Featurizer v4:** closed vocabulary (137 named binaries, everything else `other`), roles and
+  role pairs, 43 documented command-line indicators (monotone: they can only raise a score);
+  no hashed n-grams, no user category, no integrity level.
+
+| Environment | Observed host-hours | Benign / attack units |
+|---|---|---|
+| attack_range (Splunk attack_data) | 194.2 | 270 / 5,328 |
+| mordor (OTRF atomic + compound) | 5.6 | 460 / 246 |
+| botsv1 | 8.7 | 322 / 51 |
+| officer_vm (your VM) | 4.5 | 884 / 0 |
+| optc | 818.6 | 5,229 / 0 |
+| atlasv2 | 512.6 | 690 / 19 |
+
+**The v6 recipe under this protocol** (featurizer v3, pooled budget, no ATLASv2):
+
+| Held out | FP/h at alert [95% CI] | Recall on distinct attack rows [CI] |
+|---|---|---|
+| attack_range | 0.00 [0.00, 0.02] | 0.009 [0.007, 0.012] |
+| mordor | 22.5 [18.8, 26.8] | 0.34 [0.28, 0.40] |
+| botsv1 | 6.13 [4.59, 8.01] | 0.65 [0.50, 0.78] |
+| officer_vm | 31.0 [26.1, 36.6] | — |
+| optc | 18.0 [17.7, 18.3] | — |
+| atlasv2 | 2.00 [1.88, 2.13] | 0.74 [0.49, 0.91] |
+
+Macro recall 0.43, +14 pp over the rules (CI [+9, +24]). **Its recall is bought with false
+positives in environments it has not seen.**
+
+**The v7 candidates** (selection rule fixed in advance: no candidate met S1, so the lowest
+worst-environment false-positive rate wins):
+
+| Candidate | Worst FP/h at alert (environment) | Macro recall | vs rules [CI] | vs heuristic [CI] |
+|---|---|---|---|---|
+| `v7_lgb` | 1.56 (officer_vm) | 0.013 | −0.28 [−0.31, −0.22] | −0.02 [−0.07, +0.02] |
+| `v7_lr` | 7.15 (officer_vm) | 0.075 | −0.22 [−0.26, −0.16] | +0.04 [+0.00, +0.08] |
+| `v7_tokens` | 1.22 (optc) | 0.034 | −0.26 [−0.31, −0.18] | +0.00 [−0.06, +0.07] |
+| **`v7_lgb_no_stats` (selected)** | **1.16 (botsv1)** | **0.099** | **−0.20 [−0.25, −0.12]** | **+0.07 [+0.03, +0.10]** |
+
+**Selected recipe, per unseen environment:**
+
+| Held out | FP/h alert [CI] | Recall [CI] | ROC-AUC | Partial AUC (FPR ≤ 1%) | Rules: FP/h, recall |
+|---|---|---|---|---|---|
+| attack_range | 0.00 [0.00, 0.02] | 0.000 [0.000, 0.001] | 0.86 | 0.83 | 13.3, 0.38 |
+| mordor | 0.00 [0.00, 0.66] | 0.000 [0.000, 0.015] | 0.72 | 0.56 | 31.0, 0.20 |
+| botsv1 | 1.16 [0.55, 2.13] | 0.078 [0.022, 0.189] | 0.86 | 0.52 | 6.8, 0.33 |
+| officer_vm | 0.00 [0.00, 0.82] | — | — | — | 9.8, — |
+| optc | 0.00 [0.00, 0.005] | — | — | — | 79.3, — |
+| atlasv2 | 0.00 [0.00, 0.007] | 0.32 [0.13, 0.57] | 0.85 | 0.69 | 0.58, 0.26 |
+
+**Who sets the threshold.** In every fold the binding environment is one of the three small
+ones (BOTSv1 8.7 h, OTRF 5.6 h, your VM 4.5 h). Their budgets allow 4–9 false positives, and
+each has a few attacker-shaped benign starts: BOTSv1's authorised Nessus scan (`cmd → netsh
+advfirewall show`, `schtasks /query /XML`), your VM's PowerShell compiling with `csc`, OTRF lab
+administration. Those outrank nearly every attack.
+
+**ATLASv2 in training** (same recipe, ATLASv2 removed from training):
+
+| Held out | FP/h at alert with / without ATLASv2 | Recall with / without |
+|---|---|---|
+| officer_vm | **0.00 / 7.15** (32 events only without) | — |
+| botsv1 | 1.16 / 0.12 (9 events only with) | 0.078 / 0.020 |
+| attack_range, mordor, optc | 0.00 / 0.00 | ~0 / ~0 |
+| macro recall difference | | +0.014 [−0.006, +0.039] |
+
+**Criteria** (S1–S6, fixed in `pdtrain/loeo.py` before the run):
+
+| | Result | Evidence |
+|---|---|---|
+| S1 | **FAIL** | BOTSv1 1.16 FP/h at alert; all others ≤ 0.01 |
+| S2 | **FAIL** | −20 pp vs rules (CI [−25, −12]); +7 pp vs heuristic |
+| S3 | pass, **uninformative** | framework hold-out 0.063 vs technique hold-out 0.054: both near zero |
+| S4 | **FAIL** | benign environments still identifiable (OvR AUC 0.84); no top-30 feature is single-environment |
+| S5 | pass, **uninformative** | recall before mutation is already 0.000–0.012 |
+| S6 | PASS | `model.json`, thresholds and golden vectors bit-identical on a rebuild; pure-Python scorer error 0.0 |
+
+**Caveats.**
+- Three environments have under 10 observed hours: one event moves their FP/h by 0.1–0.2,
+  and the thresholds they force are noisy.
+- Minimax over environments is the strictest reasonable policy. Per-site burn-in thresholds
+  (learnt on a site's first days) were not evaluated.
+- BOTSv1's "malicious" rows include lineage descendants (`iexplore.exe`, `notepad.exe` under
+  the infection) that no process-start model can recognise; the human label audit is still
+  not done.
+- The sealed recording was not recorded or used: no candidate qualified for it.
+
+**Known issue found during the run.** Profile names containing a space escape the path
+normalisation (`c:\users\first last\…` keeps `last`), so in v1–v3 the user's surname reached
+hashed tokens. v4's base features have no path tokens; the token variant only admits tokens seen
+in three or more environments. Fixing `normalize_text` changes de-duplication keys and needs a
+featurizer bump.
