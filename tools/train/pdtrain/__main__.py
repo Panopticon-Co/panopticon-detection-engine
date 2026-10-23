@@ -41,12 +41,44 @@ def main(argv: Optional[List[str]] = None) -> int:
     exp.add_argument("--optc-train", action="store_true",
                      help="train on the OpTC host range that is not held out")
 
+    lo = sub.add_parser("loeo", help="leave-one-environment-out evaluation of named recipes (pdtrain.loeo)")
+    lo.add_argument("--recipes", nargs="+", default=["v6_recipe"])
+    lo.add_argument("--out", default="baseline")
+    v7 = sub.add_parser("v7", help="v7: LOEO candidates, selection, criteria S1-S6, export the bundle")
+    v7.add_argument("--version", default="v7")
+    v7.add_argument("--final-only", action="store_true", help="only train and export --recipe (rebuild check)")
+    v7.add_argument("--recipe", help="recipe for --final-only")
+
     sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
     sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels")
     fin = sub.add_parser("final-test", help="score the untouched ATLASv2 test once with a frozen bundle")
     fin.add_argument("--version", required=True)
 
     args = parser.parse_args(argv)
+    if args.step in ("loeo", "v7"):
+        import json
+
+        from pdtrain import loeo
+
+        out_dir = DATA / "experiment"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if args.step == "loeo":
+            unknown = sorted(set(args.recipes) - set(loeo.RECIPES))
+            if unknown:
+                parser.error(f"unknown recipes {unknown}; known: {sorted(loeo.RECIPES)}")
+            result = loeo.run_loeo(DATA, REPO, args.recipes)
+            path = out_dir / f"loeo_{args.out}.json"
+        elif args.final_only:
+            if args.recipe not in loeo.RECIPES:
+                parser.error(f"--final-only needs --recipe, one of {sorted(loeo.RECIPES)}")
+            result = loeo.final_only(DATA, REPO, args.version, args.recipe)
+            path = out_dir / f"final_only_{args.version}.json"
+        else:
+            result = loeo.run_v7(DATA, REPO, args.version)
+            path = out_dir / f"results_{args.version}.json"
+        path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {path}")
+        return 0
     if args.step == "comiset":
         import json
         import tempfile
