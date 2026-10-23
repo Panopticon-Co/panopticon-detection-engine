@@ -22,7 +22,7 @@ yet.
 | [Splunk BOTSv1](https://github.com/splunk/botsv1) | CC0-1.0 | file SHA-256 in pins | 1 Sysmon JSON export; 145 MB | realistic environment: servers train; desktop `we8105desk` is the held-out host (E4) |
 | [WinLOLBIN-GT](https://zenodo.org/records/20533434) | **CC BY 4.0**: Jeremiah, D., Rafiq, H. et al., DOI 10.5281/zenodo.20533434 | Zenodo record | 4 sample CSVs (500 rows each); 1.3 MB | out-of-distribution test only (E5); **never trained on** |
 | Officer agent recording (own VM) | collected by the project owner; not redistributed | package SHA-256 `d50df8d2…5b879d` | 6 NDJSON segments (each checksum-verified); 46 MB | agent-native benign: E6 test (v2), first half also trains (v3) |
-| [DARPA OpTC](https://github.com/FiveDirections/OpTC-data) | public domain (Distribution A) | — | **not obtained**: Google Drive quota (training-plan D3) | planned large benign false-positive test |
+| [DARPA OpTC](https://github.com/FiveDirections/OpTC-data) | public domain (Distribution A) | file SHA-256s in pins | 2 eCAR files, benign period 19 Sep 2019, host ranges AIA-51-75 and AIA-201-225; 3.2 GB (downloaded by the project owner after the anonymous quota blocked automation) | AIA-51-75 trains (v5); AIA-201-225 is held-out test E7 (25 hosts) |
 
 ## Composition
 
@@ -65,6 +65,21 @@ occurred with both labels were dropped.
 - **WinLOLBIN-GT is generated, not captured.** Command lines are copied from LOLBAS/libLOL
   documentation, with placeholders such as `ExampleTask` and `$path`. `raw_event` is
   synthetic, and the benign rows are templated, with implausible parent→child pairs.
+
+## OpTC (`tools/train/pdtrain/optc.py`)
+
+**What it is.** eCAR `PROCESS`/`CREATE` records from the benign collection period. They come
+from enterprise-like Windows 10 hosts in DARPA's evaluation network, where user activity was
+emulated by scripts, often `python.exe`. That shows up as a fingerprint, `python.exe →
+cmd.exe` (see EVAL_REPORT).
+
+**Processing:**
+- 61,818 process creates, 50 hosts;
+- kernel device paths are mapped to `C:\`;
+- **17,106 rows (28%) that name the image without a path are excluded**. The agent never
+  emits that shape, and it acted as a label leak;
+- 44,712 rows kept, 1,585 distinct after deduplication;
+- no integrity level, and no hash.
 
 ## Officer agent recording (`tools/train/pdtrain/officer_vm.py`)
 

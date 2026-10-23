@@ -1,0 +1,2492 @@
+{
+  "seed": 20261023,
+  "gates": {
+    "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap 95% CI of the difference > 0); PR-AUC beats LR",
+    "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3; same budget on E7 (OpTC held-out host range, planned in the training plan) -- before run v4",
+    "G3": "E3 recall at alert within 15 percentage points of E2",
+    "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
+    "G5": "calibrated ECE <= 0.10 (OOF)",
+    "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer"
+  },
+  "budgets_fp_per_host_hour": {
+    "alert": 1.0,
+    "high": 0.1
+  },
+  "data": {
+    "pool": {
+      "rows": 5205,
+      "malicious": 4514,
+      "benign": 691,
+      "groups": 159,
+      "observed_host_hours": 327.45768,
+      "benign_raw_events": 76100
+    },
+    "E3_otrf": {
+      "rows": 296,
+      "malicious": 113
+    },
+    "E4_holdout_host": {
+      "rows": 262,
+      "malicious": 26,
+      "raw_events": 588,
+      "observed_host_hours": 4.300461
+    },
+    "E5_winlolbin": {
+      "rows": 1000,
+      "malicious": 500
+    },
+    "officer_vm": {
+      "split_cutoff_utc": "2026-10-22T22:59:59.005Z",
+      "first_half_in_training": true,
+      "training_rows_after_image_cap": 306
+    },
+    "optc": {
+      "first_range_in_training": true,
+      "held_out_range": "AIA-201-225",
+      "training_rows_after_image_cap": 233
+    },
+    "train_test_duplicate_keys": 0,
+    "pool_lab_infrastructure_rows_excluded": 378,
+    "run": 2
+  },
+  "tuning": {
+    "grid": [
+      {
+        "params": {
+          "num_leaves": 15,
+          "min_data_in_leaf": 20
+        },
+        "oof_pr_auc": 0.971667,
+        "best_iterations": [
+          85,
+          202,
+          117,
+          58,
+          319
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 15,
+          "min_data_in_leaf": 50
+        },
+        "oof_pr_auc": 0.971144,
+        "best_iterations": [
+          88,
+          257,
+          125,
+          64,
+          328
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 31,
+          "min_data_in_leaf": 20
+        },
+        "oof_pr_auc": 0.96758,
+        "best_iterations": [
+          87,
+          247,
+          70,
+          53,
+          189
+        ]
+      },
+      {
+        "params": {
+          "num_leaves": 31,
+          "min_data_in_leaf": 50
+        },
+        "oof_pr_auc": 0.97378,
+        "best_iterations": [
+          83,
+          279,
+          118,
+          52,
+          320
+        ]
+      }
+    ],
+    "chosen": {
+      "num_leaves": 31,
+      "min_data_in_leaf": 50
+    },
+    "note": "selected on the same OOF folds used for E2 (4 configs): slightly optimistic"
+  },
+  "E1_random_split_ceiling": {
+    "n": 5205,
+    "positives": 4514,
+    "groups": 159,
+    "metrics": {
+      "pr_auc": {
+        "value": 0.997774,
+        "ci95": [
+          0.994057,
+          0.999797
+        ]
+      },
+      "roc_auc": {
+        "value": 0.987895,
+        "ci95": [
+          0.980218,
+          0.996688
+        ]
+      },
+      "recall@alert": {
+        "value": 0.870403,
+        "ci95": [
+          0.833294,
+          0.901482
+        ]
+      },
+      "precision@alert": {
+        "value": 0.995944,
+        "ci95": [
+          0.989077,
+          0.99977
+        ]
+      },
+      "recall@high": {
+        "value": 0.618742,
+        "ci95": [
+          0.554003,
+          0.673326
+        ]
+      },
+      "precision@high": {
+        "value": 0.9975,
+        "ci95": [
+          0.993298,
+          1.0
+        ]
+      }
+    }
+  },
+  "E2_group_oof": {
+    "model_A": {
+      "n": 5205,
+      "positives": 4514,
+      "groups": 159,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.97378,
+          "ci95": [
+            0.925632,
+            0.99903
+          ]
+        },
+        "roc_auc": {
+          "value": 0.879999,
+          "ci95": [
+            0.816061,
+            0.985752
+          ]
+        },
+        "recall@alert": {
+          "value": 0.56646,
+          "ci95": [
+            0.427241,
+            0.689835
+          ]
+        },
+        "precision@alert": {
+          "value": 0.971136,
+          "ci95": [
+            0.91426,
+            1.0
+          ]
+        },
+        "recall@high": {
+          "value": 0.299513,
+          "ci95": [
+            0.20316,
+            0.38942
+          ]
+        },
+        "precision@high": {
+          "value": 0.982558,
+          "ci95": [
+            0.94698,
+            1.0
+          ]
+        }
+      },
+      "thresholds_raw": {
+        "alert": 4.42261,
+        "high": 6.412308
+      },
+      "ece_oof": 0.020938,
+      "brier_oof": 0.064112,
+      "calibration": {
+        "a": 0.674667,
+        "b": -0.126919
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.763457,
+        "high": 0.076346
+      }
+    },
+    "model_B": {
+      "n": 5205,
+      "positives": 4514,
+      "groups": 159,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.993238,
+          "ci95": [
+            0.978451,
+            0.999681
+          ]
+        },
+        "roc_auc": {
+          "value": 0.977313,
+          "ci95": [
+            0.914873,
+            0.997449
+          ]
+        },
+        "recall@alert": {
+          "value": 0.858662,
+          "ci95": [
+            0.779903,
+            0.913997
+          ]
+        },
+        "precision@alert": {
+          "value": 0.994101,
+          "ci95": [
+            0.983789,
+            0.99959
+          ]
+        },
+        "recall@high": {
+          "value": 0.432211,
+          "ci95": [
+            0.307155,
+            0.550367
+          ]
+        },
+        "precision@high": {
+          "value": 0.993381,
+          "ci95": [
+            0.976358,
+            1.0
+          ]
+        }
+      },
+      "thresholds_raw": {
+        "alert": 4.067233,
+        "high": 6.728496
+      },
+      "ece_oof": 0.00676,
+      "brier_oof": 0.017003,
+      "calibration": {
+        "a": 1.150214,
+        "b": -0.909988
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.693219,
+        "high": 0.042754
+      }
+    },
+    "logistic_regression": {
+      "n": 5205,
+      "positives": 4514,
+      "groups": 159,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.959546,
+          "ci95": [
+            0.880096,
+            0.999661
+          ]
+        },
+        "roc_auc": {
+          "value": 0.86172,
+          "ci95": [
+            0.789522,
+            0.994735
+          ]
+        },
+        "recall@alert": {
+          "value": 0.534559,
+          "ci95": [
+            0.461228,
+            0.613634
+          ]
+        },
+        "precision@alert": {
+          "value": 0.971026,
+          "ci95": [
+            0.910707,
+            1.0
+          ]
+        },
+        "recall@high": {
+          "value": 0.048737,
+          "ci95": [
+            0.020856,
+            0.088278
+          ]
+        },
+        "precision@high": {
+          "value": 0.948276,
+          "ci95": [
+            0.801612,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.995548,
+        "high": 0.076346
+      }
+    },
+    "heuristic": {
+      "n": 5205,
+      "positives": 4514,
+      "groups": 159,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.937486,
+          "ci95": [
+            0.856568,
+            0.979948
+          ]
+        },
+        "roc_auc": {
+          "value": 0.755082,
+          "ci95": [
+            0.695523,
+            0.827128
+          ]
+        },
+        "recall@alert": {
+          "value": 0.700487,
+          "ci95": [
+            0.596357,
+            0.770994
+          ]
+        },
+        "precision@alert": {
+          "value": 0.95155,
+          "ci95": [
+            0.887323,
+            0.986037
+          ]
+        },
+        "recall@high": {
+          "value": 0.123172,
+          "ci95": [
+            0.072683,
+            0.18613
+          ]
+        },
+        "precision@high": {
+          "value": 0.991087,
+          "ci95": [
+            0.962263,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.96501,
+        "high": 0.067184
+      }
+    },
+    "rules_only": {
+      "n": 5205,
+      "positives": 4514,
+      "groups": 159,
+      "metrics": {
+        "pr_auc": {
+          "value": 0.892633,
+          "ci95": [
+            0.788306,
+            0.959711
+          ]
+        },
+        "roc_auc": {
+          "value": 0.595622,
+          "ci95": [
+            0.544291,
+            0.632869
+          ]
+        },
+        "recall@alert": {
+          "value": 0.292202,
+          "ci95": [
+            0.223575,
+            0.36932
+          ]
+        },
+        "precision@alert": {
+          "value": 0.944166,
+          "ci95": [
+            0.884976,
+            0.976986
+          ]
+        },
+        "recall@high": {
+          "value": 0.023261,
+          "ci95": [
+            0.01229,
+            0.038116
+          ]
+        },
+        "precision@high": {
+          "value": 0.963303,
+          "ci95": [
+            0.886356,
+            1.0
+          ]
+        }
+      },
+      "fp_per_host_hour_oof": {
+        "alert": 0.284006,
+        "high": 0.012215
+      },
+      "any_rule_fired": {
+        "recall": 0.298848,
+        "fp_per_host_hour": 0.284006
+      }
+    },
+    "paired": {
+      "A_vs_lr_pr_auc": {
+        "diff": 0.014235,
+        "ci95": [
+          -0.007442,
+          0.05225
+        ]
+      },
+      "A_vs_lr_recall_alert": {
+        "diff": 0.031901,
+        "ci95": [
+          -0.070432,
+          0.12739
+        ]
+      },
+      "A_vs_rules_recall_alert": {
+        "diff": 0.274258,
+        "ci95": [
+          0.099281,
+          0.435964
+        ]
+      },
+      "A_vs_heuristic_recall_alert": {
+        "diff": -0.134027,
+        "ci95": [
+          -0.249886,
+          -0.030762
+        ]
+      },
+      "B_vs_A_pr_auc": {
+        "diff": 0.019457,
+        "ci95": [
+          0.000226,
+          0.06148
+        ]
+      }
+    },
+    "per_group_recall_A_alert": {
+      "T:T1003": {
+        "detected": 162,
+        "total": 182
+      },
+      "T:T1016": {
+        "detected": 4,
+        "total": 34
+      },
+      "T:T1018": {
+        "detected": 7,
+        "total": 300
+      },
+      "T:T1020": {
+        "detected": 2,
+        "total": 4
+      },
+      "T:T1021": {
+        "detected": 0,
+        "total": 155
+      },
+      "T:T1027": {
+        "detected": 35,
+        "total": 53
+      },
+      "T:T1033": {
+        "detected": 54,
+        "total": 63
+      },
+      "T:T1036": {
+        "detected": 47,
+        "total": 85
+      },
+      "T:T1037": {
+        "detected": 7,
+        "total": 14
+      },
+      "T:T1040": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1046": {
+        "detected": 0,
+        "total": 16
+      },
+      "T:T1047": {
+        "detected": 42,
+        "total": 60
+      },
+      "T:T1048": {
+        "detected": 20,
+        "total": 300
+      },
+      "T:T1049": {
+        "detected": 4,
+        "total": 5
+      },
+      "T:T1053": {
+        "detected": 91,
+        "total": 122
+      },
+      "T:T1055": {
+        "detected": 26,
+        "total": 58
+      },
+      "T:T1057": {
+        "detected": 5,
+        "total": 7
+      },
+      "T:T1059": {
+        "detected": 246,
+        "total": 300
+      },
+      "T:T1068": {
+        "detected": 97,
+        "total": 130
+      },
+      "T:T1069": {
+        "detected": 41,
+        "total": 41
+      },
+      "T:T1070": {
+        "detected": 104,
+        "total": 123
+      },
+      "T:T1071": {
+        "detected": 0,
+        "total": 3
+      },
+      "T:T1078": {
+        "detected": 18,
+        "total": 18
+      },
+      "T:T1082": {
+        "detected": 34,
+        "total": 37
+      },
+      "T:T1087": {
+        "detected": 24,
+        "total": 33
+      },
+      "T:T1090": {
+        "detected": 0,
+        "total": 34
+      },
+      "T:T1105": {
+        "detected": 34,
+        "total": 47
+      },
+      "T:T1112": {
+        "detected": 134,
+        "total": 141
+      },
+      "T:T1125": {
+        "detected": 2,
+        "total": 2
+      },
+      "T:T1127": {
+        "detected": 48,
+        "total": 78
+      },
+      "T:T1135": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1136": {
+        "detected": 39,
+        "total": 44
+      },
+      "T:T1140": {
+        "detected": 11,
+        "total": 16
+      },
+      "T:T1185": {
+        "detected": 3,
+        "total": 6
+      },
+      "T:T1189": {
+        "detected": 5,
+        "total": 5
+      },
+      "T:T1190": {
+        "detected": 2,
+        "total": 14
+      },
+      "T:T1195": {
+        "detected": 3,
+        "total": 13
+      },
+      "T:T1197": {
+        "detected": 14,
+        "total": 14
+      },
+      "T:T1200": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1201": {
+        "detected": 10,
+        "total": 12
+      },
+      "T:T1202": {
+        "detected": 4,
+        "total": 7
+      },
+      "T:T1204": {
+        "detected": 15,
+        "total": 67
+      },
+      "T:T1210": {
+        "detected": 1,
+        "total": 1
+      },
+      "T:T1216": {
+        "detected": 7,
+        "total": 8
+      },
+      "T:T1218": {
+        "detected": 223,
+        "total": 297
+      },
+      "T:T1219": {
+        "detected": 16,
+        "total": 28
+      },
+      "T:T1220": {
+        "detected": 8,
+        "total": 10
+      },
+      "T:T1222": {
+        "detected": 12,
+        "total": 52
+      },
+      "T:T1482": {
+        "detected": 3,
+        "total": 5
+      },
+      "T:T1485": {
+        "detected": 6,
+        "total": 7
+      },
+      "T:T1486": {
+        "detected": 6,
+        "total": 9
+      },
+      "T:T1490": {
+        "detected": 10,
+        "total": 50
+      },
+      "T:T1497": {
+        "detected": 8,
+        "total": 9
+      },
+      "T:T1505": {
+        "detected": 10,
+        "total": 56
+      },
+      "T:T1526": {
+        "detected": 1,
+        "total": 1
+      },
+      "T:T1531": {
+        "detected": 40,
+        "total": 40
+      },
+      "T:T1542": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1543": {
+        "detected": 55,
+        "total": 61
+      },
+      "T:T1546": {
+        "detected": 148,
+        "total": 163
+      },
+      "T:T1547": {
+        "detected": 27,
+        "total": 124
+      },
+      "T:T1548": {
+        "detected": 78,
+        "total": 93
+      },
+      "T:T1550": {
+        "detected": 7,
+        "total": 16
+      },
+      "T:T1552": {
+        "detected": 5,
+        "total": 6
+      },
+      "T:T1553": {
+        "detected": 35,
+        "total": 35
+      },
+      "T:T1555": {
+        "detected": 6,
+        "total": 7
+      },
+      "T:T1556": {
+        "detected": 4,
+        "total": 4
+      },
+      "T:T1558": {
+        "detected": 14,
+        "total": 23
+      },
+      "T:T1560": {
+        "detected": 6,
+        "total": 15
+      },
+      "T:T1561": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1562": {
+        "detected": 192,
+        "total": 278
+      },
+      "T:T1563": {
+        "detected": 0,
+        "total": 4
+      },
+      "T:T1564": {
+        "detected": 0,
+        "total": 8
+      },
+      "T:T1566": {
+        "detected": 49,
+        "total": 90
+      },
+      "T:T1567": {
+        "detected": 0,
+        "total": 2
+      },
+      "T:T1569": {
+        "detected": 43,
+        "total": 50
+      },
+      "T:T1572": {
+        "detected": 0,
+        "total": 19
+      },
+      "T:T1574": {
+        "detected": 39,
+        "total": 48
+      },
+      "T:T1587": {
+        "detected": 2,
+        "total": 2
+      },
+      "T:T1588": {
+        "detected": 35,
+        "total": 40
+      },
+      "T:T1590": {
+        "detected": 14,
+        "total": 15
+      },
+      "T:T1592": {
+        "detected": 2,
+        "total": 2
+      },
+      "T:T1595": {
+        "detected": 20,
+        "total": 29
+      },
+      "T:T1608": {
+        "detected": 0,
+        "total": 1
+      },
+      "T:T1649": {
+        "detected": 12,
+        "total": 21
+      },
+      "T:T1685": {
+        "detected": 0,
+        "total": 1
+      },
+      "botsv1:po1s0n1vy_webshell": {
+        "detected": 12,
+        "total": 20
+      },
+      "otrf_compound:LSASS_campaign_01": {
+        "detected": 0,
+        "total": 10
+      },
+      "otrf_compound:LSASS_campaign_02": {
+        "detected": 1,
+        "total": 4
+      },
+      "otrf_compound:LSASS_campaign_03": {
+        "detected": 0,
+        "total": 4
+      },
+      "otrf_compound:LSASS_campaign_04": {
+        "detected": 0,
+        "total": 7
+      },
+      "otrf_compound:LSASS_campaign_05": {
+        "detected": 1,
+        "total": 2
+      },
+      "otrf_compound:LSASS_campaign_06": {
+        "detected": 1,
+        "total": 2
+      },
+      "otrf_compound:LSASS_campaign_07": {
+        "detected": 0,
+        "total": 2
+      },
+      "otrf_compound:apt29": {
+        "detected": 4,
+        "total": 85
+      }
+    }
+  },
+  "tests": {
+    "E3_otrf_leave_source_out": {
+      "model_A": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.922546,
+            "ci95": [
+              0.812629,
+              0.993922
+            ]
+          },
+          "roc_auc": {
+            "value": 0.943034,
+            "ci95": [
+              0.914675,
+              0.980766
+            ]
+          },
+          "recall@alert": {
+            "value": 0.442478,
+            "ci95": [
+              0.320379,
+              0.582473
+            ]
+          },
+          "precision@alert": {
+            "value": 0.980392,
+            "ci95": [
+              0.918863,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.017699,
+            "ci95": [
+              0.0,
+              0.043755
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "model_B": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.933753,
+            "ci95": [
+              0.850943,
+              0.992229
+            ]
+          },
+          "roc_auc": {
+            "value": 0.944146,
+            "ci95": [
+              0.889858,
+              0.978433
+            ]
+          },
+          "recall@alert": {
+            "value": 0.734513,
+            "ci95": [
+              0.626166,
+              0.848494
+            ]
+          },
+          "precision@alert": {
+            "value": 0.954023,
+            "ci95": [
+              0.861095,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.247788,
+            "ci95": [
+              0.156984,
+              0.36
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "logistic_regression": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.933286,
+            "ci95": [
+              0.853276,
+              0.993204
+            ]
+          },
+          "roc_auc": {
+            "value": 0.946274,
+            "ci95": [
+              0.900368,
+              0.979238
+            ]
+          },
+          "recall@alert": {
+            "value": 0.309735,
+            "ci95": [
+              0.224277,
+              0.407694
+            ]
+          },
+          "precision@alert": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.017699,
+            "ci95": [
+              0.0,
+              0.051293
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "heuristic": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.57076,
+            "ci95": [
+              0.335819,
+              0.915109
+            ]
+          },
+          "roc_auc": {
+            "value": 0.660622,
+            "ci95": [
+              0.572107,
+              0.746435
+            ]
+          },
+          "recall@alert": {
+            "value": 0.362832,
+            "ci95": [
+              0.246266,
+              0.538487
+            ]
+          },
+          "precision@alert": {
+            "value": 0.82,
+            "ci95": [
+              0.585315,
+              0.980769
+            ]
+          },
+          "recall@high": {
+            "value": 0.079646,
+            "ci95": [
+              0.014925,
+              0.169492
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "rules_only": {
+        "n": 296,
+        "positives": 113,
+        "groups": 28,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.443396,
+            "ci95": [
+              0.19752,
+              0.883729
+            ]
+          },
+          "roc_auc": {
+            "value": 0.579936,
+            "ci95": [
+              0.532047,
+              0.658007
+            ]
+          },
+          "recall@alert": {
+            "value": 0.19469,
+            "ci95": [
+              0.10683,
+              0.320391
+            ]
+          },
+          "precision@alert": {
+            "value": 0.758621,
+            "ci95": [
+              0.428463,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.026549,
+            "ci95": [
+              0.0,
+              0.065811
+            ]
+          },
+          "precision@high": {
+            "value": 0.375,
+            "ci95": [
+              0.0,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "E5_winlolbin_ood": {
+      "model_A": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.658728,
+            "ci95": [
+              0.290196,
+              0.775783
+            ]
+          },
+          "roc_auc": {
+            "value": 0.65514,
+            "ci95": [
+              0.583847,
+              0.74929
+            ]
+          },
+          "recall@alert": {
+            "value": 0.362,
+            "ci95": [
+              0.250352,
+              0.539362
+            ]
+          },
+          "precision@alert": {
+            "value": 0.677903,
+            "ci95": [
+              0.309237,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.0,
+            "ci95": [
+              0.0,
+              0.0
+            ]
+          },
+          "precision@high": {
+            "value": null,
+            "ci95": [
+              null,
+              null
+            ]
+          }
+        }
+      },
+      "model_B": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.532547,
+            "ci95": [
+              0.178316,
+              0.663882
+            ]
+          },
+          "roc_auc": {
+            "value": 0.543876,
+            "ci95": [
+              0.487856,
+              0.616011
+            ]
+          },
+          "recall@alert": {
+            "value": 0.646,
+            "ci95": [
+              0.549514,
+              0.777786
+            ]
+          },
+          "precision@alert": {
+            "value": 0.527778,
+            "ci95": [
+              0.198868,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.052,
+            "ci95": [
+              0.019413,
+              0.109174
+            ]
+          },
+          "precision@high": {
+            "value": 0.45614,
+            "ci95": [
+              0.105769,
+              1.0
+            ]
+          }
+        }
+      },
+      "logistic_regression": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.695452,
+            "ci95": [
+              0.323028,
+              0.801577
+            ]
+          },
+          "roc_auc": {
+            "value": 0.695036,
+            "ci95": [
+              0.643579,
+              0.765613
+            ]
+          },
+          "recall@alert": {
+            "value": 0.254,
+            "ci95": [
+              0.144132,
+              0.379791
+            ]
+          },
+          "precision@alert": {
+            "value": 0.819355,
+            "ci95": [
+              0.454456,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.006,
+            "ci95": [
+              0.0,
+              0.015471
+            ]
+          },
+          "precision@high": {
+            "value": 1.0,
+            "ci95": [
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "heuristic": {
+        "n": 1000,
+        "positives": 500,
+        "groups": 45,
+        "metrics": {
+          "pr_auc": {
+            "value": 0.64068,
+            "ci95": [
+              0.319596,
+              0.74339
+            ]
+          },
+          "roc_auc": {
+            "value": 0.6714,
+            "ci95": [
+              0.608629,
+              0.780444
+            ]
+          },
+          "recall@alert": {
+            "value": 0.656,
+            "ci95": [
+              0.550856,
+              0.83338
+            ]
+          },
+          "precision@alert": {
+            "value": 0.641879,
+            "ci95": [
+              0.29248,
+              1.0
+            ]
+          },
+          "recall@high": {
+            "value": 0.16,
+            "ci95": [
+              0.087989,
+              0.276759
+            ]
+          },
+          "precision@high": {
+            "value": 0.851064,
+            "ci95": [
+              0.528023,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "E4_holdout_host_raw_stream": {
+      "observed_host_hours": 4.300461,
+      "raw_events": 588,
+      "raw_malicious": 27,
+      "model_A": {
+        "alert": {
+          "threshold": 4.42261,
+          "fp_events": 8,
+          "fp_per_host_hour": 1.860266,
+          "recall_malicious_events": 0.407407
+        },
+        "high": {
+          "threshold": 6.412308,
+          "fp_events": 3,
+          "fp_per_host_hour": 0.6976,
+          "recall_malicious_events": 0.0
+        },
+        "top_benign_scores": [
+          {
+            "score": 7.053,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 6.958,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 6.958,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 5.541,
+            "parent": "explorer.exe",
+            "image": "hkcmd.exe",
+            "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+          },
+          {
+            "score": 4.657,
+            "parent": "cmd.exe",
+            "image": "igfxem.exe",
+            "command_line": "igfxEM.exe"
+          },
+          {
+            "score": 4.582,
+            "parent": "cmd.exe",
+            "image": "igfxhk.exe",
+            "command_line": "igfxHK.exe"
+          },
+          {
+            "score": 4.536,
+            "parent": "igfxcuiservice.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+          },
+          {
+            "score": 4.461,
+            "parent": "explorer.exe",
+            "image": "igfxtray.exe",
+            "command_line": "\"C:\\Windows\\System32\\igfxtray.exe\""
+          },
+          {
+            "score": 4.331,
+            "parent": "splunk.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list replication_port --no-log"
+          },
+          {
+            "score": 4.331,
+            "parent": "splunk.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list replication_port --no-log"
+          },
+          {
+            "score": 4.317,
+            "parent": "explorer.exe",
+            "image": "igfxpers.exe",
+            "command_line": "\"C:\\Windows\\System32\\igfxpers.exe\""
+          },
+          {
+            "score": 4.287,
+            "parent": "explorer.exe",
+            "image": "rundll32.exe",
+            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+          },
+          {
+            "score": 4.141,
+            "parent": "cmd.exe",
+            "image": "igfxtray.exe",
+            "command_line": "igfxTray.exe"
+          },
+          {
+            "score": 4.105,
+            "parent": "cmd.exe",
+            "image": "attrib.exe",
+            "command_line": "attrib  +R +H +S +A *.cui"
+          },
+          {
+            "score": 4.074,
+            "parent": "splunk.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list general --no-log"
+          }
+        ]
+      },
+      "model_B": {
+        "alert": {
+          "threshold": 4.067233,
+          "fp_events": 39,
+          "fp_per_host_hour": 9.068796,
+          "recall_malicious_events": 0.962963
+        },
+        "high": {
+          "threshold": 6.728496,
+          "fp_events": 3,
+          "fp_per_host_hour": 0.6976,
+          "recall_malicious_events": 0.111111
+        },
+        "top_benign_scores": [
+          {
+            "score": 8.087,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 7.986,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 7.885,
+            "parent": "csc.exe",
+            "image": "cvtres.exe",
+            "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\BOBSMI~1.WAY\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+          },
+          {
+            "score": 6.568,
+            "parent": "igfxcuiservice.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+          },
+          {
+            "score": 6.363,
+            "parent": "explorer.exe",
+            "image": "winword.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\WINWORD.EXE\" /n /f \"D:\\Miranda_Tate_unveiled.dotm\""
+          },
+          {
+            "score": 6.154,
+            "parent": "rundll32.exe",
+            "image": "iexplore.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Internet Explorer\\iexplore.exe\" -nohome"
+          },
+          {
+            "score": 6.043,
+            "parent": "runonce.exe",
+            "image": "bcssync.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\BCSSync.exe\" /DelayServices"
+          },
+          {
+            "score": 5.938,
+            "parent": "explorer.exe",
+            "image": "onedrive.exe",
+            "command_line": "\"C:\\Users\\bob.smith\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+          },
+          {
+            "score": 5.573,
+            "parent": "explorer.exe",
+            "image": "schedhlp.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
+          },
+          {
+            "score": 5.573,
+            "parent": "explorer.exe",
+            "image": "schedhlp.exe",
+            "command_line": "\"C:\\Program Files (x86)\\Common Files\\Acronis\\Schedule2\\schedhlp.exe\""
+          },
+          {
+            "score": 5.162,
+            "parent": "explorer.exe",
+            "image": "rundll32.exe",
+            "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+          },
+          {
+            "score": 5.096,
+            "parent": "sdiagnhost.exe",
+            "image": "csc.exe",
+            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\skj1oiou.cmdline\""
+          },
+          {
+            "score": 5.096,
+            "parent": "sdiagnhost.exe",
+            "image": "csc.exe",
+            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\m7m1p90n.cmdline\""
+          },
+          {
+            "score": 5.096,
+            "parent": "sdiagnhost.exe",
+            "image": "csc.exe",
+            "command_line": "\"C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\bob.smith.WAYNECORPINC\\AppData\\Local\\Temp\\l62oeljq.cmdline\""
+          },
+          {
+            "score": 4.942,
+            "parent": "explorer.exe",
+            "image": "bootcamp.exe",
+            "command_line": "\"C:\\Program Files\\Boot Camp\\Bootcamp.exe\""
+          }
+        ]
+      },
+      "logistic_regression": {
+        "alert": {
+          "fp_events": 4,
+          "fp_per_host_hour": 0.930133,
+          "recall_malicious_events": 0.185185
+        },
+        "high": {
+          "fp_events": 1,
+          "fp_per_host_hour": 0.232533,
+          "recall_malicious_events": 0.0
+        }
+      },
+      "heuristic": {
+        "alert": {
+          "fp_events": 67,
+          "fp_per_host_hour": 15.579726,
+          "recall_malicious_events": 0.592593
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0,
+          "recall_malicious_events": 0.037037
+        }
+      },
+      "rules_only_any_fired": {
+        "fp_events": 51,
+        "fp_per_host_hour": 11.859194,
+        "recall_malicious_events": 0.333333
+      }
+    },
+    "E6_agent_benign_raw_stream": {
+      "observed_host_hours": 2.147687,
+      "raw_events": 1304,
+      "hosts": 1,
+      "model_A": {
+        "alert": {
+          "fp_events": 2,
+          "fp_per_host_hour": 0.931234
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        },
+        "top_scores": [
+          {
+            "score": 5.857,
+            "parent": "powershell.exe",
+            "image": "w32tm.exe",
+            "command_line": "\"C:\\WINDOWS\\system32\\w32tm.exe\" /query /status"
+          },
+          {
+            "score": 5.365,
+            "parent": "phfzgdbv.exe",
+            "image": "phfzgdbv.exe",
+            "command_line": "phfzgdbv.exe RELAUNCHED "
+          },
+          {
+            "score": 4.422,
+            "parent": "jre-8u511-windows-x64.exe",
+            "image": "jre-8u511-windows-x64.exe",
+            "command_line": "\"C:\\Users\\ARYANS~1\\AppData\\Local\\Temp\\jds16150218.tmp\\jre-8u511-windows-x64.exe\""
+          },
+          {
+            "score": 4.245,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Create /tn \"Microsoft\\Office\\Office Feature Updates Logon\" /XML \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\Micros"
+          },
+          {
+            "score": 4.243,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Create /tn \"Microsoft\\Office\\Office Feature Updates\" /XML \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\Microsoft_Of"
+          },
+          {
+            "score": 4.224,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Create /tn \"Microsoft\\Office\\Office Actions Server\" /XML \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\Microsoft_Off"
+          },
+          {
+            "score": 4.204,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Create /tn \"Microsoft\\Office\\Office Startup Maintenance\" /XML \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\Microsof"
+          },
+          {
+            "score": 4.121,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Create /tn \"Microsoft\\Office\\Office Performance Monitor\" /XML \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\Microsof"
+          },
+          {
+            "score": 4.018,
+            "parent": "integrator.exe",
+            "image": "wevtutil.exe",
+            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\msoutilstat.etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Off"
+          },
+          {
+            "score": 3.825,
+            "parent": "integrator.exe",
+            "image": "wevtutil.exe",
+            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+          },
+          {
+            "score": 3.825,
+            "parent": "integrator.exe",
+            "image": "wevtutil.exe",
+            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+          },
+          {
+            "score": 3.788,
+            "parent": "integrator.exe",
+            "image": "wevtutil.exe",
+            "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\AirSpace.Etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\VFS\\Pr"
+          },
+          {
+            "score": 3.548,
+            "parent": "msedge.exe",
+            "image": "jre-8u511-windows-x64.exe",
+            "command_line": "\"C:\\Users\\Aryan Sokhi\\Downloads\\jre-8u511-windows-x64.exe\" "
+          },
+          {
+            "score": 3.529,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Delete /F /tn \"Microsoft\\Office\\Office Feature Updates Logon\""
+          },
+          {
+            "score": 3.451,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Delete /F /tn \"Microsoft\\Office\\Office Startup Maintenance\""
+          },
+          {
+            "score": 3.45,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Delete /F /tn \"Microsoft\\Office\\Office Feature Updates\""
+          },
+          {
+            "score": 3.37,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Delete /F /tn \"Microsoft\\Office\\Office Performance Monitor\""
+          },
+          {
+            "score": 3.336,
+            "parent": "integrator.exe",
+            "image": "schtasks.exe",
+            "command_line": "schtasks.exe /Delete /F /tn \"Microsoft\\Office\\Office Actions Server\""
+          },
+          {
+            "score": 3.027,
+            "parent": "msiexec.exe",
+            "image": "ngen.exe",
+            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Applications.AddInAdapter.v10.0, Version=10.0.0.0, Culture=neutra"
+          },
+          {
+            "score": 3.027,
+            "parent": "msiexec.exe",
+            "image": "ngen.exe",
+            "command_line": "C:\\WINDOWS\\Microsoft.NET\\Framework64\\v4.0.30319\\ngen.exe install \"Microsoft.VisualStudio.Tools.Office.ContainerControl, Version=10.0.0.0, Culture=neutral, Publi"
+          }
+        ]
+      },
+      "logistic_regression": {
+        "alert": {
+          "fp_events": 4,
+          "fp_per_host_hour": 1.862469
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        }
+      },
+      "heuristic": {
+        "alert": {
+          "fp_events": 134,
+          "fp_per_host_hour": 62.392698
+        },
+        "high": {
+          "fp_events": 11,
+          "fp_per_host_hour": 5.121789
+        }
+      },
+      "rules_only_any_fired": {
+        "fp_events": 15,
+        "fp_per_host_hour": 6.984257
+      }
+    },
+    "E7_optc_benign_raw_stream": {
+      "observed_host_hours": 100.015315,
+      "raw_events": 20158,
+      "hosts": 25,
+      "model_A": {
+        "alert": {
+          "fp_events": 65,
+          "fp_per_host_hour": 0.6499
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        },
+        "top_scores": [
+          {
+            "score": 5.148,
+            "parent": "powershell.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\Windows\\system32\\winrm.cmd\" quickconfig -quiet -transport:https\""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          },
+          {
+            "score": 4.834,
+            "parent": "wscript.exe",
+            "image": "cmd.exe",
+            "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\ncr\\outlook\\login_keys_64bit.bat\" \""
+          }
+        ]
+      },
+      "logistic_regression": {
+        "alert": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        }
+      },
+      "heuristic": {
+        "alert": {
+          "fp_events": 686,
+          "fp_per_host_hour": 6.85895
+        },
+        "high": {
+          "fp_events": 0,
+          "fp_per_host_hour": 0.0
+        }
+      },
+      "rules_only_any_fired": {
+        "fp_events": 8009,
+        "fp_per_host_hour": 80.077736
+      }
+    }
+  },
+  "robustness_E3_variant_A": {
+    "n": 113,
+    "baseline_recall_alert": 0.442478,
+    "caret": {
+      "recall_alert": 0.132743,
+      "mean_raw_score_change": -0.947684
+    },
+    "case": {
+      "recall_alert": 0.442478,
+      "mean_raw_score_change": 0.0
+    },
+    "envvar": {
+      "recall_alert": 0.451327,
+      "mean_raw_score_change": -0.0096
+    },
+    "whitespace": {
+      "recall_alert": 0.442478,
+      "mean_raw_score_change": -0.002335
+    },
+    "argswap": {
+      "recall_alert": 0.433628,
+      "mean_raw_score_change": -0.011867
+    },
+    "renamed_binary": {
+      "recall_alert": 0.59292,
+      "mean_raw_score_change": 0.64698
+    }
+  },
+  "ablations_oof_pr_auc": {
+    "full_A": 0.97378,
+    "full_B": 0.993238,
+    "no_cmdline_ngrams": 0.971751,
+    "names_only": 0.934731
+  },
+  "leakage": {
+    "source_predictability_auc": {
+      "attack_data": 0.834663,
+      "botsv1": 0.403735,
+      "officer_vm": 0.075015,
+      "optc": 0.85836,
+      "otrf_compound": 0.618518
+    },
+    "top_features_A": [
+      {
+        "feature": "path_class=program_files",
+        "gain": 3415.02,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "user_category=user",
+        "gain": 2660.36,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#3011",
+        "gain": 2429.61,
+        "tokens": [
+          "program_files_dir",
+          "--ignore-submodules dirty",
+          "--service",
+          "echo check"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name_length",
+        "gain": 2114.7,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#50",
+        "gain": 1381.31,
+        "tokens": [
+          "os",
+          "py",
+          "wa",
+          "t<"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "user_category=system",
+        "gain": 1052.51,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_entropy",
+        "gain": 921.61,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_length",
+        "gain": 911.39,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent_missing",
+        "gain": 858.84,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "pair#281",
+        "gain": 775.55,
+        "tokens": [
+          "python.exe->cmd.exe"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_special_char_ratio",
+        "gain": 753.33,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#4",
+        "gain": 681.66,
+        "tokens": [
+          "ho",
+          "ta",
+          "pi",
+          "gl"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "path_depth",
+        "gain": 626.11,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#210",
+        "gain": 582.46,
+        "tokens": [
+          "l.",
+          "^r"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_token_count",
+        "gain": 574.2,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#5",
+        "gain": 401.51,
+        "tokens": [
+          "t.",
+          "on",
+          ".c",
+          "n_"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#232",
+        "gain": 396.71,
+        "tokens": [
+          "s.",
+          "cl",
+          "a3"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#121",
+        "gain": 364.06,
+        "tokens": [
+          "e$",
+          "u_",
+          "nh",
+          "c6"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#172",
+        "gain": 350.85,
+        "tokens": [
+          "xe",
+          "or",
+          "ce"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#115",
+        "gain": 339.36,
+        "tokens": [
+          "n.",
+          "tc",
+          "7."
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#15",
+        "gain": 316.59,
+        "tokens": [
+          "we",
+          "xp",
+          "rt"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#97",
+        "gain": 309.99,
+        "tokens": [
+          "st",
+          "ol",
+          "no",
+          "du"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_quote_count",
+        "gain": 296.43,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_has_ip",
+        "gain": 289.58,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2462",
+        "gain": 257.8,
+        "tokens": [
+          "users",
+          "office",
+          "dev",
+          "fltmc.exe unload"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#223",
+        "gain": 248.88,
+        "tokens": [
+          "ho",
+          "to",
+          "pn",
+          "n6"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#237",
+        "gain": 229.05,
+        "tokens": [
+          "th",
+          "(1"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#28",
+        "gain": 226.56,
+        "tokens": [
+          "ll",
+          "\u00aec"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "path#780",
+        "gain": 218.77,
+        "tokens": [
+          "framework64",
+          "rdrcef.exe"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2360",
+        "gain": 212.9,
+        "tokens": [
+          "microsoft.net framework64",
+          "install <guid>",
+          "psexec.exe -force",
+          "reg-patches raccine-reg-patch-uninstall.reg"
+        ],
+        "harness_token": false
+      }
+    ],
+    "top_features_B": [
+      {
+        "feature": "integrity=missing",
+        "gain": 17514.11,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "integrity=high",
+        "gain": 3990.12,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "integrity=system",
+        "gain": 2322.6,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#70",
+        "gain": 1116.88,
+        "tokens": [
+          "ex",
+          "^s",
+          "_2"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "integrity=medium",
+        "gain": 915.23,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name_length",
+        "gain": 532.93,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#13",
+        "gain": 461.2,
+        "tokens": [
+          "ch",
+          "^t",
+          "hh",
+          "1)"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_special_char_ratio",
+        "gain": 450.37,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_quote_count",
+        "gain": 435.37,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_length",
+        "gain": 394.28,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_entropy",
+        "gain": 355.48,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#223",
+        "gain": 237.62,
+        "tokens": [
+          "ho",
+          "to",
+          "pn",
+          "n6"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#1345",
+        "gain": 227.21,
+        "tokens": [
+          "cmd c",
+          "localmachine root",
+          "bloodhound <hex>",
+          "<hex> updates"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#172",
+        "gain": 183.38,
+        "tokens": [
+          "xe",
+          "or",
+          "ce"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#210",
+        "gain": 176.46,
+        "tokens": [
+          "l.",
+          "^r"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#97",
+        "gain": 145.71,
+        "tokens": [
+          "st",
+          "ol",
+          "no",
+          "du"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd#2462",
+        "gain": 141.84,
+        "tokens": [
+          "users",
+          "office",
+          "dev",
+          "fltmc.exe unload"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "cmd_token_count",
+        "gain": 132.9,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#5",
+        "gain": 132.19,
+        "tokens": [
+          "t.",
+          "on",
+          ".c",
+          "n_"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#69",
+        "gain": 124.07,
+        "tokens": [
+          "ts",
+          "u.",
+          "(1",
+          "cg"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#129",
+        "gain": 106.71,
+        "tokens": [
+          "en",
+          "og"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "path_class=system",
+        "gain": 103.57,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "path_depth",
+        "gain": 97.41,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "name#157",
+        "gain": 87.71,
+        "tokens": [
+          "^s",
+          "^x",
+          "5e",
+          "e0"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#28",
+        "gain": 84.99,
+        "tokens": [
+          "ll",
+          "\u00aec"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#94",
+        "gain": 80.47,
+        "tokens": [
+          "vs"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "user_category=user",
+        "gain": 78.98,
+        "tokens": [],
+        "harness_token": false
+      },
+      {
+        "feature": "parent#146",
+        "gain": 77.04,
+        "tokens": [
+          "sv",
+          "dg",
+          "^d",
+          "di"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#120",
+        "gain": 76.7,
+        "tokens": [
+          "r.",
+          "^w",
+          "jq"
+        ],
+        "harness_token": false
+      },
+      {
+        "feature": "name#249",
+        "gain": 76.13,
+        "tokens": [
+          "ta",
+          ">_",
+          "39"
+        ],
+        "harness_token": false
+      }
+    ],
+    "train_test_duplicate_keys": 0
+  },
+  "export": {
+    "model_id": "panopticon-process-start-lgbm",
+    "featurizer_version": 2,
+    "params": {
+      "objective": "binary",
+      "learning_rate": 0.05,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "bagging_freq": 1,
+      "lambda_l2": 1.0,
+      "verbose": -1,
+      "deterministic": true,
+      "num_threads": 1,
+      "seed": 20261023,
+      "zero_as_missing": false,
+      "force_col_wise": true,
+      "num_leaves": 31,
+      "min_data_in_leaf": 50
+    },
+    "engine_git_sha": "a9fc51252c5b0aa06d1f2a682da89a62cceebf2f",
+    "versions": {
+      "lightgbm": "4.7.0",
+      "scikit_learn": "1.9.1",
+      "numpy": "2.5.4",
+      "python": "3.12.12"
+    },
+    "pins_sha256": "0d14c8b7778a286589f088a8a5f57e4eb1ae02576cdcf2e519b5b404a60ae78e",
+    "labels_sha256": "5da82214cd7d9c771a385ae46ba503aa3369525cdd70723c3f222359138c4563",
+    "pool_rows": 5205,
+    "files": {
+      "A": {
+        "model.json": "114a2b363d9a461b941b29f34aed12f981f2a668a2dd74cf8c29a471b9615698",
+        "features.json": "59f32516dfcaba19e62da1397ae5f0f5c31327344dad99931bc7e0fa12519600",
+        "calibration.json": "27f6d7ed51564cd71bfef8a9ae19a191f6238f8734079236f5bce5df6c3ac3bd",
+        "thresholds.json": "4f5ca552a20868cd953402000646716983179ee724ee04719ccdd330c4716fd8",
+        "golden.json": "049bfd2f434e581c293b9baaea612b13c97c6842708c0eeeb2a21ed9a412a297",
+        "golden_max_abs_error": 0.0,
+        "rounds": 118
+      },
+      "B": {
+        "model.json": "c89a9485f60f446aaea29883efb161c9fe60cb2f9be3632840b3d461ce820d95",
+        "features.json": "30bf9792645df57395556707f174c7691bafa5994836cba8006b0919edf03197",
+        "calibration.json": "e10c90d0e7d85fced767be91a769d3a7f59dc11174c4d28f8f4e165013a444ae",
+        "thresholds.json": "3c1effd225b9055783067c4a01ff9eb9ee79255cf8ff2dade491ad7c6de45e8d",
+        "golden.json": "2faf973c8660b763f77d8038a522fc1cc96eca1a7044dea6d61ffd5e51fe6f90",
+        "golden_max_abs_error": 0.0,
+        "rounds": 134
+      }
+    }
+  }
+}

@@ -2,11 +2,17 @@
 
 Structure follows Mitchell et al., *Model Cards for Model Reporting*.
 
-> **Status: NOT approved for integration.** Two of six pre-registered gates fail
-> ([EVAL_REPORT.md](EVAL_REPORT.md)). On benign data recorded with the Officer agent itself,
-> the lab-trained model raises 163 false positives per host-hour. Training on that data
-> pushes recall on unseen techniques down to 8%, below the rules (see the report's addendum). The bundle exists so the evaluation can be reproduced
-> and repeated once better benign data is available.
+> **Status: NOT approved for integration (run v5).**
+> - Trained with OpTC and agent-recorded benign data, it stays within ≤ 1 false positive per
+>   host-hour on unseen OpTC hosts (0.65/h) and on your agent recording (0.93/h), and catches
+>   57% of unseen techniques (rules: 29%).
+> - It fails G1: no significant gain over logistic regression, and it loses to a keyword
+>   heuristic.
+> - It fails G2 on the BOTSv1 desktop (1.86/h).
+> - It carries environment fingerprints.
+>
+> See [EVAL_REPORT.md](EVAL_REPORT.md). The v5 bundle is under `data/models/v5/`, with its
+> manifest in [`results/bundle_manifest_v5.json`](results/bundle_manifest_v5.json).
 
 ## Model details
 

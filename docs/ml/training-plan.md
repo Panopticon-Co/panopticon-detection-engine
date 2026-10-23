@@ -252,7 +252,7 @@ Every change made after a result was seen is listed here and in
 |---|---|---|---|
 | D1 | BOTSv1 as the main realistic benign source | It holds only 767 process starts (3 hosts, 2 days, both days contain attacks) | measured on download |
 | D2 | OpTC optional | Promoted to required for Variant A's false-positive test (user decision); two 25-host ranges from 19 Sep 2019 approved | D1 |
-| D3 | OpTC downloaded | **Not used**: Google Drive answers "Quota exceeded" to anonymous full downloads (range requests work; splitting a download to get round the quota was not done). The eCAR reader (`pdtrain/optc.py`) is built and tested and waits for a manual download | access control |
+| D3 | OpTC downloaded | Initially **not used**: Google Drive answers "Quota exceeded" to anonymous full downloads (range requests work; splitting a download to get round the quota was not done). The eCAR reader (`pdtrain/optc.py`) is built and tested and waits for a manual download | access control |
 | D4 | Leave-one-technique-out | 5-fold group cross-validation in which each technique (group) is unseen when scored; per-technique recall reported | 94-138 groups; one model per technique was not needed to get unseen-technique scores |
 | D5 | Label audit: 200 rows per class per source | 100 rows reviewed by the assistant per iteration (3 iterations, labeller v1 -> v3); a 1,191-row sample is exported to `data/labelled/audit_sample.csv` for a human reviewer | time; stated as not done |
 | D6 | Harness-token scrub before featurizing (§4) | Omitted in run 1 by mistake; the run-1 leakage probe found `splunkuniversalforwarder` as the top feature. Scrub implemented for run 2 | implementation gap |
@@ -261,3 +261,7 @@ Every change made after a result was seen is listed here and in
 | D9 | Rarity baseline | Cut (first item on the cut list after OpTC) | time |
 | D10 | WinLOLBIN-GT OOD test | Only the 4 x 500-row samples were used, not the 15 GB release | approved scope |
 | D11 | — | 466 OTRF process starts (31 NXLog-collected recordings) carry no ProcessId and are rejected by the existing adapter | data defect, documented |
+| D12 | — | OpTC rows naming the image without a path (28%) excluded from training and E7 (run v5) | v4 leakage probe: `path_class=unknown` among the top features |
+| D13 | Untouched test sets | E4, E6 and E7 were each evaluated in several runs (v2–v5); they are no longer pristine. A fresh test needs new data | iteration |
+| D14 | — | The project owner's agent recording (4.5 h) added: the first half trains, the second half is test E6 | new data |
+| D3 (update) | — | The project owner downloaded the two OpTC files; they are pinned and used from v4 | quota lifted manually |

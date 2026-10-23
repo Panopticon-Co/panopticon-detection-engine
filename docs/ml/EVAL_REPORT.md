@@ -1,42 +1,61 @@
-# Evaluation report: process-start classifier (bundle v1)
+# Evaluation report: process-start classifier
 
-Date: 2026-10-23. Engine commit `d03c4c1`, featurizer v2, labeller v3, LightGBM 4.7.0.
-Raw numbers: [`results/final.json`](results/final.json) (run 2, reproduced bit-for-bit by a rebuild)
-and [`results/run1_before_fixes.json`](results/run1_before_fixes.json).
-Plan: [`training-plan.md`](training-plan.md) (deviations listed at its end).
-Model: [`MODEL_CARD.md`](MODEL_CARD.md). Data: [`DATASHEET.md`](DATASHEET.md).
+Date: 2026-10-23. **Final configuration: run v5** (engine commit `a9fc512`, featurizer v2, labeller v3,
+LightGBM 4.7.0), raw numbers in [`results/v5_final.json`](results/v5_final.json), reproduced
+bit-for-bit by rebuilds. Earlier runs are kept for transparency: run 1/2 (lab data only,
+[`results/run1_before_fixes.json`](results/run1_before_fixes.json), [`results/final.json`](results/final.json)),
+v2/v3 (agent-recorded benign), v4 (OpTC with an artefact). The history is told in order below.
+Plan: [`training-plan.md`](training-plan.md) (deviations at its end). Model: [`MODEL_CARD.md`](MODEL_CARD.md).
+Data: [`DATASHEET.md`](DATASHEET.md).
 
-## Verdict: do not integrate
+## Verdict (v5): do not integrate yet
 
-Two of the six pre-registered gates fail.
+Realistic benign data changed the picture. The final model was trained on lab attacks plus:
+- DARPA OpTC benign activity from 25 hosts;
+- the first half of your own Officer-agent recording.
 
-1. **G1 fails.** On techniques it never saw, the LightGBM model catches fewer attacks than a
-   plain logistic regression on the same features, at the same false-positive budget. The
-   difference is −32 percentage points, 95% CI [−44, −20].
-2. **G2 fails.** On the one real held-out desktop it raises 3.0 false positives per host-hour
-   at the alert threshold, 95% CI [1.6, 5.2]. The budget is ≤ 1.
+**Where it now meets the budget:**
+- **≤ 1 false positive per host-hour on two of three held-out benign streams:**
+  - 25 unseen OpTC hosts: **0.65/h** [0.50, 0.83] over 100 h;
+  - the second half of your agent recording: **0.93/h** [0.11, 3.36] over 2.1 h.
+- **At the `high` threshold, both streams give 0 false positives.**
+- **Detection:** it catches **57%** [43, 69] of techniques it never saw in training. That's
+  +27 pp over the engine's rules (CI [+10, +44]).
+- **The rules, for comparison:** 80 false positives per host-hour on the same OpTC hosts,
+  and 7 per host-hour on your VM.
 
-**The binding constraint is benign data, not the model.** After de-duplication there are
-152 distinct benign process starts to train on, and 4.3 host-hours of realistic benign
-activity to test on. Every learned model here, and the rules, fails the false-positive
-budget on the real desktop.
+**Three pre-registered conditions still fail:**
+1. **G1.** It does not significantly beat logistic regression (+3 pp, CI [−7, +13]). The
+   LOLBin keyword heuristic catches more unseen techniques at the same budget (−13 pp,
+   CI [−25, −3]).
+2. **G2.** On the held-out BOTSv1 desktop it raises **1.86/h** [0.80, 3.67] at `alert` and
+   0.70/h at `high`, against budgets of 1 and 0.1.
+3. **G4 (in spirit).** The training source is still predictable from the features (AUC
+   0.83–0.86), and environment fingerprints rank among the top features:
+   - OpTC's emulated users drive everything through `python.exe → cmd.exe`;
+   - your VM runs `git … --ignore-submodules`.
 
-**What would change the verdict:** thousands of benign host-hours (OpTC, blocked by a Google
-Drive quota; or recordings from the agent on your own VM), followed by a re-run of this
-exact pipeline with the same gates.
+   "python → cmd is benign" is not a lesson to deploy.
 
-**What the model does show:**
-- it beats the engine's rules on the same input by +30 percentage points of recall at a
-  matched false-positive budget (CI [+18, +43]);
-- it holds up on a different lab's attacks (E3).
+**Robustness:** caret insertion cuts recall from 0.44 to 0.13 on another lab's attacks.
 
-So a supervised process-start signal is worth pursuing. This model, trained on this data,
-is not ready to raise alerts. Running it in shadow mode as a research signal would be
-acceptable under the plan; alerting would not.
+**Variant B (integrity level) looks much better: 86% on unseen techniques. It is not
+trustworthy.** OpTC and your recording carry no integrity level, and they are almost all of
+the benign data. So "integrity missing" means "benign", which is exactly the missingness
+leak the plan warned about. On BOTSv1, which does have integrity level, Variant B raises
+9 false positives per hour. To judge integrity level fairly, it has to be recorded on the
+benign side too: the agent schema change, then new recordings.
 
-**Variant B (adding integrity level) brings no measurable gain.** PR-AUC changes by +0.0004,
-CI [−0.0002, +0.0018]. On this evidence the agent change to emit integrity level is not
-justified for the model.
+**What would change the verdict:**
+- benign recordings from more machines and users, taken with the agent;
+- a fresh, untouched test set. **The held-out sets above have been looked at across several
+  runs**, so they are no longer pristine;
+- removing environment fingerprints. Options include per-environment baselines, or dropping
+  parent→child pair features that encode a lab's automation;
+- deobfuscating carets before featurizing.
+
+**Recommended use now:** a shadow-mode research signal at the `high` threshold, if anything.
+No alerts, and no response actions.
 
 ## What was evaluated
 
@@ -254,3 +273,53 @@ verdict stays "do not integrate"**, now on agent-native evidence:
 - The user's own evening testing is in the data and is treated as benign. If any attack
   simulation was run, those rows are mislabelled.
 - Probe and heartbeat cadence (kit issue 4) was not used.
+
+
+## Addendum 2 (2026-10-23): OpTC benign data (runs v4, v5)
+
+**What the data is.** The two approved OpTC files (19 Sep 2019 benign period, host ranges
+`AIA-51-75` and `AIA-201-225`) were downloaded by the user, then verified and pinned.
+
+**How it's used:**
+- the process creates of `AIA-51-75` join training (at most 50 rows per image);
+- `AIA-201-225` (25 hosts, 100 observed host-hours) is held-out test **E7**;
+- gate G2 covers E7, set before the run.
+
+**v4 had an artefact.** 28% of OpTC process creates give a bare image name (`PING.EXE`), a
+shape the Officer agent never produces (it always reports a full path). Every one of those
+rows is benign, so `path_class=unknown` became a top feature: the model learned "no path
+means benign". v4's numbers are kept but superseded.
+
+**v5 (final)** excludes those rows from training and from E7 (training-plan D12).
+
+| v5, Variant A | Result |
+|---|---|
+| E2 recall @ ≤1 FP/h (unseen techniques) | 0.566 [0.427, 0.690]; LR 0.535, heuristic 0.700, rules 0.292 |
+| E2 paired vs LR / rules / heuristic | +0.032 [−0.07, +0.13] / **+0.274 [+0.10, +0.44]** / −0.134 [−0.25, −0.03] |
+| E1 ceiling (random split) | 0.870 |
+| E3 recall @ alert (OTRF) | 0.442 [0.320, 0.582], precision 0.98; LR 0.310, rules 0.195 |
+| E4 FP/h alert / high (BOTSv1 desktop, 4.3 h) | 1.86 / 0.70; recall on Cerber 0.41 / 0 |
+| E6 FP/h alert / high (agent VM, held-out half, 2.1 h) | 0.93 / 0.00; heuristic 62, rules 7.0 |
+| E7 FP/h alert / high (OpTC, 25 hosts, 100 h) | **0.65 / 0.00**; LR 0 / 0, heuristic 6.9, rules **80.1** |
+| E5 ROC-AUC (WinLOLBIN-GT, synthetic) | 0.655 |
+| Robustness (E3, recall @ alert 0.442) | caret 0.133, env-var 0.451, case/whitespace/argswap unchanged, renamed binary 0.593 |
+| Calibration (OOF) | ECE 0.021, Brier 0.064 |
+| Per-technique | 19 of 94 groups with zero recall; 34 at ≥ 0.8 |
+| Leakage | 0 harness tokens, 0 shared keys; source predictability AUC: attack_data 0.83, OpTC 0.86 |
+| Reproducibility | `model.json` A `114a2b36…`, B `c89a9485…` bit-identical across rebuilds; golden error 0.0 |
+
+**Gates for v5:**
+
+| Gate | Result |
+|---|---|
+| G1 | **FAIL**: beats rules, but not LR, and loses to the heuristic |
+| G2 | **FAIL**: E4 is over budget; E6 and E7 are within it at both thresholds |
+| G3 | PASS: E3 0.44 vs E2 0.57 (−12 pp) |
+| G4 | PASS by its letter; **flagged** for source predictability and environment fingerprints |
+| G5 | PASS |
+| G6 | PASS |
+
+**The rules on realistic benign data.** They raise 80 false positives per host-hour on the
+held-out OpTC hosts. The single biggest contributor should be identified before the rules
+are used anywhere near alert volume. This is a finding about the existing engine, outside
+the ML scope.
