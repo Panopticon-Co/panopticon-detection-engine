@@ -1,42 +1,55 @@
-"""Process-start featurizer for the supervised classifier (ProblemChild-style).
+"""Process-start featurizer for the supervised classifier, version 4 (behavioural, closed vocabulary).
 
 One process-creation event in, one sparse feature vector out. The function is
 *event-local* -- it never reads the provenance graph -- so it is stateless and
 gives the same answer in training, replay and serving.
 
-Inputs are only what the Officer agent emits on a process start today, plus
-the integrity level (carried separately until the agent's schema adds it):
+Inputs are only what the Officer agent emits on a process start:
+``process.name``, ``process.executable``, ``process.command_line`` and
+``parent.name``. User and integrity level are **not** features any more
+(v4): in the training data both mostly identify *where* a row was recorded
+(lab attacks ran as a user at High integrity, lab background as SYSTEM, two
+benign sources carry no integrity), not what the process did -- see
+docs/ml/EVAL_REPORT.md (run v6) and training-plan D21.
 
-* ``process.name``, ``process.executable``, ``process.command_line``
-* ``parent.name``
-* ``user.name`` / ``user.domain`` -- reduced to a *category*, never the name
-* ``integrity_level`` (optional argument; Variant B models only)
+Why a closed vocabulary (v4)
+----------------------------
+v1-v3 hashed free-text n-grams of names, paths and command lines. Two
+ablations showed they added nothing measurable, while the top hashed buckets
+were environment fingerprints (one lab's git flags, another's script paths)
+and collisions made them impossible to audit. v4 keeps only:
 
-Deliberately unused: pid/ppid, host, timestamps, entity ids and file hashes
-(they identify a machine or a binary build, so a model would memorise them).
+* identity for a fixed list of security-relevant Windows binaries
+  (:data:`ROLE_MEMBERS`, from ``rules/lists`` and the LOLBAS project); every
+  other binary is ``other``, so arbitrary software names cannot be learned;
+* the *role* of the process and its parent, and the role pair;
+* command-line indicators defined from LOLBAS / MITRE ATT&CK documentation
+  (:data:`INDICATORS`), written before any v4 model was trained;
+* path semantics (location class, a Windows binary name outside the system
+  directories, double extensions) and a few shape statistics.
 
-Determinism: hashed n-gram buckets use :func:`hashlib.blake2b`, never the
-built-in ``hash()``, so vectors do not depend on ``PYTHONHASHSEED``. No set is
-iterated to build a vector. Every value is finite.
+An optional *token vocabulary* (``featurize(..., vocabulary=...)``) appends
+one column per known token after :data:`FEATURE_NAMES`; the training tool
+builds it from tokens seen in several environments and ships it with a model.
 
-Bump :data:`FEATURIZER_VERSION` on *any* change to names, order, normalisation
-or hashing: it invalidates every model trained on the previous version.
+Determinism: no hashing, no set iteration, every value finite. Bump
+:data:`FEATURIZER_VERSION` on any change to names, order or normalisation.
 """
 
 from __future__ import annotations
 
-import hashlib
 import math
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from panopticon_detection.enrichment import classify_path
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 
-FEATURIZER_VERSION = 3
+FEATURIZER_VERSION = 4
 
 # ------------------------------------------------------------- normalisation
+# Unchanged from v3: training de-duplicates rows on this normalisation.
 
 _GUID = re.compile(r"\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?")
 _HEX = re.compile(r"\b(?:0x)?[0-9a-f]{8,}\b")
@@ -54,13 +67,11 @@ def normalize_text(value: Optional[str]) -> str:
     """Lower-case and replace per-machine detail with placeholders.
 
     Usernames in profile paths, GUIDs, long hex and digit runs and the
-    system directories are replaced (ProblemChild's normalisation), so the
-    model learns the shape of a path or command, not one lab's names.
+    system directories are replaced (ProblemChild's normalisation). Carets are
+    dropped because cmd.exe ignores them outside quotes.
     """
     if not value:
         return ""
-    # cmd.exe ignores carets outside quotes ("p^o^w^e^r^s^h^e^l^l"); drop them so
-    # the evasion does not change the tokens (featurizer v3).
     text = str(value).replace("^", "").lower().replace("/", "\\")
     text = _GUID.sub("<guid>", text)
     text = _USER_DIR.sub(r"\1<user>", text)
@@ -75,94 +86,153 @@ def normalize_text(value: Optional[str]) -> str:
 
 # ---------------------------------------------------------------- vocabulary
 
+#: Role -> member binaries. A binary belongs to exactly one role (first listed
+#: wins). Sources: rules/lists (office, script_hosts, discovery_tools) and the
+#: LOLBAS project's binaries; nothing here was chosen from model errors.
+ROLE_MEMBERS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
+    ("office", ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe", "msaccess.exe",
+                "mspub.exe", "visio.exe")),
+    ("browser", ("chrome.exe", "firefox.exe", "msedge.exe", "iexplore.exe", "opera.exe", "brave.exe",
+                 "microsoftedge.exe")),
+    ("shell", ("cmd.exe", "powershell.exe", "pwsh.exe", "powershell_ise.exe")),
+    ("script_host", ("wscript.exe", "cscript.exe", "mshta.exe")),
+    ("lolbin", ("rundll32.exe", "regsvr32.exe", "msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe",
+                "cmstp.exe", "msiexec.exe", "odbcconf.exe", "forfiles.exe", "pcalua.exe", "msdt.exe", "msxsl.exe",
+                "hh.exe", "ieexec.exe", "infdefaultinstall.exe", "presentationhost.exe",
+                "syncappvpublishingserver.exe", "control.exe", "atbroker.exe", "mavinject.exe", "verclsid.exe",
+                "xwizard.exe", "wmic.exe", "certutil.exe", "bitsadmin.exe", "esentutl.exe", "expand.exe",
+                "extrac32.exe", "makecab.exe", "replace.exe", "desktopimgdownldr.exe", "finger.exe", "csc.exe",
+                "vbc.exe", "jsc.exe", "ftp.exe", "curl.exe", "scriptrunner.exe", "wsl.exe", "bash.exe",
+                "cmdl32.exe", "diskshadow.exe", "dnscmd.exe", "mmc.exe", "createdump.exe", "sqldumper.exe",
+                "rpcping.exe", "wuauclt.exe", "msconfig.exe", "ntdsutil.exe", "procdump.exe")),
+    ("admin_tool", ("schtasks.exe", "at.exe", "sc.exe", "reg.exe", "regedit.exe", "vssadmin.exe", "wbadmin.exe",
+                    "bcdedit.exe", "netsh.exe", "wevtutil.exe", "auditpol.exe", "taskkill.exe", "icacls.exe",
+                    "takeown.exe", "attrib.exe", "fsutil.exe", "cipher.exe", "psexec.exe", "psexesvc.exe")),
+    ("discovery", ("whoami.exe", "net.exe", "net1.exe", "nltest.exe", "ipconfig.exe", "systeminfo.exe",
+                   "quser.exe", "qwinsta.exe", "tasklist.exe", "netstat.exe", "arp.exe", "route.exe",
+                   "hostname.exe", "nslookup.exe", "dsquery.exe", "klist.exe", "cmdkey.exe", "adfind.exe")),
+    ("service_host", ("services.exe", "svchost.exe", "wmiprvse.exe", "taskeng.exe", "taskhost.exe",
+                      "taskhostw.exe", "dllhost.exe")),
+    ("session", ("explorer.exe", "userinit.exe", "winlogon.exe", "runtimebroker.exe", "sihost.exe")),
+    ("server_app", ("w3wp.exe", "php-cgi.exe", "httpd.exe", "nginx.exe", "sqlservr.exe", "tomcat.exe",
+                    "tomcat8.exe", "tomcat9.exe")),
+    ("system_core", ("smss.exe", "csrss.exe", "wininit.exe", "lsass.exe", "werfault.exe", "consent.exe")),
+)
+ROLES: Tuple[str, ...] = tuple(role for role, _ in ROLE_MEMBERS) + ("other", "missing")
+ROLE_OF: Dict[str, str] = {}
+for _role, _members in ROLE_MEMBERS:
+    for _member in _members:
+        ROLE_OF.setdefault(_member, _role)
+BINARIES: Tuple[str, ...] = tuple(member for _, members in ROLE_MEMBERS for member in members)
+#: Binaries that ship in the Windows directories: found elsewhere, the name is a masquerade signal.
+_WINDOWS_BINARIES = frozenset(
+    b for b in BINARIES if ROLE_OF[b] not in ("office", "browser", "server_app")
+    and b not in ("pwsh.exe", "psexec.exe", "psexesvc.exe", "adfind.exe", "procdump.exe", "sqldumper.exe",
+                  "curl.exe")
+)
 _PATH_CLASSES = ("system", "program_files", "user_writable", "temp", "other", "unknown", "none")
-_USER_CATEGORIES = ("system", "service", "user", "unknown")
-_INTEGRITY_LEVELS = ("low", "medium", "high", "system", "missing")
 
-_URL = re.compile(r"\b(?:https?|ftp)://", re.I)
-_IP = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_B64 = re.compile(r"[A-Za-z0-9+/]{40,}={0,2}")
-_FLAG_ENCODED = re.compile(r"(?:^|\s)[-/]e(?:nc(?:odedcommand)?|c)?\s", re.I)
-_FLAG_HIDDEN = re.compile(r"[-/]w(?:indowstyle)?\s+h(?:idden)?\b", re.I)
-_FLAG_BYPASS = re.compile(r"[-/](?:nop(?:rofile)?|ex(?:ec(?:utionpolicy)?)?\s+bypass|ep\s+bypass)\b", re.I)
+#: Command-line indicators (name, pattern), matched on the lower-cased
+#: command line with carets removed. Defined from LOLBAS / ATT&CK technique
+#: documentation. Every one may only *raise* a score (monotone constraint).
+INDICATORS: Tuple[Tuple[str, str], ...] = (
+    ("ps_encoded", r"(?:^|\s)[-/]e(?:nc(?:odedcommand)?|c)?\s+[a-z0-9+/=]{16,}"),
+    ("ps_hidden_window", r"[-/]w(?:indowstyle)?\s+h(?:idden)?\b"),
+    ("ps_exec_bypass", r"[-/](?:ex(?:ec(?:utionpolicy)?)?|ep)\s+(?:bypass|unrestricted)\b"),
+    ("ps_noprofile", r"[-/]nop(?:rofile)?\b"),
+    ("ps_noninteractive", r"[-/]noni(?:nteractive)?\b"),
+    ("ps_iex", r"\b(?:iex|invoke-expression)\b"),
+    ("download_cradle", r"downloadstring|downloadfile|downloaddata|net\.webclient|invoke-webrequest|\biwr\b|"
+                        r"invoke-restmethod|\birm\b|start-bitstransfer|\bwget\b|\bcurl\b"),
+    ("url", r"\b(?:https?|ftp)://"),
+    ("ip_literal", r"\b(?:\d{1,3}\.){3}\d{1,3}\b"),
+    ("unc_path", r"\\\\[a-z0-9._$-]+\\"),
+    ("base64_blob", r"[a-z0-9+/]{40,}={0,2}"),
+    ("frombase64", r"frombase64string"),
+    ("reflective_load", r"reflection\.assembly|\[system\.reflection|assembly\]::load"),
+    ("defender_tamper", r"set-mppreference|add-mppreference|disablerealtimemonitoring|amsiutils|amsiinitfailed"),
+    ("scriptlet_remote", r"scrobj\.dll|/i:(?:https?|\\\\)"),
+    ("script_protocol", r"\b(?:javascript|vbscript):"),
+    ("rundll32_ordinal", r"rundll32(?:\.exe)?[\"']?\s+[^,]+,\s*#\d"),
+    ("certutil_transfer", r"certutil(?:\.exe)?[\"']?\s.*[-/](?:urlcache|decode|encode|verifyctl)\b"),
+    ("bitsadmin_transfer", r"bitsadmin(?:\.exe)?[\"']?\s.*/(?:transfer|addfile|setnotifycmdline)\b"),
+    ("mshta_remote", r"mshta(?:\.exe)?[\"']?\s+[\"']?(?:https?|ftp)://"),
+    ("msiexec_remote", r"msiexec(?:\.exe)?[\"']?\s.*/[iq]\S*\s+[\"']?https?://"),
+    ("wmic_process_create", r"wmic.*process\s+call\s+create"),
+    ("wmic_remote_node", r"wmic.*/node:"),
+    ("schtasks_create", r"schtasks(?:\.exe)?[\"']?\s.*/create\b"),
+    ("service_create", r"\bsc(?:\.exe)?[\"']?\s+(?:\\\\\S+\s+)?(?:create|config)\b.*binpath|new-service\b"),
+    ("run_key_write", r"(?:reg(?:\.exe)?[\"']?\s+add|set-itemproperty|new-itemproperty)"
+                      r".*\\currentversion\\run(?:once)?\b"),
+    ("hive_dump", r"reg(?:\.exe)?[\"']?\s+save\s+hklm\\(?:sam|system|security)\b"),
+    ("shadow_delete", r"vssadmin.*delete\s+shadows|shadowcopy\s+delete|wbadmin.*delete\s+catalog|"
+                      r"recoveryenabled\s+no|bootstatuspolicy\s+ignoreallfailures"),
+    ("log_clear", r"wevtutil(?:\.exe)?[\"']?\s+(?:cl|clear-log)\b|clear-eventlog|remove-eventlog"),
+    ("firewall_change", r"netsh.*(?:advfirewall|firewall).*\b(?:add|set|delete|disable|off)\b|netsh.*portproxy"),
+    ("account_add", r"\bnet1?(?:\.exe)?[\"']?\s+(?:user|localgroup|group)\b.*/add\b|new-localuser|"
+                    r"add-localgroupmember"),
+    ("discovery_command", r"\bwhoami\b|\bnet1?(?:\.exe)?[\"']?\s+(?:user|group|localgroup|view|share|session|"
+                          r"accounts)\b|\bnltest\b|\bsysteminfo\b|ipconfig\s+/all|\bquser\b|query\s+user|"
+                          r"\barp\s+-a\b|\bdsquery\b|\badfind\b|get-ad(?:user|computer|group)\b"),
+    ("lsass_access", r"\blsass\b|minidump"),
+    ("credential_tooling", r"mimikatz|sekurlsa|lsadump|kerberos::|rubeus|kerberoast|ntds\.dit"),
+    ("remote_exec", r"\bpsexec|\\admin\$|\\c\$|\bwinrs\b|invoke-command\s.*-computername|enter-pssession|"
+                    r"new-pssession"),
+    ("wmi_dcom_exec", r"invoke-wmimethod|win32_process|mmc20\.application|shellwindows|shellbrowserwindow"),
+    ("script_from_user_dir", r"(?:\\temp\\|\\appdata\\|\\users\\public\\|\\programdata\\|\\downloads\\)"
+                             r"[^\s\"']*\.(?:ps1|vbs|vbe|js|jse|hta|bat|cmd|dll|scr|wsf)\b"),
+    ("archive_staging", r"compress-archive|\b7za?(?:\.exe)?[\"']?\s+a\b|\brar(?:\.exe)?[\"']?\s+a\b"),
+    ("hide_attrib", r"\battrib(?:\.exe)?[\"']?\s.*\+[hs]\b"),
+    ("acl_takeover", r"icacls.*/grant\s+(?:everyone|\*s-1-1-0)|takeown(?:\.exe)?[\"']?\s+/f\b"),
+    ("uac_bypass", r"\\ms-settings\\shell\\open\\command|\\mscfile\\shell\\open\\command|\bfodhelper\b|"
+                   r"\bcomputerdefaults\b|\bsdclt\b.*/kickoffelev"),
+    ("string_obfuscation", r"\[char\]\s*\d|-join\s*\(|-bxor\b|-f\s*[\"']\{\d\}"),
+    ("command_chaining", r"&&|\|\||\s&\s|\s\|\s"),
+)
+_INDICATOR_RE: Tuple[Tuple[str, "re.Pattern[str]"], ...] = tuple((n, re.compile(p)) for n, p in INDICATORS)
+_DOUBLE_EXTENSION = re.compile(r"\.(?:pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|txt|rtf|zip)\.(?:exe|scr|com|bat|cmd|pif|js|vbs|hta)$")
 _TOKEN = re.compile(r"[a-z0-9_.$<>-]+")
 
-# (namespace, number of buckets). Order is part of the feature layout.
-_HASHED: Tuple[Tuple[str, int], ...] = (
-    ("cmd", 4096),      # command-line word unigrams + bigrams
-    ("path", 1024),     # executable path tokens
-    ("name", 256),      # process-name character bigrams
-    ("parent", 256),    # parent-name character bigrams
-    ("pair", 1024),     # parent -> child name pair
+#: Shape statistics; they may encode an environment's habits, so the training
+#: tool can ablate them as one family.
+STATS_FEATURES: Tuple[str, ...] = (
+    "cmd_length", "cmd_token_count", "cmd_entropy", "cmd_quote_count", "cmd_special_char_ratio",
+    "name_length", "name_entropy", "name_digit_ratio", "path_depth",
 )
-
 _DENSE: Tuple[str, ...] = (
-    "cmd_missing",
-    "cmd_length",
-    "cmd_token_count",
-    "cmd_entropy",
-    "cmd_obfuscated",
-    "cmd_evasion_count",
-    "cmd_has_url",
-    "cmd_has_ip",
-    "cmd_has_base64_blob",
-    "cmd_flag_encoded",
-    "cmd_flag_hidden",
-    "cmd_flag_bypass",
-    "cmd_quote_count",
-    "cmd_special_char_ratio",
-    "name_missing",
-    "name_ends_with_exe",
-    "name_length",
-    "path_depth",
-    "path_in_system_dir",
-    "parent_missing",
-    "name_equals_parent",
+    "cmd_missing", "name_missing", "parent_missing",
+    "cmd_obfuscated", "cmd_evasion_count",
+    *(f"ind_{name}" for name, _ in INDICATORS),
+    "path_masquerade", "name_double_extension", "name_not_exe", "name_equals_parent",
     *(f"path_class={c}" for c in _PATH_CLASSES),
-    *(f"user_category={c}" for c in _USER_CATEGORIES),
-    *(f"integrity={c}" for c in _INTEGRITY_LEVELS),
+    *STATS_FEATURES,
 )
-
-INTEGRITY_FEATURES: Tuple[str, ...] = tuple(f"integrity={c}" for c in _INTEGRITY_LEVELS)
-
-
-def _build_names() -> List[str]:
-    names = list(_DENSE)
-    for namespace, buckets in _HASHED:
-        names.extend(f"{namespace}#{i}" for i in range(buckets))
-    return names
-
-
-FEATURE_NAMES: Tuple[str, ...] = tuple(_build_names())
+FEATURE_NAMES: Tuple[str, ...] = (
+    *_DENSE,
+    *(f"bin={b}" for b in BINARIES), "bin=other",
+    *(f"parent_bin={b}" for b in BINARIES), "parent_bin=other", "parent_bin=missing",
+    *(f"role={r}" for r in ROLES),
+    *(f"parent_role={r}" for r in ROLES),
+    *(f"pair={p}>{c}" for p in ROLES for c in ROLES),
+)
 _INDEX: Dict[str, int] = {name: i for i, name in enumerate(FEATURE_NAMES)}
-_OFFSET: Dict[str, int] = {}
-_cursor = len(_DENSE)
-for _namespace, _buckets in _HASHED:
-    _OFFSET[_namespace] = _cursor
-    _cursor += _buckets
-_BUCKETS: Dict[str, int] = dict(_HASHED)
+#: Features that may only raise a score (LightGBM monotone constraint +1).
+MONOTONE_FEATURES: Tuple[str, ...] = (
+    "cmd_obfuscated", "cmd_evasion_count", *(f"ind_{name}" for name, _ in INDICATORS),
+    "path_masquerade", "name_double_extension",
+)
 
 _SYSTEM_ACCOUNTS = ("system", "local system")
 _SERVICE_ACCOUNTS = ("local service", "network service", "servicio local", "servicio de red")
 _NT_AUTHORITY = ("nt authority", "nt-autorität", "autorite nt")
 
 
-def _bucket(namespace: str, token: str) -> int:
-    digest = hashlib.blake2b(f"{namespace}\x1f{token}".encode("utf-8"), digest_size=8).digest()
-    return _OFFSET[namespace] + int.from_bytes(digest, "big") % _BUCKETS[namespace]
-
-
 def _add(vector: Dict[int, float], index: int, value: float = 1.0) -> None:
     vector[index] = vector.get(index, 0.0) + value
 
 
-def _char_bigrams(text: str) -> List[str]:
-    padded = f"^{text}$"
-    return [padded[i : i + 2] for i in range(len(padded) - 1)]
-
-
 def user_category(name: Optional[str], domain: Optional[str]) -> str:
-    """``system`` / ``service`` / ``user`` / ``unknown`` -- never the identity."""
+    """``system`` / ``service`` / ``user`` / ``unknown``. Not a v4 feature; kept for data audits."""
     user = (name or "").strip().lower()
     dom = (domain or "").strip().lower()
     if not user:
@@ -175,6 +245,7 @@ def user_category(name: Optional[str], domain: Optional[str]) -> str:
 
 
 def integrity_category(value: Optional[str]) -> str:
+    """Not a v4 feature; training uses it in de-duplication keys."""
     text = (value or "").strip().lower()
     for level in ("low", "medium", "high", "system"):
         if text.startswith(level):
@@ -191,83 +262,102 @@ def _field(event: Dict[str, Any], section: str, key: str) -> Optional[str]:
     return None
 
 
-def featurize(event: Dict[str, Any], integrity_level: Optional[str] = None) -> Dict[int, float]:
-    """Sparse feature vector ``{index into FEATURE_NAMES: value}`` for one process start.
+def _leaf(value: Optional[str]) -> str:
+    return (value or "").replace("/", "\\").rsplit("\\", 1)[-1].strip().strip("\"'").lower()
+
+
+def binary_name(event: Dict[str, Any]) -> str:
+    return _leaf(_field(event, "process", "name")) or _leaf(_field(event, "process", "executable"))
+
+
+def raw_tokens(event: Dict[str, Any]) -> List[str]:
+    """Namespaced tokens for an optional token vocabulary: command-line unigrams/bigrams, path tokens."""
+    cmd = _TOKEN.findall(normalize_text(_field(event, "process", "command_line")))
+    path = _TOKEN.findall(normalize_text(_field(event, "process", "executable")))
+    out = {f"c:{t}" for t in cmd} | {f"c:{a} {b}" for a, b in zip(cmd, cmd[1:])} | {f"p:{t}" for t in path}
+    return sorted(out)
+
+
+def _name_entropy(stem: str) -> float:
+    return float(ShannonEntropyCalculator.calculate_entropy(stem)) if stem else 0.0
+
+
+def featurize(event: Dict[str, Any], vocabulary: Optional[Mapping[str, int]] = None) -> Dict[int, float]:
+    """Sparse feature vector ``{index: value}`` for one process start.
 
     ``event`` is a normalized event (``ingestion.telemetry.normalize`` output).
-    Absent indices mean 0.0. Integrity features are always emitted; a model
-    trained without them (Variant A) simply never splits on them.
+    Absent indices mean 0.0. With ``vocabulary`` (token -> column), token
+    ``t`` sets column ``len(FEATURE_NAMES) + vocabulary[t]``.
     """
     vector: Dict[int, float] = {}
-    name = _field(event, "process", "name")
     executable = _field(event, "process", "executable")
     command_line = _field(event, "process", "command_line")
-    parent = _field(event, "parent", "name")
-    user = event.get("user") if isinstance(event.get("user"), dict) else {}
-
-    name_n = normalize_text(name)
-    parent_n = normalize_text(parent)
-    path_n = normalize_text(executable)
-    cmd_n = normalize_text(command_line)
+    name = binary_name(event)
+    parent = _leaf(_field(event, "parent", "name"))
 
     # -- command line
     if command_line is None:
         _add(vector, _INDEX["cmd_missing"])
     else:
-        # Shape statistics are measured on the *normalised* text so a longer
-        # username in a profile path cannot move them; obfuscation markers
-        # (carets, backticks, case games) are read from the raw text.
-        tokens = _TOKEN.findall(cmd_n)
+        cmd_l = command_line.replace("^", "").lower()
+        cmd_n = normalize_text(command_line)
         deob = CommandDeobfuscator.deobfuscate(command_line)
-        length = len(cmd_n)
-        _add(vector, _INDEX["cmd_length"], math.log1p(length))
-        _add(vector, _INDEX["cmd_token_count"], math.log1p(len(tokens)))
-        _add(vector, _INDEX["cmd_entropy"], float(ShannonEntropyCalculator.calculate_entropy(cmd_n)))
         _add(vector, _INDEX["cmd_obfuscated"], 1.0 if deob["is_obfuscated"] else 0.0)
         _add(vector, _INDEX["cmd_evasion_count"], float(len(deob["evasion_techniques"])))
-        _add(vector, _INDEX["cmd_has_url"], 1.0 if _URL.search(command_line) else 0.0)
-        _add(vector, _INDEX["cmd_has_ip"], 1.0 if _IP.search(command_line) else 0.0)
-        _add(vector, _INDEX["cmd_has_base64_blob"], 1.0 if _B64.search(command_line) else 0.0)
-        _add(vector, _INDEX["cmd_flag_encoded"], 1.0 if _FLAG_ENCODED.search(command_line + " ") else 0.0)
-        _add(vector, _INDEX["cmd_flag_hidden"], 1.0 if _FLAG_HIDDEN.search(command_line) else 0.0)
-        _add(vector, _INDEX["cmd_flag_bypass"], 1.0 if _FLAG_BYPASS.search(command_line) else 0.0)
+        for ind_name, pattern in _INDICATOR_RE:
+            if pattern.search(cmd_l):
+                _add(vector, _INDEX[f"ind_{ind_name}"])
+        length = len(cmd_n)
+        _add(vector, _INDEX["cmd_length"], math.log1p(length))
+        _add(vector, _INDEX["cmd_token_count"], math.log1p(len(_TOKEN.findall(cmd_n))))
+        _add(vector, _INDEX["cmd_entropy"], float(ShannonEntropyCalculator.calculate_entropy(cmd_n)))
         _add(vector, _INDEX["cmd_quote_count"], float(cmd_n.count('"') + cmd_n.count("'")))
         special = sum(1 for ch in cmd_n if not ch.isalnum() and not ch.isspace())
         _add(vector, _INDEX["cmd_special_char_ratio"], round(special / length, 6) if length else 0.0)
-        for token in tokens:
-            _add(vector, _bucket("cmd", token))
-        for left, right in zip(tokens, tokens[1:]):
-            _add(vector, _bucket("cmd", f"{left} {right}"))
 
-    # -- process name and path
-    if not name_n:
-        _add(vector, _INDEX["name_missing"])
-    else:
-        _add(vector, _INDEX["name_ends_with_exe"], 1.0 if name_n.endswith(".exe") else 0.0)
-        _add(vector, _INDEX["name_length"], float(len(name_n)))
-        for gram in _char_bigrams(name_n):
-            _add(vector, _bucket("name", gram))
-    if path_n:
-        _add(vector, _INDEX["path_depth"], float(path_n.count("\\")))
-        _add(vector, _INDEX["path_in_system_dir"], 1.0 if path_n.startswith("win_system_dir") else 0.0)
-        for token in _TOKEN.findall(path_n):
-            _add(vector, _bucket("path", token))
+    # -- the binary
     path_class = classify_path(executable) or "none"
-    _add(vector, _INDEX[f"path_class={path_class if path_class in _PATH_CLASSES else 'other'}"])
-
-    # -- parent
-    if not parent_n:
-        _add(vector, _INDEX["parent_missing"])
+    path_class = path_class if path_class in _PATH_CLASSES else "other"
+    _add(vector, _INDEX[f"path_class={path_class}"])
+    if not name:
+        _add(vector, _INDEX["name_missing"])
+        _add(vector, _INDEX["bin=other"])
+        child_role = "missing"
     else:
-        for gram in _char_bigrams(parent_n):
-            _add(vector, _bucket("parent", gram))
-        if name_n:
-            _add(vector, _INDEX["name_equals_parent"], 1.0 if name_n == parent_n else 0.0)
-    _add(vector, _bucket("pair", f"{parent_n or '<none>'}->{name_n or '<none>'}"))
+        stem = name.rsplit(".", 1)[0]
+        _add(vector, _INDEX[f"bin={name}"] if name in ROLE_OF else _INDEX["bin=other"])
+        child_role = ROLE_OF.get(name, "other")
+        _add(vector, _INDEX["name_not_exe"], 0.0 if name.endswith(".exe") else 1.0)
+        _add(vector, _INDEX["name_double_extension"], 1.0 if _DOUBLE_EXTENSION.search(name) else 0.0)
+        _add(vector, _INDEX["path_masquerade"],
+             1.0 if name in _WINDOWS_BINARIES and path_class not in ("system", "none", "unknown") else 0.0)
+        _add(vector, _INDEX["name_length"], float(len(stem)))
+        _add(vector, _INDEX["name_entropy"], _name_entropy(stem))
+        _add(vector, _INDEX["name_digit_ratio"], round(sum(ch.isdigit() for ch in stem) / len(stem), 6) if stem else 0.0)
+    if executable:
+        _add(vector, _INDEX["path_depth"], float(normalize_text(executable).count("\\")))
 
-    # -- user and integrity
-    _add(vector, _INDEX[f"user_category={user_category(user.get('name'), user.get('domain'))}"])
-    _add(vector, _INDEX[f"integrity={integrity_category(integrity_level)}"])
+    # -- the parent
+    if not parent:
+        _add(vector, _INDEX["parent_missing"])
+        _add(vector, _INDEX["parent_bin=missing"])
+        parent_role = "missing"
+    else:
+        _add(vector, _INDEX[f"parent_bin={parent}"] if parent in ROLE_OF else _INDEX["parent_bin=other"])
+        parent_role = ROLE_OF.get(parent, "other")
+        if name:
+            _add(vector, _INDEX["name_equals_parent"], 1.0 if name == parent else 0.0)
+    _add(vector, _INDEX[f"role={child_role}"])
+    _add(vector, _INDEX[f"parent_role={parent_role}"])
+    _add(vector, _INDEX[f"pair={parent_role}>{child_role}"])
+
+    # -- optional token vocabulary (shipped with a model, built by the training tool)
+    if vocabulary:
+        base = len(FEATURE_NAMES)
+        for token in raw_tokens(event):
+            column = vocabulary.get(token)
+            if column is not None:
+                _add(vector, base + column)
 
     # Drop explicit zeros so the vector stays sparse and canonical.
     return {i: round(v, 6) for i, v in sorted(vector.items()) if v != 0.0}
@@ -278,7 +368,8 @@ def feature_spec() -> Dict[str, Any]:
     return {
         "featurizer_version": FEATURIZER_VERSION,
         "feature_count": len(FEATURE_NAMES),
-        "dense_features": list(_DENSE),
-        "hashed_namespaces": [{"namespace": ns, "buckets": n, "hash": "blake2b-64"} for ns, n in _HASHED],
-        "integrity_features": list(INTEGRITY_FEATURES),
+        "feature_names": list(FEATURE_NAMES),
+        "indicators": [{"name": n, "pattern": p} for n, p in INDICATORS],
+        "monotone_features": list(MONOTONE_FEATURES),
+        "stats_features": list(STATS_FEATURES),
     }

@@ -1,4 +1,4 @@
-"""The process-start featurizer: layout, normalisation, determinism and golden vectors.
+"""The process-start featurizer (v4): layout, normalisation, determinism and golden vectors.
 
 Golden vectors pin the exact output for fixed inputs. If one of these fails
 after an intentional change, bump FEATURIZER_VERSION and regenerate with
@@ -86,7 +86,7 @@ def _compute():
             "id": cid,
             "event": event,
             "integrity": integrity,
-            "vector": {str(k): v for k, v in F.featurize(event, integrity).items()},
+            "vector": {str(k): v for k, v in F.featurize(event).items()},
         }
         for cid, event, integrity in CASES
     ]
@@ -103,7 +103,7 @@ def test_vectors_do_not_depend_on_pythonhashseed():
     code = (
         "import json;from panopticon_detection.ml import featurizer as F;"
         "from tests.ml.test_featurizer import CASES;"
-        "print(json.dumps([F.featurize(e,i) for _,e,i in CASES],sort_keys=True))"
+        "print(json.dumps([F.featurize(e) for _,e,_i in CASES],sort_keys=True))"
     )
     outputs = set()
     for seed in ("0", "1", "12345"):
@@ -116,8 +116,8 @@ def test_vectors_do_not_depend_on_pythonhashseed():
 
 
 def test_every_value_is_finite_and_indexed():
-    for _, event, integrity in CASES:
-        vector = F.featurize(event, integrity)
+    for _, event, _integrity in CASES:
+        vector = F.featurize(event)
         assert all(0 <= i < len(F.FEATURE_NAMES) for i in vector)
         assert all(math.isfinite(v) and v != 0.0 for v in vector.values())
 
@@ -126,7 +126,7 @@ def test_user_identity_never_reaches_features():
     base = CASES[0][1]
     renamed = json.loads(json.dumps(base))
     renamed["user"] = {"name": "zed", "domain": "OTHERLAB"}
-    assert F.featurize(base, "Medium") == F.featurize(renamed, "Medium")
+    assert F.featurize(base) == F.featurize(renamed)
 
 
 def test_profile_paths_are_normalised_per_user():
@@ -147,16 +147,17 @@ def test_profile_paths_are_normalised_per_user():
     )
 
 
-def test_carets_do_not_change_tokens():
-    plain = {"process": {"name": "powershell.exe", "executable": r"C:\Windows\System32\cmd.exe",
-                         "command_line": "cmd /c powershell -enc AAA"}, "parent": {"name": "winword.exe"}}
+def test_carets_change_only_the_obfuscation_features():
+    blob = "SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQA"
+    plain = {"process": {"name": "cmd.exe", "executable": r"C:\Windows\System32\cmd.exe",
+                         "command_line": f"cmd /c powershell -w hidden -enc {blob}"}, "parent": {"name": "winword.exe"}}
     caret = json.loads(json.dumps(plain))
-    caret["process"]["command_line"] = "cmd /c p^o^w^e^r^s^h^e^l^l -e^n^c AAA"
+    caret["process"]["command_line"] = f"cmd /c p^o^w^e^r^s^h^e^l^l -w h^idden -e^n^c {blob}"
     assert F.normalize_text("p^o^w^e^r^s^h^e^l^l -e^n^c AAA") == "powershell -enc aaa"
-    hashed = {i for i, name in enumerate(F.FEATURE_NAMES) if "#" in name}  # the token buckets
-    assert {i: v for i, v in F.featurize(plain).items() if i in hashed} == {
-        i: v for i, v in F.featurize(caret).items() if i in hashed
-    }
+    obfuscation = {F.FEATURE_NAMES.index("cmd_obfuscated"), F.FEATURE_NAMES.index("cmd_evasion_count")}
+    strip = lambda v: {i: x for i, x in v.items() if i not in obfuscation}  # noqa: E731
+    assert strip(F.featurize(plain)) == strip(F.featurize(caret))
+    assert F.featurize(plain)[F.FEATURE_NAMES.index("ind_ps_encoded")] == 1.0
 
 
 @pytest.mark.parametrize(
