@@ -41,6 +41,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     exp.add_argument("--optc-train", action="store_true",
                      help="train on the OpTC host range that is not held out")
 
+    rep = sub.add_parser("replay", help="full-family replay through the engine -> per-process checkpoints")
+    rep.add_argument("--sources", nargs="+",
+                     default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "atlasv2", "optc"])
+    rep.add_argument("--workers", type=int, default=4)
+
     lo = sub.add_parser("loeo", help="leave-one-environment-out evaluation of named recipes (pdtrain.loeo)")
     lo.add_argument("--recipes", nargs="+", default=["v6_recipe"])
     lo.add_argument("--out", default="baseline")
@@ -59,6 +64,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     fin.add_argument("--freeze", action="store_true", help="mark the bundle as the final candidate first")
 
     args = parser.parse_args(argv)
+    if args.step == "replay":
+        import json
+
+        from pdtrain.replay import replay_all
+
+        result = replay_all(DATA, REPO, args.sources, workers=args.workers)
+        print(json.dumps({"units": result["units"], "errors": result["errors"][:20]}, indent=2))
+        return 0 if not result["errors"] else 1
     if args.step in ("loeo", "v7"):
         import json
 
