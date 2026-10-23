@@ -88,3 +88,17 @@ def test_parity_with_lightgbm_on_sparse_data():
     expected = booster.predict(x, raw_score=True)
     for vec, want in zip(vectors, expected):
         assert math.isclose(model.raw_score(vec), want, rel_tol=0, abs_tol=1e-9)
+
+
+def test_linear_model_scores_and_rejects_bad_dumps():
+    from panopticon_detection.ml.scorer import LinearModel, load_model
+
+    dump = {"model_type": "linear", "intercept": -1.5, "coef": [2.0, 0.0, -0.5], "feature_names": ["a", "b", "c"]}
+    model = load_model(dump)
+    assert isinstance(model, LinearModel)
+    assert model.raw_score({0: 1.0, 2: 4.0, 9: 7.0}) == pytest.approx(-1.5 + 2.0 - 2.0)
+    with pytest.raises(ModelError):
+        LinearModel.from_dump({**dump, "coef": [1.0]})
+    with pytest.raises(ModelError):
+        LinearModel.from_dump({**dump, "coef": [float("nan"), 0.0, 0.0]})
+    assert isinstance(load_model(_dump()), TreeModel)

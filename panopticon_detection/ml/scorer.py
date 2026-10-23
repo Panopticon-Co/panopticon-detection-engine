@@ -108,6 +108,40 @@ class TreeModel:
         return sum(tree.predict(x) for tree in self.trees)
 
 
+class LinearModel:
+    """A linear model (``model_type: "linear"``): ``raw_score = intercept + sum(coef[i] * x[i])``.
+
+    The training tool folds any feature scaling into ``coef`` before export.
+    """
+
+    def __init__(self, coef: Sequence[float], intercept: float, feature_names: Sequence[str]) -> None:
+        self.coef = [float(c) for c in coef]
+        self.intercept = float(intercept)
+        self.feature_names = list(feature_names)
+
+    @classmethod
+    def from_dump(cls, dump: Dict[str, Any]) -> "LinearModel":
+        if dump.get("model_type") != "linear":
+            raise ModelError(f"not a linear model: {dump.get('model_type')!r}")
+        coef = list(dump.get("coef") or [])
+        names = list(dump.get("feature_names") or [])
+        if not coef or len(coef) != len(names):
+            raise ModelError("coef and feature_names must be non-empty and the same length")
+        values = [*coef, dump.get("intercept", 0.0)]
+        if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in values):
+            raise ModelError("non-finite coefficient")
+        return cls(coef, float(dump.get("intercept", 0.0)), names)
+
+    def raw_score(self, x: Mapping[int, float]) -> float:
+        n = len(self.coef)
+        return self.intercept + sum(self.coef[i] * v for i, v in x.items() if 0 <= i < n)
+
+
+def load_model(dump: Dict[str, Any]):
+    """``LinearModel`` for ``model_type: "linear"``, else a LightGBM ``TreeModel``."""
+    return LinearModel.from_dump(dump) if dump.get("model_type") == "linear" else TreeModel.from_dump(dump)
+
+
 def platt(raw: float, a: float, b: float) -> float:
     """Calibrated probability ``1 / (1 + exp(-(a * raw + b)))``, overflow-safe."""
     z = a * raw + b
