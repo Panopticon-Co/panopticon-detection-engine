@@ -1657,37 +1657,37 @@
       "score": 7.312,
       "parent": "bash.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
      },
      {
       "score": 7.312,
       "parent": "bash.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
      },
      {
       "score": 7.312,
       "parent": "bash.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
      },
      {
       "score": 7.312,
       "parent": "bash.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
      },
      {
       "score": 7.312,
       "parent": "bash.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || tr"
      },
      {
       "score": 7.311,
       "parent": "claude.exe",
       "image": "bash.exe",
-      "command_line": "\"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"source '/c/Users/Aryan Sokhi/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || true && expor"
+      "command_line": "\"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"source '/c/Users/<user>/.claude/shell-snapshots/snapshot-bash-1792702971981-6ob0gm.sh' 2>/dev/null || true && expor"
      }
     ]
    },
