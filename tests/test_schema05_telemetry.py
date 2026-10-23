@@ -7,6 +7,7 @@ existing incident engine. Events are built with the dataset canonical builder,
 so they carry the same ids and shapes the agent emits.
 """
 
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -341,6 +342,50 @@ def test_cross_process_rarity_waits_for_its_own_readiness():
 def test_pre_05_telemetry_yields_empty_05_features():
     _, context, _ = _run(_event("process", "start", 10, 0, image=PS, ppid=1))
     f = FeatureExtractor(context.registry, context.graph).extract(next(iter(context.registry)))
-    assert f.feature_schema_version == 2
+    assert f.feature_schema_version == 3
     assert (f.dns_query_count, f.process_access_count, f.script_block_count, f.lifetime_seconds) == (0, 0, 0, None)
     assert f.access_targets == () and f.remote_thread_targets == ()
+
+
+# ------------------------------------------------------------- behaviour bits (feature schema 3)
+
+
+def test_behaviour_bits_name_what_a_process_did_with_distinct_object_counts():
+    payload = r"C:\Users\bob\AppData\Local\Temp\p.exe"
+    _, context, _ = _run(
+        _event("process", "start", 10, 0, image=PS, ppid=1),
+        _event("process", "start", 20, 1, image=RUNDLL, ppid=10, parent_name="powershell.exe"),
+        _access(20, RUNDLL, 2, granted="0x1410"),
+        _thread(20, RUNDLL, 3),
+        _event("network", "connect", 20, 4, image=RUNDLL, block={
+            "direction": "outbound", "protocol": "tcp", "source_ip": "10.0.0.5", "source_port": 50000,
+            "destination_ip": "93.184.216.34", "destination_port": 4444, "destination_hostname": None}),
+        _event("file", "create", 20, 5, image=RUNDLL, block={"operation": "create", "path": payload}),
+        _event("registry", "set_value", 20, 6, image=RUNDLL, block={
+            "operation": "set_value",
+            "key_path": r"HKU\S-1-5-21\Software\Microsoft\Windows\CurrentVersion\Run\upd",
+            "value_name": "upd", "value_type": "REG_SZ", "value_data": None}),
+    )
+    extractor = FeatureExtractor(context.registry, context.graph)
+    by_name = {p.name: p for p in context.registry}
+    rundll = extractor.extract(by_name["rundll32.exe"])
+    assert set(rundll.behavior_bits) == {
+        "process_access:lsass_read", "remote_thread:out", "network:public_destination",
+        "network:public_nonstandard_port", "file:executable_to_user_path", "registry:persistence_key"}
+    assert dict(rundll.behavior_bit_objects)["network:public_destination"] == 1
+    assert rundll.ancestor_names == ("powershell.exe", "")  # pid 1 was only inferred: no name
+    assert "child:shell_or_lolbin" in extractor.extract(by_name["powershell.exe"]).behavior_bits
+    notepad = next(p for p in context.registry if (p.name or "").lower() == "notepad.exe")
+    assert extractor.extract(notepad).behavior_bits == ("remote_thread:in",)
+    # as-of: before the connection, no network bits
+    early = extractor.extract(by_name["rundll32.exe"], as_of=T0 + timedelta(seconds=3))
+    assert "network:public_destination" not in early.behavior_bits
+
+
+def test_behaviour_bits_survive_a_json_round_trip():
+    from panopticon_detection.features import ProcessFeatures
+
+    _, context, _ = _run(_event("process", "start", 10, 0, image=PS, ppid=1),
+                         _event("process", "start", 20, 1, image=RUNDLL, ppid=10, parent_name="powershell.exe"))
+    f = FeatureExtractor(context.registry, context.graph).extract(next(p for p in context.registry if p.pid == 10))
+    assert ProcessFeatures.from_dict(json.loads(json.dumps(f.to_dict()))) == f

@@ -25,15 +25,24 @@ Behavior counts are *as of* a point in time. At process creation they are all
 zero -- nothing has happened yet -- and an export taken after a replay sees the
 process's whole observed life. Lineage, identity and command-line features do
 not change over a process's life.
+
+Schema version 3 added *behaviour bits* (:func:`edge_bits`): yes/no facts such as
+"wrote an executable to a user-writable path" or "read LSASS memory", each with
+the number of distinct objects involved. Unlike raw event counts, whose density
+depends on how a Sysmon configuration filters each family, a bit means the same
+thing in every environment. The same function decides when a process's
+behaviour has changed enough to be re-scored (a checkpoint). It also added the
+names of up to four ancestors.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, Iterator, List, Optional, Tuple
 
 from panopticon_detection.enrichment import (
     MatchContext,
@@ -54,16 +63,104 @@ from panopticon_detection.provenance.identity import (
 
 # Bump when a field is added, removed or changes meaning. Baselines record the
 # version they were learned with and refuse to load against a different one.
-FEATURE_SCHEMA_VERSION = 2
+FEATURE_SCHEMA_VERSION = 3
 
 # Image types counted as "executable" by executable_write_count.
 EXECUTABLE_SUFFIXES = frozenset({".exe", ".dll", ".scr", ".sys", ".com"})
 
 _REGISTRY_WRITES = frozenset({EdgeKind.SET_VALUE, EdgeKind.CREATED_KEY, EdgeKind.DELETED_KEY})
 
+# ---------------------------------------------------------------- behaviour bits
+#: Yes/no behaviour facts (schema 3), named by the event family that produces them.
+BEHAVIOR_BITS: Tuple[str, ...] = (
+    "child:shell_or_lolbin",          # process_create (FORKED, as the parent)
+    "file:executable_to_user_path",   # file (WROTE)
+    "registry:persistence_key",       # registry (SET_VALUE / CREATED_KEY)
+    "image_load:user_path_module",    # image_load (LOADED)
+    "image_load:unsigned_module",     # image_load (LOADED; only when signing is reported)
+    "process_access:lsass_read",      # process_access (ACCESSED)
+    "remote_thread:out",              # remote_thread (INJECTED, as the source)
+    "remote_thread:in",               # remote_thread (INJECTED, as the target)
+    "network:public_destination",     # network (CONNECTED_TO)
+    "network:public_nonstandard_port",
+    "dns:failed_query",               # dns (RESOLVED)
+    "script_block:obfuscated",        # script_block (RAN_SCRIPT)
+)
+DROPPED_SUFFIXES = EXECUTABLE_SUFFIXES | frozenset({".ps1", ".vbs", ".vbe", ".js", ".jse", ".hta", ".bat", ".cmd", ".wsf"})
+_PERSISTENCE_KEY = re.compile(
+    r"\\currentversion\\(?:run|runonce|runservices)\b|\\services\\[^\\]+\\imagepath|"
+    r"image file execution options|\\winlogon\\(?:userinit|shell)|\\currentversion\\explorer\\shell folders",
+    re.IGNORECASE,
+)
+_STANDARD_PORTS = frozenset({53, 80, 443})
+PROCESS_VM_READ = 0x0010
+_CHILD_ROLES = frozenset({"shell", "script_host", "lolbin", "admin_tool", "discovery"})
+
+
+def _mask(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value), 16) if str(value).lower().startswith("0x") else int(str(value))
+    except ValueError:
+        return None
+
+
+def edge_bits(edge: Any, graph: ProvenanceGraph, node_id: str) -> FrozenSet[str]:
+    """Behaviour bits one edge contributes to ``node_id`` (schema 3).
+
+    Shared by :meth:`FeatureExtractor._behavior` and by anything that re-scores a
+    process when its behaviour changes, so both always agree on what a bit means.
+    """
+    from panopticon_detection.ml.featurizer import ROLE_OF  # stdlib-only; avoids an import cycle
+
+    bits = set()
+    other = graph.nodes.get(edge.dst if edge.src == node_id else edge.src)
+    label = (other.label or "") if other is not None else ""
+    if edge.src == node_id:
+        kind = edge.kind
+        if kind == EdgeKind.FORKED:
+            if ROLE_OF.get(label.lower()) in _CHILD_ROLES:
+                bits.add("child:shell_or_lolbin")
+        elif kind == EdgeKind.WROTE:
+            if classify_path(label) in ("user_writable", "temp") and _suffix(label) in DROPPED_SUFFIXES:
+                bits.add("file:executable_to_user_path")
+        elif kind in (EdgeKind.SET_VALUE, EdgeKind.CREATED_KEY):
+            if _PERSISTENCE_KEY.search(label):
+                bits.add("registry:persistence_key")
+        elif kind == EdgeKind.LOADED:
+            if classify_path(label) in ("user_writable", "temp"):
+                bits.add("image_load:user_path_module")
+            if other is not None and other.attrs.get("is_signed") is False:
+                bits.add("image_load:unsigned_module")
+        elif kind == EdgeKind.ACCESSED:
+            mask = _mask(edge.attrs.get("access_mask", edge.attrs.get("granted_access")))
+            if label.lower().endswith("lsass.exe") and mask is not None and mask & PROCESS_VM_READ:
+                bits.add("process_access:lsass_read")
+        elif kind == EdgeKind.INJECTED:
+            bits.add("remote_thread:out")
+        elif kind == EdgeKind.CONNECTED_TO:
+            if other is not None and destination_scope(other.attrs.get("ip")) == "public":
+                bits.add("network:public_destination")
+                if other.attrs.get("port") not in _STANDARD_PORTS:
+                    bits.add("network:public_nonstandard_port")
+        elif kind == EdgeKind.RESOLVED:
+            if edge.attrs.get("query_status") not in (None, 0):
+                bits.add("dns:failed_query")
+        elif kind == EdgeKind.RAN_SCRIPT:
+            if edge.attrs.get("obfuscated"):
+                bits.add("script_block:obfuscated")
+    elif edge.dst == node_id and edge.kind == EdgeKind.INJECTED:
+        bits.add("remote_thread:in")
+    return frozenset(bits)
+
 # Fields serialised as JSON lists; restored to tuples so records stay hashable
 # and compare equal after a round trip.
-_TUPLE_FIELDS = ("access_targets", "remote_thread_targets")
+_TUPLE_FIELDS = ("access_targets", "remote_thread_targets", "ancestor_names", "behavior_bits")
+# Most distinct objects counted per behaviour bit: a capped count, not a volume.
+BIT_OBJECT_CAP = 10
 
 
 @dataclass(frozen=True)
@@ -134,6 +231,12 @@ class ProcessFeatures:
 
     as_of: Optional[str]
 
+    # schema 3: up to four ancestor names (parent first) and behaviour bits as of ``as_of``,
+    # each bit with its number of distinct objects (capped at BIT_OBJECT_CAP)
+    ancestor_names: Tuple[str, ...] = ()
+    behavior_bits: Tuple[str, ...] = ()
+    behavior_bit_objects: Tuple[Tuple[str, int], ...] = ()
+
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
@@ -147,6 +250,8 @@ class ProcessFeatures:
         for name in _TUPLE_FIELDS:
             if isinstance(values.get(name), list):
                 values[name] = tuple(values[name])
+        if isinstance(values.get("behavior_bit_objects"), list):
+            values["behavior_bit_objects"] = tuple(tuple(pair) for pair in values["behavior_bit_objects"])
         return cls(**values)
 
 
@@ -201,6 +306,7 @@ class FeatureExtractor:
             **self._behavior(process.node_id, as_of),
             lifetime_seconds=_lifetime(process, as_of),
             as_of=as_of.isoformat() if as_of is not None else None,
+            ancestor_names=tuple((a.name or "").lower() for a in ancestors[:4]),
         )
 
     def extract_event(self, event: Dict[str, Any]) -> Optional[ProcessFeatures]:
@@ -239,9 +345,12 @@ class FeatureExtractor:
         domains = set()
         access_targets = set()
         thread_targets = set()
+        bit_objects: Dict[str, set] = {}
         for edge in self.graph.incident_edges(node_id):
             if as_of is not None and edge.ts > as_of:
                 continue
+            for bit in edge_bits(edge, self.graph, node_id):
+                bit_objects.setdefault(bit, set()).add(edge.dst if edge.src == node_id else edge.src)
             if edge.dst == node_id and edge.kind == EdgeKind.INJECTED:
                 counts["injected_thread_count"] += 1
                 continue
@@ -289,6 +398,10 @@ class FeatureExtractor:
         counts["distinct_domain_count"] = len(domains)
         counts["access_targets"] = tuple(sorted(t for t in access_targets if t))
         counts["remote_thread_targets"] = tuple(sorted(t for t in thread_targets if t))
+        counts["behavior_bits"] = tuple(b for b in BEHAVIOR_BITS if b in bit_objects)
+        counts["behavior_bit_objects"] = tuple(
+            (b, min(len(bit_objects[b]), BIT_OBJECT_CAP)) for b in BEHAVIOR_BITS if b in bit_objects
+        )
         return counts
 
     def _label(self, node_id: str) -> str:
