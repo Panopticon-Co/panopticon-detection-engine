@@ -1,4 +1,4 @@
-"""Process-start featurizer for the supervised classifier, version 4 (behavioural, closed vocabulary).
+"""Process-start featurizer for the supervised classifier (v4 layout: behavioural, closed vocabulary).
 
 One process-creation event in, one sparse feature vector out. The function is
 *event-local* -- it never reads the provenance graph -- so it is stateless and
@@ -46,17 +46,21 @@ from panopticon_detection.enrichment import classify_path
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 
-FEATURIZER_VERSION = 4
+FEATURIZER_VERSION = 5
 
 # ------------------------------------------------------------- normalisation
-# Unchanged from v3: training de-duplicates rows on this normalisation.
+# Training de-duplicates rows on this normalisation. v5: profile names containing a space
+# are replaced whole (v1-v4 kept the surname).
 
 _GUID = re.compile(r"\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?")
 _HEX = re.compile(r"\b(?:0x)?[0-9a-f]{8,}\b")
 # Per-run random file names (PowerShell Add-Type's csc.exe temp files, etc.).
 _RANDOM_FILE = re.compile(r"\b[a-z0-9]{8}\.(cmdline|dll|pdb|out|err|tmp|0)\b")
 _DIGITS = re.compile(r"\d{3,}")
-_USER_DIR = re.compile(r"([a-z]:\\users\\)[^\\\"' ]+")
+# A profile segment may contain spaces ("First Last") when a separator follows it;
+# Windows user names cannot contain \ / " : ; | = , + * ? < > [ ], so a segment with
+# one of those is not a name. Otherwise it stops at the first space (featurizer v5).
+_USER_DIR = re.compile(r"([a-z]:\\users\\)(?:[^\\/\"':;|=,+*?<>\[\]]+(?=\\)|[^\\\"' ]+)")
 _SYSTEM_DIRS = re.compile(r"[a-z]:\\windows\\(?:system32|syswow64|sysnative)")
 _WINDOWS_DIR = re.compile(r"[a-z]:\\windows")
 _PROGRAM_FILES = re.compile(r"[a-z]:\\program files(?: \(x86\))?")

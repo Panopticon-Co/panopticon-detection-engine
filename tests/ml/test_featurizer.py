@@ -147,6 +147,20 @@ def test_profile_paths_are_normalised_per_user():
     )
 
 
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (r"C:\Users\First Last\AppData\x.exe", r"c:\users\<user>\appdata\x.exe"),
+        (r"C:\Users\FIRSTL~1\AppData\Local\Temp\x.ps1", r"c:\users\<user>\appdata\local\temp\x.ps1"),
+        (r'"C:\Users\First Last\a.exe" -x', r'"c:\users\<user>\a.exe" -x'),
+        (r"cd C:\Users\alice -x c:\temp\y", r"cd c:\users\<user> -x c:\temp\y"),
+        (r"C:\Users\First Last", r"c:\users\<user> last"),  # no separator after it: ambiguous, kept short
+    ],
+)
+def test_profile_names_with_spaces_are_replaced_whole(raw, expected):
+    assert F.normalize_text(raw) == expected
+
+
 def test_carets_change_only_the_obfuscation_features():
     blob = "SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQA"
     plain = {"process": {"name": "cmd.exe", "executable": r"C:\Windows\System32\cmd.exe",
