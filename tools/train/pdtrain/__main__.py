@@ -29,8 +29,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     lab = sub.add_parser("label", help="row tables -> labelled, de-duplicated rows")
     lab.add_argument(
-        "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc"],
-        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc"],
+        "--sources", nargs="+",
+        default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc", "atlasv2"],
+        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc", "atlasv2"],
     )
 
     exp = sub.add_parser("experiment", help="train, evaluate, export the bundle")
@@ -41,7 +42,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                      help="train on the OpTC host range that is not held out")
 
     sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
-    sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels (final test)")
+    sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels")
     fin = sub.add_parser("final-test", help="score the untouched ATLASv2 test once with a frozen bundle")
     fin.add_argument("--version", required=True)
 

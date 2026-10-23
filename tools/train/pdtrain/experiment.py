@@ -114,8 +114,8 @@ def labelled_raw(rows_dir: Path, sources: Sequence[str]) -> List[Dict[str, Any]]
         for _, rows in sorted(grouped.items()):
             if source == "botsv1":
                 label_botsv1(rows)
-            elif source in ("officer_vm", "optc"):
-                pass  # labelled benign by pdtrain.officer_vm
+            elif source in ("officer_vm", "optc", "atlasv2"):
+                pass  # labelled by their readers (pdtrain.officer_vm, pdtrain.optc, pdtrain.atlasv2)
             else:
                 label_attack_recording(rows, technique_group)
             out.extend(rows)
@@ -134,7 +134,7 @@ OPTC_TRAIN: List[bool] = [False]
 
 def role(row: Dict[str, Any]) -> str:
     if row["source"] == "atlasv2":
-        return "E9"  # untouched final test: never read by the experiment (see pdtrain.final_test)
+        return "v7_only"  # legacy runs v1-v6 never read ATLASv2; v7 trains on it (pdtrain.loeo)
     if row["source"] == "optc":
         return "E7" if OPTC_HOLDOUT in row["dataset"] else ("pool" if OPTC_TRAIN[0] else "E7")
     if row["source"] == "officer_vm":

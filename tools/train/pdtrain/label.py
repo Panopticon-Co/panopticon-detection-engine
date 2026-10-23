@@ -309,8 +309,8 @@ def label_all(rows_dir: Path, out_dir: Path, sources: List[str]) -> Dict[str, An
         for _, rows in sorted(_by_dataset(read_rows(rows_dir, source)).items()):
             if source == "botsv1":
                 label_botsv1(rows)
-            elif source in ("officer_vm", "optc"):
-                pass  # labelled benign by pdtrain.officer_vm (user-recorded ordinary use)
+            elif source in ("officer_vm", "optc", "atlasv2"):
+                pass  # labelled by their readers: ordinary use (officer_vm, optc), REAPr (atlasv2)
             else:
                 label_attack_recording(rows, technique_group)
             labelled.extend(rows)
