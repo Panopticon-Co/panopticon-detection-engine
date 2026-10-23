@@ -24,7 +24,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     norm = sub.add_parser("normalize", help="raw sources -> per-source row tables")
     norm.add_argument(
         "--sources", nargs="+", default=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm"],
-        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc"],
+        choices=["attack_data", "otrf", "otrf_compound", "botsv1", "officer_vm", "optc", "officer_sealed"],
     )
 
     lab = sub.add_parser("label", help="row tables -> labelled, de-duplicated rows")
@@ -51,8 +51,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     sub.add_parser("comiset", help="stream COMISET's real environment; keep Sysmon process starts")
     sub.add_parser("atlasv2", help="stream ATLASv2; keep Sysmon process starts with REAPr labels")
-    fin = sub.add_parser("final-test", help="score the untouched ATLASv2 test once with a frozen bundle")
+    fin = sub.add_parser("final-test", help="score the sealed agent recording once with a frozen bundle")
     fin.add_argument("--version", required=True)
+    fin.add_argument("--source", default="officer_sealed")
+    fin.add_argument("--freeze", action="store_true", help="mark the bundle as the final candidate first")
 
     args = parser.parse_args(argv)
     if args.step in ("loeo", "v7"):
@@ -94,7 +96,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         from pdtrain.final_test import run as final_run
 
-        result = final_run(DATA, REPO, args.version)
+        result = final_run(DATA, REPO, args.version, source=args.source, freeze=args.freeze)
         out = DATA / "experiment" / f"final_test_{args.version}.json"
         out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {out}")

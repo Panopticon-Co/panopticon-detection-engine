@@ -233,19 +233,26 @@ def normalize_all(raw: Path, out_dir: Path, sources: List[str], workers: int = 6
             dataset = f"optc:{path.parent.name}/{path.name.split('.')[0]}"
             rows.extend(read_ecar_process_creates(path, dataset))
         summary["optc"] = _write(rows, out_dir, "optc", [str(p.relative_to(raw)) for p in files])
-    if "officer_vm" in sources:
+    # officer_sealed: a recording from another machine, kept for the one-shot final test
+    # (pdtrain.final_test). It is never labelled or trained on (pdtrain.loeo.SOURCES).
+    for name in ("officer_vm", "officer_sealed"):
+        if name not in sources:
+            continue
         from pdtrain.officer_vm import prepare, read_package
 
         rows, inputs, counts = [], [], {}
-        for package in sorted(p for p in (raw / "officer_vm").glob("*") if p.is_dir()):
+        for package in sorted(p for p in (raw / name).glob("*") if p.is_dir()):
             records, meta = read_package(package)
             collection = (meta.get("manifest") or {}).get("collection_id") or package.name
-            pkg_rows, counts[package.name] = prepare(records, meta, f"officer_vm:{collection}")
+            pkg_rows, counts[package.name] = prepare(records, meta, f"{name}:{collection}")
+            for row in pkg_rows:
+                row["source"] = name
+                row["group"] = f"{name}:{row['host']}"
             rows.extend(pkg_rows)
             inputs.append(package.name)
-        summary["officer_vm"] = _write(rows, out_dir, "officer_vm", inputs)
-        summary["officer_vm"]["kit_issue_counts"] = counts
-        (out_dir / "officer_vm.manifest.json").write_text(json.dumps(summary["officer_vm"], indent=2) + "\n")
+        summary[name] = _write(rows, out_dir, name, inputs)
+        summary[name]["kit_issue_counts"] = counts
+        (out_dir / f"{name}.manifest.json").write_text(json.dumps(summary[name], indent=2) + "\n")
     return summary
 
 

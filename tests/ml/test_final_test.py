@@ -1,18 +1,18 @@
-"""The E9 final-test arithmetic: FP per host-hour, recall with exact intervals."""
+"""The sealed final test: arithmetic, serving-path scoring and the run-once guard."""
 
 from __future__ import annotations
+
+import gzip
+import json
 
 import pytest
 
 pytest.importorskip("lightgbm")
 
-from pdtrain.final_test import clopper_pearson, evaluate  # noqa: E402
+from pdtrain import loeo as L  # noqa: E402
+from pdtrain.final_test import bundle_scorer, clopper_pearson, evaluate, run  # noqa: E402
 
-
-def _row(rid, label, rule, utc, key, dataset="atlasv2:benign/h1/sysmon-1.xml"):
-    return {"row_id": rid, "label": label, "label_rule": rule, "utc": utc, "dedup_key": key,
-            "dataset": dataset, "host": "h1", "image": "C:\\x.exe", "parent_image": "C:\\p.exe",
-            "command_line": "x"}
+from tests.ml.test_loeo import _row  # noqa: E402
 
 
 def test_clopper_pearson_edges():
@@ -21,19 +21,43 @@ def test_clopper_pearson_edges():
     assert lo == pytest.approx(0.1871, abs=1e-4) and hi == pytest.approx(0.8129, abs=1e-4)
 
 
-def test_evaluate_counts_fp_per_hour_and_unique_recall():
-    rows = [
-        _row("b1", 0, "benign/atlasv2_benign_period", "2022-07-15T10:00:00", "k1"),
-        _row("b2", 0, "benign/atlasv2_benign_period", "2022-07-15T11:00:00", "k2"),  # 1 host-hour
-        _row("b3", 0, "benign/atlasv2_benign_period", "2022-07-15T12:00:00", "k3"),  # 2 host-hours
-        _row("m1", 1, "malicious/reapr", "2022-07-19T15:00:00", "m", "atlasv2:attack/h1/sysmon-h1-m1.xml"),
-        _row("m2", 1, "malicious/reapr", "2022-07-19T15:00:01", "m", "atlasv2:attack/h1/sysmon-h1-m2.xml"),
-        _row("m3", 1, "malicious/reapr", "2022-07-19T15:00:02", "n", "atlasv2:attack/h1/sysmon-h1-m2.xml"),
-    ]
-    score = {"b1": 0.9, "b2": 0.1, "b3": 0.1, "m1": 0.8, "m2": 0.8, "m3": 0.2}
-    res = evaluate(rows, score, {"alert": 0.5})
-    assert res["alert"]["fp_events"] == 1 and res["alert"]["fp_per_host_hour"] == 0.5
-    assert res["alert"]["recall_events"]["detected"] == 2 and res["alert"]["recall_events"]["n"] == 3
-    assert res["alert"]["recall_unique_rows"]["n"] == 2  # m1/m2 are the same featurized row
-    assert res["alert"]["recall_by_scenario"]["sysmon-h1-m2"]["detected"] == 1
-    assert [m["score"] for m in res["missed_malicious_unique"]] == [0.2]
+def test_evaluate_counts_fp_per_observed_host_hour():
+    rows = [_row("officer_sealed", i, 0, f"x{i}", minute=i * 30) for i in range(5)]  # 2 observed hours
+    score = {r["row_id"]: (5.0 if i < 2 else 0.0) for i, r in enumerate(rows)}
+    res = evaluate(rows, score, {"alert": 1.0})
+    assert res["alert"]["fp_events"] == 2 and res["alert"]["fp_per_host_hour"] == 1.0
+    assert res["alert"]["recall"] is None and res["observed_host_hours"] == 2.0
+
+
+def _bundle(tmp_path):
+    raw = [_row("optc", i, 0, f"C:\\Program Files\\app{i % 7}\\app.exe --run {i}",
+                image=f"C:\\Program Files\\app{i % 7}\\app.exe", host=f"o{i % 4}", minute=i) for i in range(80)]
+    verbs = ("whoami", "certutil -urlcache -f", "vssadmin delete shadows", "net user x /add", "wevtutil cl")
+    raw += [_row(src, i, 1, f"cmd /c {verbs[i % 5]} {'abcd'[i // 5]}{src}", parent="winword.exe", group=f"T:{i}")
+            for src in ("attack_data", "otrf") for i in range(20)]
+    units, _ = L.build_units(raw)
+    hours = L.hours_by_environment(raw)
+    fit = L.fit(units, hours, L.RECIPES["v7_lgb"])
+    L.export(tmp_path / "models" / "vX", fit, units, tmp_path, tmp_path, hours)
+    return fit, units
+
+
+def test_sealed_test_scores_through_the_serving_path_and_runs_once(tmp_path):
+    fit, units = _bundle(tmp_path)
+    folder = tmp_path / "models" / "vX"
+    u = units[0]
+    assert bundle_scorer(folder)(u.row) == pytest.approx(L.score_units(fit, [u])[u.uid], abs=1e-9)
+
+    sealed = [_row("officer_sealed", i, 0, f"C:\\Program Files\\app{i % 3}\\app.exe --x {i}",
+                   image=f"C:\\Program Files\\app{i % 3}\\app.exe", minute=i * 5) for i in range(30)]
+    (tmp_path / "rows").mkdir()
+    with gzip.open(tmp_path / "rows" / "officer_sealed.jsonl.gz", "wt") as handle:
+        for r in sealed:
+            handle.write(json.dumps(r) + "\n")
+    with pytest.raises(SystemExit, match="final_candidate"):
+        run(tmp_path, tmp_path, "vX")
+    result = run(tmp_path, tmp_path, "vX", freeze=True)
+    assert result["benign_events"] == 30 and "passes" in result
+    assert json.loads((folder / "manifest.json").read_text())["final_candidate"] is True
+    with pytest.raises(SystemExit, match="once"):
+        run(tmp_path, tmp_path, "vX")
