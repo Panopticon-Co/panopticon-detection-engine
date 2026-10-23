@@ -22,7 +22,9 @@ yet.
 | [Splunk BOTSv1](https://github.com/splunk/botsv1) | CC0-1.0 | file SHA-256 in pins | 1 Sysmon JSON export; 145 MB | realistic environment: servers train; desktop `we8105desk` is the held-out host (E4) |
 | [WinLOLBIN-GT](https://zenodo.org/records/20533434) | **CC BY 4.0**: Jeremiah, D., Rafiq, H. et al., DOI 10.5281/zenodo.20533434 | Zenodo record | 4 sample CSVs (500 rows each); 1.3 MB | out-of-distribution test only (E5); **never trained on** |
 | Officer agent recording (own VM) | collected by the project owner; not redistributed | package SHA-256 `d50df8d2…5b879d` | 6 NDJSON segments (each checksum-verified); 46 MB | agent-native benign: E6 test (v2), first half also trains (v3) |
-| [DARPA OpTC](https://github.com/FiveDirections/OpTC-data) | public domain (Distribution A) | file SHA-256s in pins | 2 eCAR files, benign period 19 Sep 2019, host ranges AIA-51-75 and AIA-201-225; 3.2 GB (downloaded by the project owner after the anonymous quota blocked automation) | AIA-51-75 trains (v5); AIA-201-225 is held-out test E7 (25 hosts) |
+| [DARPA OpTC](https://github.com/FiveDirections/OpTC-data) | public domain (Distribution A) | file SHA-256s in pins | 7 eCAR files, benign period 19 Sep 2019, host ranges AIA-51-75, -151-175, -201-225, -251-275, -301-325, -351-375, -401-425; 11.5 GB (downloaded by the project owner after the anonymous quota blocked automation) | AIA-51-75 trains (v5); the five further ranges also train (v6); AIA-201-225 is held-out test E7 (25 hosts) |
+| ATLASv2 (UIUC) with [REAPr ground truth](https://bitbucket.org/sts-lab/reapr-ground-truth) | **licence not verified**: used for evaluation only, nothing redistributed | archive SHA-256 in pins (streamed, never stored) | `atlasv2.tar.gz`, 12.2 GB; only the Sysmon XML exports are read | **training environment (v7)**; first planned as the final test, never scored before the switch (training-plan D20) |
+| [COMISET](https://zenodo.org/records/15375146) | **licence not verified** | — (stream stopped) | real-environment JSON, 31.7 GB compressed / 934 GB uncompressed | **not used**: streaming stopped after 1.4 GB for low process-start yield; backup source |
 
 ## Composition
 
@@ -110,7 +112,39 @@ user-recorded ordinary use.
 - The data includes the user's own evening testing.
 - There's no integrity level in this recording.
 
-## Labelling (`tools/train/pdtrain/label.py`, labeller v3)
+## ATLASv2 (`tools/train/pdtrain/atlasv2.py`)
+
+**What it is.** Two Windows 7 workstations (`h1`, `h2`) used by two experimenters: four
+benign days, then one attack day with 10 multi-stage attack scenarios (`s1`–`s4` on h1,
+`m1`–`m6` on both hosts). The 12.2 GB archive is streamed over HTTP ranges and never stored;
+only the Sysmon Event Viewer XML exports are parsed, and only their process creates kept.
+
+**Labels (fixed in code before any row was looked at by a model):**
+- benign days → benign;
+- attack day → **malicious** if and only if a REAPr `attack` label matches the process on
+  host + PID + creation time (REAPr's `process_uuid` carries the PID and the FILETIME
+  creation time; matched within 2 s);
+- REAPr also marks long-running processes the attack only touched (`explorer.exe`,
+  `lsass.exe`, `svchost.exe` …). Their starts are not attack starts, so they are excluded,
+  as are `conhost.exe` and browsers (as everywhere in this pipeline);
+- unmatched attack-day starts are the experimenters' ongoing activity → benign.
+
+**Role.** Planned as the untouched final test, it became a training environment in v7
+(training-plan D20) before any model scored it. Counts: 164,796 process starts; 159,377
+benign-period, 5,098 attack-day background and 87 REAPr-matched attack starts; 234 excluded
+(touched-only processes, `conhost.exe`, browsers).
+
+**Caveats:** REAPr itself warns that the attacks are highly redundant across scenarios, so
+recall is also reported over unique featurized rows. Windows 7 and 2022-era software differ
+from the agent's Windows 10/11 targets.
+
+## Labelling (`tools/train/pdtrain/label.py`, labeller v4)
+
+**v4 (run v6)** adds 12 OS housekeeping binaries to the background list
+(`usocoreworker`, `settingsynchost`, `cliprenew`, `chxsmartscreen`, `dxgiadaptercache`,
+`wlrmdr`, `microsoftedgecp`, `raserver`, `upfc`, `windows.warp.jitservice`, `ielowutil`,
+`officec2rclient`) and two agents to infrastructure (`windowsazurenetagent`,
+`monitoringhost`), from the v5 error analysis. Decided after seeing test results.
 
 Labels come from provenance and dataset documentation. **They never come from the engine's
 detection rules**, which would make the evaluation circular.

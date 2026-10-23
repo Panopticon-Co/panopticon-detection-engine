@@ -1,4 +1,11 @@
 {
+ "atlasv2/atlasv2.tar.gz": {
+  "sha256": "3c51aa5056c4661874043f329a50613bec6b75e21d489dd665f8e21e72021f06",
+  "bytes": 12208351555,
+  "url": "https://uofi.box.com/index.php?rm=box_download_shared_file&shared_name=feunur7280afxrfeb0af73recexa73yc&file_id=f_1294229670092",
+  "licence": "see dataset README",
+  "note": "streamed and filtered; not stored"
+ },
  "attack_data/_tree.json": {
   "sha256": "af06b623ea403021e5634a192837a50af51b62eb6e1c07da4462d48b863cb4a1",
   "bytes": 1534639,

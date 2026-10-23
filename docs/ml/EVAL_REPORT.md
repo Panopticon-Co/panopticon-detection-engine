@@ -323,3 +323,78 @@ means benign". v4's numbers are kept but superseded.
 held-out OpTC hosts. The single biggest contributor should be identified before the rules
 are used anywhere near alert volume. This is a finding about the existing engine, outside
 the ML scope.
+
+## Addendum 3 (2026-10-23): five more OpTC ranges, featurizer v3, labeller v4 (run v6)
+
+**What changed** (training-plan D15–D17):
+- **More benign data:** 125 more OpTC hosts from the same day (five 25-host ranges) join
+  training. E7 (`AIA-201-225`) stays held out.
+- **Featurizer v3:** carets are stripped before normalising.
+- **Labeller v4:** more OS housekeeping binaries and two infrastructure agents. This was
+  decided after seeing v5's errors, and it changes some E3 labels.
+
+Raw numbers: [`results/v6.json`](results/v6.json). The bundle's manifest is in
+[`results/bundle_manifest_v6.json`](results/bundle_manifest_v6.json).
+
+| v6, Variant A | Result | v5 |
+|---|---|---|
+| Pool | 5,548 rows (4,506 / 1,042), 259 groups, **923 observed host-hours** | 5,205 (4,514 / 691), 327 h |
+| `alert` / `high` raw-score thresholds | **2.97 / 4.50** | 4.42 / 6.41 |
+| E2 recall @ alert (unseen techniques) | 0.776 [0.661, 0.866]; LR 0.875, heuristic 0.231, rules 0.293 | 0.566 |
+| E2 paired vs LR / rules / heuristic | **−0.099 [−0.214, −0.019]** / +0.484 [+0.305, +0.614] / +0.545 [+0.423, +0.657] | +0.03 / +0.27 / −0.13 |
+| E2 PR-AUC vs LR | +0.018 [−0.003, +0.067] | |
+| E1 ceiling (random split) | 0.932 | 0.870 |
+| E3 recall @ alert (OTRF; labels changed by v4) | 0.823 [0.742, 0.906], precision 0.94; LR 0.854, rules 0.219 | 0.442 |
+| E4 FP/h alert / high (BOTSv1 desktop, 4.3 h) | **5.81** [3.76, 8.58] / **1.16** [0.38, 2.71]; Cerber recall 0.74 / 0.22 | 1.86 / 0.70 |
+| E6 FP/h alert / high (agent VM, held-out half, 2.1 h) | **8.85** [5.33, 13.82] / **3.73** [1.61, 7.34] | 0.93 / 0.00 |
+| E7 FP/h alert / high (OpTC, 25 hosts, 100 h) | 0.65 [0.50, 0.83] / 0.01 [0.00, 0.06]; rules 80.1 | 0.65 / 0.00 |
+| E5 ROC-AUC (WinLOLBIN-GT, synthetic) | 0.666 | 0.655 |
+| Robustness (E3, recall @ alert 0.823) | caret **0.823** (fixed), env-var 0.844, case/whitespace/argswap unchanged, renamed binary 0.875 | caret 0.133 |
+| Calibration (OOF) | ECE 0.018, Brier 0.063 | 0.021 / 0.064 |
+| Per-technique | 4 of 93 groups with zero recall; 61 at ≥ 0.8 | 19 of 94; 34 |
+| Leakage | 0 train/test duplicate keys; **one top-30 bucket shares a harness token** (`cmd#1467`: `atomics ..` with OpTC's `c:\ncr\` scripts); source predictability AUC OpTC **0.98**, attack_data 0.89 | OpTC 0.86 |
+| Reproducibility | `model.json` A `ad12b163…`, B `bcd8887b…` bit-identical on a rebuild at a later commit; all metrics identical; golden error 0.0 | |
+
+The E4/E6 intervals are exact Poisson intervals on the event counts.
+
+**Why recall rose and false positives rose with it.** The thresholds are set on the pool,
+to ≤ 1 false positive per *pooled* observed host-hour.
+- The new ranges tripled the pool's benign hours (327 → 923), and 719 of them (78%) are
+  now OpTC.
+- The model separates OpTC almost perfectly: source-predictability AUC 0.98.
+- So the pooled budget is met at a much lower threshold (alert 4.42 → 2.97).
+- That buys E2 recall, but the cost is paid by every environment that is not OpTC:
+  - BOTSv1 desktop: 3× more false positives;
+  - your VM: 9× more;
+  - held-out OpTC hosts: unchanged at 0.65/h.
+
+**What drives E6.** The top-scoring benign starts on your VM are:
+- Office Click-to-Run's `integrator.exe` registering ETW manifests (`wevtutil im`) and
+  creating or deleting scheduled tasks (`schtasks /Create … /XML`);
+- a Java installer run from `%TEMP%`;
+- `powershell → w32tm /query`.
+
+They are rare and attacker-shaped, and they are genuinely benign.
+
+**Gates for v6:**
+
+| Gate | Result |
+|---|---|
+| G1 | **FAIL**: beats rules and the heuristic, but is significantly *worse* than LR at the alert budget (−10 pp) |
+| G2 | **FAIL**: E4 5.81/h and E6 8.85/h at alert; only E7 meets the budget |
+| G3 | PASS: E3 0.82 vs E2 0.78 (E3 labels changed post-hoc) |
+| G4 | **FAIL** by its letter (one top-30 bucket carries a harness token); source predictability 0.98 for OpTC |
+| G5 | PASS |
+| G6 | PASS |
+
+**Lessons, stated as findings:**
+1. **More benign volume from one environment did not help. It moved the operating point
+   toward that environment.**
+2. A false-positive budget fitted on a pooled mixture is a property of the mixture. A
+   threshold that is safe for deployment must hold **per environment**, for example the
+   maximum over held-out environments. That needs benign data from many *environments*,
+   not many hosts of one.
+3. The caret fix works as designed. Recall under caret insertion now equals baseline recall,
+   by construction.
+4. **Variant B is worse than in v5:** E2 0.99, but E4 46 false positives per hour. Missing
+   integrity is now an even stronger "benign" signal. It is not evaluated further.
