@@ -45,8 +45,8 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.preprocessing import MaxAbsScaler
 
 from panopticon_detection.factory import build_detection_run
-from panopticon_detection.ml import featurizer as F
 from panopticon_detection.ml.scorer import TreeModel, platt
+from pdtrain import featurizer_v3 as F  # legacy runs v1-v6 are pinned to featurizer v3
 from pdtrain.label import (
     dedup_key,
     label_attack_recording,
