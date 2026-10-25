@@ -37,7 +37,6 @@ from panopticon_detection.provenance.graph import actor_of
 from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 from panopticon_detection.provenance.tagging import Tag, tag_from_alert, tag_from_detection
 
-
 # DetectionRun's internal detection kinds -> the Alert.detection_source contract.
 # Beaconing is a behavioural detector, so it reports as "behavioral" even though
 # (unlike rarity signals) it carries an ATT&CK tactic.
