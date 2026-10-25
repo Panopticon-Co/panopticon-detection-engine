@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
+# Training-only dependencies (the `train` extra): skip, as the other tests/ml
+# modules do, rather than fail collection when they are absent.
 pytest.importorskip("lightgbm")
+np = pytest.importorskip("numpy")
 
 from pdtrain import context_loeo as K  # noqa: E402
 
