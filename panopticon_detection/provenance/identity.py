@@ -106,6 +106,12 @@ def derive_node_id(host_id: str, pid: int, start_time: datetime) -> str:
     return "proc_" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
+# How far apart two reports of one process creation may be stamped. ETW's
+# CreateTime and Sysmon's UtcTime describe the same instant; the window only
+# absorbs rounding and clock-source jitter, far below any PID-reuse interval.
+DUPLICATE_START_WINDOW = timedelta(seconds=1)
+
+
 @dataclass
 class ProcessIncarnation:
     """One live run of one PID on one host, over ``[start_time, end_time)``."""
@@ -195,6 +201,17 @@ class ProcessRegistry:
 
         parent = event.get("parent") or {}
         parent_pid = parent.get("pid")
+
+        # The agent reports one process creation twice -- ETW Kernel-Process
+        # (with start_time_ticks, no command line) and Sysmon EID 1 (command
+        # line and hash, no ticks) -- stamped with the same creation instant.
+        # They are one incarnation: fill in what the earlier report lacked
+        # rather than letting the later one replace it, which would drop the
+        # ticks a kill recommendation needs and split the process in two.
+        duplicate = self._same_creation(host_id, pid, start, proc, parent_pid)
+        if duplicate is not None:
+            _fill_missing(duplicate, proc, parent_pid)
+            return duplicate
 
         incarnation = ProcessIncarnation(
             node_id=derive_node_id(host_id, pid, start),
@@ -460,6 +477,32 @@ class ProcessRegistry:
         return iter(self._by_node_id.values())
 
     # ------------------------------------------------------------------
+    def _same_creation(
+        self,
+        host_id: str,
+        pid: int,
+        start: datetime,
+        proc: Dict[str, Any],
+        parent_pid: Any,
+    ) -> Optional[ProcessIncarnation]:
+        """An already-recorded observed incarnation this start event re-reports.
+
+        Same host and PID, a creation time within ``DUPLICATE_START_WINDOW``, the
+        same parent PID when both are known, and the same image name when both
+        are known. Anything less is a different process reusing the PID.
+        """
+        name = _image_name(proc.get("name"), proc.get("executable") or proc.get("executable_path"))
+        for inc in self._timeline.get((host_id, pid), ()):
+            if inc.inferred or abs(inc.start_time - start) > DUPLICATE_START_WINDOW:
+                continue
+            if isinstance(parent_pid, int) and inc.parent_pid is not None and inc.parent_pid != parent_pid:
+                continue
+            known = _image_name(inc.name, inc.executable)
+            if name and known and name != known:
+                continue
+            return inc
+        return None
+
     def _insert(self, incarnation: ProcessIncarnation) -> None:
         key = (incarnation.host_id, incarnation.pid)
         timeline = self._timeline.setdefault(key, [])
@@ -479,6 +522,39 @@ class ProcessRegistry:
 
         timeline.insert(idx, incarnation)
         self._by_node_id[incarnation.node_id] = incarnation
+
+
+def _image_name(name: Any, executable: Any) -> str:
+    """Lower-case image file name from a name or a (possibly device) path."""
+    for value in (name, executable):
+        if isinstance(value, str) and value:
+            return value.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+    return ""
+
+
+def _fill_missing(inc: ProcessIncarnation, proc: Dict[str, Any], parent_pid: Any) -> None:
+    """Copy fields a duplicate creation report carries and ``inc`` lacks.
+
+    Never overwrites: each field keeps the first value observed. That applies
+    to ``start_time_ticks`` too -- it is passed through as reported, never
+    chosen between or derived.
+    """
+    if not inc.name and proc.get("name"):
+        inc.name = proc["name"].lower()
+    if not inc.executable:
+        inc.executable = proc.get("executable") or proc.get("executable_path") or ""
+    if not inc.command_line and proc.get("command_line"):
+        inc.command_line = proc["command_line"]
+    if not inc.user and proc.get("user"):
+        inc.user = proc["user"]
+    if not inc.sha256:
+        inc.sha256 = proc.get("sha256") or proc.get("file_hash")
+    if inc.start_time_ticks is None:
+        inc.start_time_ticks = _coerce_ticks(proc.get("start_time_ticks"))
+    if inc.entity_id is None and proc.get("entity_id"):
+        inc.entity_id = proc["entity_id"]
+    if inc.parent_pid is None and isinstance(parent_pid, int):
+        inc.parent_pid = parent_pid
 
 
 def _coerce_ticks(value: Any) -> Optional[int]:

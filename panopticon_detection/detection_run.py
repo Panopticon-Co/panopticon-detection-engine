@@ -34,7 +34,11 @@ from panopticon_detection.alerting.alert import Alert
 from panopticon_detection.alerting.formatter import AlertFormatter
 from panopticon_detection.features import FeatureExtractor
 from panopticon_detection.provenance.graph import actor_of
-from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
+from panopticon_detection.provenance.identity import (
+    event_epoch,
+    naive_utc_epoch,
+    parse_timestamp,
+)
 from panopticon_detection.provenance.tagging import Tag, tag_from_alert, tag_from_detection
 
 # DetectionRun's internal detection kinds -> the Alert.detection_source contract.
@@ -138,6 +142,7 @@ class DetectionRun:
         tags: List[Tag] = []
         for alert, tag, kind in detections:
             alert.detection_source = _SOURCE_OF_KIND[kind]
+            self._attach_observed_ticks(alert, event)
             if self._is_duplicate(alert, event, edge):
                 self.suppressed_duplicates += 1
                 tags.append(tag)
@@ -180,6 +185,26 @@ class DetectionRun:
         return produced
 
     # ------------------------------------------------------------------
+    def _attach_observed_ticks(self, alert: Alert, event: Dict[str, Any]) -> None:
+        """Give a pid-targeted recommendation the token its process was created with.
+
+        A recommendation built from a later event (a registry write, a Sysmon
+        process start the agent also reported via ETW) carries the pid but not
+        ``start_time_ticks``. The registry holds the token exactly as the agent
+        reported it on that incarnation's creation, so it is passed through --
+        never derived. No live incarnation for that pid, or none with a token:
+        the recommendation is left as is and still fails closed downstream.
+        """
+        rec = alert.active_response
+        if not rec or rec.get("target_start_time_ticks") is not None:
+            return
+        pid = rec.get("target_pid")
+        inc = self.graph_builder.registry.resolve(
+            alert.host_id, pid, parse_timestamp(event.get("timestamp"))
+        )
+        if inc is not None and inc.pid == pid and inc.start_time_ticks is not None:
+            rec["target_start_time_ticks"] = inc.start_time_ticks
+
     def _is_duplicate(self, alert: Alert, event: Dict[str, Any], edge) -> bool:
         ts = event_epoch(event.get("timestamp"))
         if ts is None:
