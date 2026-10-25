@@ -528,3 +528,21 @@ normalisation (`c:\users\first last\…` keeps `last`), so in v1–v3 the user's
 hashed tokens. v4's base features have no path tokens; the token variant only admits tokens seen
 in three or more environments. Fixing `normalize_text` changes de-duplication keys and needs a
 featurizer bump.
+
+
+## Addendum 5 (2026-10-24): context model ctx1 (leave-one-environment-out, full-family replay)
+
+Plan: [`context-model-plan.md`](context-model-plan.md). Raw numbers: [`results/context_ctx1.json`](results/context_ctx1.json).
+
+- 184,523 replayed process incarnations joined to labels; admitted feature groups: start, lineage, children, network, image_load, registry.
+- Selected `ctx_lgb` (no candidate meets C1 at alert; lowest worst-environment FP/host-hour).
+- FP per host-hour at alert: {'attack_range': 0.0, 'mordor': 0.0, 'botsv1': 0.0, 'officer_vm': 6.25, 'optc': 0.0, 'atlasv2': 0.0}.
+- Recall at alert: {'attack_range': 0.0164, 'mordor': 0.0, 'botsv1': 0.0, 'atlasv2': 0.0}; macro 0.0041.
+- vs start-only model: +0.0041 [0.0, 0.0108]; vs rules: -0.2707 [-0.3733, -0.2114].
+- Partial AUC (FPR <= 1%): {'attack_range': 0.6883, 'mordor': 0.5592, 'botsv1': 0.5594, 'atlasv2': 0.6761}.
+- Criteria: C1 FAIL, C2 FAIL, C3 FAIL, C4 FAIL, C5 FAIL, C6 pass, C7 pass, C8 pass.
+
+**Verdict:** C1 and C2 fail, so the pre-registered kill rule applies: L1 is not shipped; L3 (storyline risk index) proceeds on rules plus rarity only.
+Likely reasons: ATLASv2's Sysmon logged process events only (D26), and attack_data covers network for under half its hours, so the behaviour context is mostly absent where the attacks are.
+
+**Next:** re-run `pdtrain replay` (replay v2 adds storyline roots), build `pdtrain/l3_sim.py` and criteria E1-E6, extend rarity, optional CNN-LSTM arm, sealed agent recording from a second machine.
