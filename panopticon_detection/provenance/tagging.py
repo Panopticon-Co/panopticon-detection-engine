@@ -60,6 +60,9 @@ class Tag:
     # Carried so a campaign can hand the response layer the recommendation the
     # rule itself asked for, rather than re-deriving one from severity.
     active_response: Optional[str] = None
+    # The alert this detection was emitted as, so an incident can list its
+    # member alerts. None when the detection was suppressed as a repeat.
+    alert_id: Optional[str] = None
 
     @property
     def tactic_key(self) -> str:

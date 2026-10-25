@@ -107,6 +107,7 @@ class Stage:
     actor_node_id: str
     actor_name: str
     actor_pid: Optional[int]
+    alert_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -118,6 +119,7 @@ class Stage:
             "process": self.actor_name,
             "pid": self.actor_pid,
             "event_id": self.event_id,
+            "alert_id": self.alert_id,
         }
 
 
@@ -310,6 +312,7 @@ class IncidentTracker:
                         actor_node_id=node_id,
                         actor_name=(proc.name if proc else "") or "unknown",
                         actor_pid=proc.pid if proc else None,
+                        alert_id=t.alert_id,
                     )
         return sorted(stages.values(), key=lambda s: (s.ts, s.rule_id, s.actor_node_id))
 
@@ -461,6 +464,7 @@ class IncidentTracker:
             mitre_technique=tag.technique or None,
             tags=["attack.incident", "provenance", "multi_stage"],
             incident_id=incident.incident_id,
+            detection_source="correlation",
         )
 
     @staticmethod

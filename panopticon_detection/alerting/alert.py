@@ -54,6 +54,11 @@ class Alert:
     # Set on incident alerts: stable across an incident's revisions, while
     # alert_id changes with each one.
     incident_id: Optional[str] = None
+    # Which layer produced this alert: "rule" (single-event rule), "stateful"
+    # (sequence / threshold / value_count rule), "behavioral" (beaconing,
+    # rarity -- evidence, never a verdict) or "correlation" (incident, host
+    # risk). Set by DetectionRun; the manager's response policy reads it.
+    detection_source: Optional[str] = None
 
     @classmethod
     def from_detection_result(cls, result: DetectionResult) -> "Alert":

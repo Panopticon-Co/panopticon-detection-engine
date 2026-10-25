@@ -25,6 +25,7 @@ so their behaviour cannot drift apart.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -35,6 +36,17 @@ from panopticon_detection.features import FeatureExtractor
 from panopticon_detection.provenance.graph import actor_of
 from panopticon_detection.provenance.identity import event_epoch, naive_utc_epoch
 from panopticon_detection.provenance.tagging import Tag, tag_from_alert, tag_from_detection
+
+
+# DetectionRun's internal detection kinds -> the Alert.detection_source contract.
+# Beaconing is a behavioural detector, so it reports as "behavioral" even though
+# (unlike rarity signals) it carries an ATT&CK tactic.
+_SOURCE_OF_KIND = {
+    "rule": "rule",
+    "stateful": "stateful",
+    "beacon": "behavioral",
+    "behavioral": "behavioral",
+}
 
 
 def _print_alert(alert: Alert, fmt: str, story_mode: bool = False) -> None:
@@ -124,12 +136,16 @@ class DetectionRun:
         # before correlating, so an incident opened by one detection on this
         # event already includes the others.
         evidential: List[Alert] = []
-        for alert, _tag, kind in detections:
+        tags: List[Tag] = []
+        for alert, tag, kind in detections:
+            alert.detection_source = _SOURCE_OF_KIND[kind]
             if self._is_duplicate(alert, event, edge):
                 self.suppressed_duplicates += 1
+                tags.append(tag)
                 continue
             self._count(kind)
             self._emit(alert, produced)
+            tags.append(dataclasses.replace(tag, alert_id=alert.alert_id))
             if kind != "behavioral":
                 evidential.append(alert)
 
@@ -150,13 +166,13 @@ class DetectionRun:
                 confidence=strongest.confidence,
             )
             if risk is not None:
+                risk.detection_source = "correlation"
                 self.risk_breach_alerts_count += 1
                 self._emit(risk, produced)
 
         if edge is not None:
-            for _alert, tag, _kind in detections:
-                edge.tags.append(tag)
-            for _alert, tag, _kind in detections:
+            edge.tags.extend(tags)
+            for tag in tags:
                 incident_alert = self.incidents.on_tag(edge, tag)
                 if incident_alert is not None:
                     self.incident_alerts_count += 1
