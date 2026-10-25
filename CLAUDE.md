@@ -122,6 +122,13 @@ Keep these properties:
   no `process_terminate` arrives. Incarnations are closed *implicitly* when a
   later one appears on the same `(host, pid)`. `observe_stop` is implemented and
   waiting for the agent-side schema change.
+- The agent reports each process creation twice (ETW with `start_time_ticks`,
+  Sysmon EID 1 with the command line) at the same instant. `observe_start`
+  merges a re-report into the existing incarnation, filling only missing
+  fields; never let a later report replace an earlier one.
+- `tests/test_dataset_otrf.py` validates the 0.5 OTRF fixtures against a sibling
+  `../panopticon-agent` checkout when one exists; the agent's published schema
+  admits 0.2–0.4 only, so those cases fail until the agent ships 0.5.
 - A parent whose creation was never observed is *inferred* from the child's
   parent reference and flagged `inferred=True`. An agent starting on a running
   machine never sees existing processes being created.
@@ -170,5 +177,8 @@ Rule format is Sigma/Wazuh-*inspired*, not Sigma: `id`, `level` (0-16),
 - **`start_time_ticks`** is an opaque, OS-native, pass-through-only token. It
   guards against PID reuse in `KILL_PROCESS`. Never derive, default or
   normalise it — a missing value must fail closed.
+- **Alert / incident / response contract** — `docs/integration/CONTRACT.md`
+  (`detection_source`, `incident_id`, `evidence.stages[].alert_id`). The manager
+  persists and links on these fields; keep them additive.
 - **Manager entry point** — `factory.build_detection_run`. Changing its
   signature breaks `panopticon-manager` on the next submodule bump.
