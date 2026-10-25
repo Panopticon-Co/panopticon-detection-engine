@@ -51,6 +51,8 @@ class _Partial:
     next_step: int
     steps: List[str] = field(default_factory=list)
     conditions: List[str] = field(default_factory=list)
+    # The process incarnation whose event started this match, if resolvable.
+    origin: Optional[str] = None
 
 
 def _describe_event(event: Dict[str, Any]) -> str:
@@ -210,15 +212,25 @@ class StatefulEvaluator:
         if completed is not None:
             partials.remove(completed)
         if 0 in matched:
-            partials.append(
-                _Partial(
-                    start=ts,
-                    last=ts,
-                    next_step=1,
-                    steps=[self._step_line(rule, 0, event)],
-                    conditions=[f"step 1: {c}" for c in format_trace(matched[0])],
+            actor = self.registry.resolve_event(event) if self.registry is not None else None
+            origin = actor.node_id if actor is not None else None
+            # One process opens one match per step-1 occurrence window: the
+            # agent's ETW and Sysmon reports of a single process creation (and
+            # a process repeating the first step) must not each start a match
+            # that later completes into its own alert.
+            if origin is None or not any(
+                p.origin == origin and p.next_step == 1 for p in partials
+            ):
+                partials.append(
+                    _Partial(
+                        start=ts,
+                        last=ts,
+                        next_step=1,
+                        steps=[self._step_line(rule, 0, event)],
+                        conditions=[f"step 1: {c}" for c in format_trace(matched[0])],
+                        origin=origin,
+                    )
                 )
-            )
         if len(partials) > self.max_partials_per_key:
             partials = partials[-self.max_partials_per_key:]
         if partials:
