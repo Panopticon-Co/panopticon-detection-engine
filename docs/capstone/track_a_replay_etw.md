@@ -8,4 +8,4 @@
 | ransomware_precursors_and_encryption | attack chain | yes | 25 | 5 | CORR-RISK-001 | 1 (1) | upd.exe | 1.0 | analyst-approval 5, auto 1 |
 | sibling_noise_no_merge | single tactic | yes | 10 | 3 | CORR-RISK-001 | 0 (0) | - | - | analyst-approval 1, auto 1 |
 
-Summary: {"scenarios": 7, "attack_chains": 4, "attack_chains_detected": 4, "attack_chains_incident_correct": 4, "no_incident_scenarios": 2, "no_incident_scenarios_correct": 2, "no_incident_scenarios_detected": 2, "benign_scenarios": 1, "benign_events": 96, "benign_alerts": 0, "benign_incidents": 0, "replay_idempotent": true, "median_stage_to_incident_s": 2.0, "max_ms_per_event": 0.3}
+Summary: {"scenarios": 7, "attack_chains": 4, "attack_chains_detected": 4, "attack_chains_incident_correct": 4, "no_incident_scenarios": 2, "no_incident_scenarios_correct": 2, "no_incident_scenarios_detected": 2, "benign_scenarios": 1, "benign_events": 96, "benign_alerts": 0, "benign_incidents": 0, "replay_idempotent": true, "median_stage_to_incident_s": 2.0, "max_ms_per_event": 0.29}

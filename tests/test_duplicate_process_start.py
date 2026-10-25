@@ -85,3 +85,21 @@ def test_same_pid_seconds_apart_is_a_new_incarnation():
         _start("sysmon", 900, 4, "cmd.exe", r"C:\Windows\System32\cmd.exe", "cmd", None, "2026-10-25T10:00:05.000Z", "t2"),
     ])
     assert len([i for i in ctx.registry._by_node_id.values() if i.pid == 900]) == 2
+
+
+def test_twin_reports_draw_each_creation_edge_once():
+    from panopticon_detection.provenance.graph import EdgeKind
+
+    _, ctx = _run([
+        _start("etw", 500, 4, "powershell.exe", PS, None, 11, "2026-10-25T10:00:00.000Z", "f1"),
+        _start("sysmon", 500, 4, "powershell.exe", PS, "powershell.exe", None, "2026-10-25T10:00:00.000Z", "f2"),
+        _start("etw", 600, 500, "vssadmin.exe", VSS, None, 12, "2026-10-25T10:00:05.000Z", "f3"),
+        _start("sysmon", 600, 500, "vssadmin.exe", VSS, "vssadmin.exe delete shadows /all", None,
+               "2026-10-25T10:00:05.000Z", "f4"),
+    ])
+    edges = list(ctx.graph.edges.values())
+    forks = [e for e in edges if e.kind == EdgeKind.FORKED]
+    executed = [e for e in edges if e.kind == EdgeKind.EXECUTED]
+    assert len(forks) == 2 and len(executed) == 2
+    child = next(e for e in forks if e.attrs.get("command_line", "").startswith("vssadmin"))
+    assert any(t.rule_id == "DET-PROC-006" for t in child.tags)

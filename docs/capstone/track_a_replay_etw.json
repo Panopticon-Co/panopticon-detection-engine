@@ -13,7 +13,7 @@
     "benign_incidents": 0,
     "replay_idempotent": true,
     "median_stage_to_incident_s": 2.0,
-    "max_ms_per_event": 0.3
+    "max_ms_per_event": 0.29
   },
   "scenarios": [
     {
@@ -38,7 +38,7 @@
       "detected": null,
       "incident_correct": true,
       "stage_to_incident_s": null,
-      "ms_per_event": 0.14,
+      "ms_per_event": 0.13,
       "responses": {},
       "replay_idempotent": true
     },
@@ -79,7 +79,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 5.0,
-      "ms_per_event": 0.21,
+      "ms_per_event": 0.2,
       "responses": {
         "analyst-approval": 2,
         "auto": 1
@@ -139,7 +139,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 3.0,
-      "ms_per_event": 0.3,
+      "ms_per_event": 0.29,
       "responses": {
         "analyst-approval": 8,
         "auto": 3
@@ -232,7 +232,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 1.0,
-      "ms_per_event": 0.19,
+      "ms_per_event": 0.18,
       "responses": {
         "analyst-approval": 10,
         "auto": 1
@@ -313,7 +313,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": null,
-      "ms_per_event": 0.27,
+      "ms_per_event": 0.26,
       "responses": {
         "analyst-approval": 1,
         "auto": 1

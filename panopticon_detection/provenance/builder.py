@@ -15,7 +15,7 @@ this vocabulary.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
@@ -121,6 +121,18 @@ class EventGraphBuilder:
             return None
 
         self._upsert_process(incarnation)
+
+        # A second report of a creation already recorded (ETW and Sysmon both
+        # report every start; observe_start merged it): the edges exist. Hand
+        # back the original fork edge so this report's detections tag the same
+        # relation, instead of drawing it twice.
+        recorded = self._creation_edges(incarnation.node_id)
+        if recorded is not None:
+            forked = recorded[1]
+            if forked is not None and not forked.attrs.get("command_line") and incarnation.command_line:
+                forked.attrs["command_line"] = incarnation.command_line
+            return forked
+
         if incarnation.parent_node_id and incarnation.parent_node_id not in self.graph.nodes:
             parent = self.registry.get(incarnation.parent_node_id)
             if parent is not None:
@@ -390,6 +402,19 @@ class EventGraphBuilder:
             inferred=True,
             command_line=incarnation.command_line or None,
         )
+
+    def _creation_edges(self, node_id: str) -> Optional[Tuple[Optional[Edge], Optional[Edge]]]:
+        """``(executed, forked)`` edges a creation already drew for ``node_id``,
+        or ``None`` when its creation has not been recorded yet."""
+        executed = forked = None
+        for e in self.graph.incident_edges(node_id):
+            if e.kind == EdgeKind.EXECUTED and e.src == node_id:
+                executed = e
+            elif e.kind == EdgeKind.FORKED and e.dst == node_id:
+                forked = e
+        if executed is None and forked is None:
+            return None
+        return executed, forked
 
     def _upsert_process(self, incarnation: ProcessIncarnation) -> None:
         self.graph.upsert_node(

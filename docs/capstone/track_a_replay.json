@@ -13,7 +13,7 @@
     "benign_incidents": 0,
     "replay_idempotent": true,
     "median_stage_to_incident_s": 2.0,
-    "max_ms_per_event": 0.31
+    "max_ms_per_event": 0.33
   },
   "scenarios": [
     {
@@ -38,7 +38,7 @@
       "detected": null,
       "incident_correct": true,
       "stage_to_incident_s": null,
-      "ms_per_event": 0.14,
+      "ms_per_event": 0.13,
       "responses": {},
       "replay_idempotent": true
     },
@@ -79,7 +79,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 5.0,
-      "ms_per_event": 0.2,
+      "ms_per_event": 0.21,
       "responses": {
         "record-only (no start_time_ticks)": 1,
         "auto": 1
@@ -139,7 +139,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 3.0,
-      "ms_per_event": 0.31,
+      "ms_per_event": 0.33,
       "responses": {
         "record-only (no start_time_ticks)": 6,
         "auto": 3
@@ -176,7 +176,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": null,
-      "ms_per_event": 0.16,
+      "ms_per_event": 0.17,
       "responses": {
         "record-only (no start_time_ticks)": 1,
         "auto": 1
@@ -232,7 +232,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 1.0,
-      "ms_per_event": 0.18,
+      "ms_per_event": 0.17,
       "responses": {
         "record-only (no start_time_ticks)": 8,
         "auto": 1
@@ -278,7 +278,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": 1.0,
-      "ms_per_event": 0.21,
+      "ms_per_event": 0.22,
       "responses": {
         "record-only (no start_time_ticks)": 4,
         "auto": 1
@@ -313,7 +313,7 @@
       "detected": true,
       "incident_correct": true,
       "stage_to_incident_s": null,
-      "ms_per_event": 0.29,
+      "ms_per_event": 0.3,
       "responses": {
         "record-only (no start_time_ticks)": 1,
         "auto": 1
