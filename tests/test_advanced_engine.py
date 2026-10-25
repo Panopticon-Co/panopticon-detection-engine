@@ -60,7 +60,22 @@ def test_entity_risk_scorer():
     assert alert3 is not None
     assert "CORR-RISK-001" in alert3.rule_id
     assert scorer.get_host_score("HOST-CORP-01") == 80
-    assert alert3.active_response["action"] == "ISOLATE_HOST"
+    # Accumulated, possibly unrelated detections justify collecting evidence,
+    # never cutting the host off the network.
+    assert alert3.active_response["action"] == "COLLECT_NETWORK_CONNECTIONS"
+
+
+def test_one_rule_repeating_counts_once():
+    """A single noisy rule must not drive the meter to 100 by itself."""
+    scorer = EntityRiskScorer(breach_threshold=75)
+    for minute in range(20):
+        alert = scorer.record_detection(
+            "HOST-1", "DET-NET-006", "LOLBin egress", 13, f"2026-08-14T20:{minute:02d}:00Z"
+        )
+        assert alert is None
+    profile = scorer.host_profiles["HOST-1"]
+    assert len(profile.event_timeline) == 1
+    assert scorer.get_host_score("HOST-1") <= 50
 
 
 def test_risk_score_decays_over_quiet_time():

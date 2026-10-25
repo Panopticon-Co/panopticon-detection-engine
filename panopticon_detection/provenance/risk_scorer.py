@@ -6,7 +6,7 @@ Raises a composite Host Compromise Incident when accumulated threat points cross
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from panopticon_detection.alerting.alert import Alert
@@ -27,6 +27,7 @@ class RiskEventRecord:
     level: int
     points_added: int
     summary: str
+    confidence: float = 0.85
 
 
 @dataclass
@@ -79,13 +80,31 @@ class EntityRiskScorer:
         level: int,
         timestamp: str,
         summary: str = "",
+        confidence: float = 0.85,
     ) -> Optional[Alert]:
-        """Adds risk points to host profile and returns an Incident Alert if threshold is breached."""
+        """Add a detection's points to its host; alert when the threshold is crossed.
+
+        A rule counts once per host per half-life. Without that, one noisy rule
+        firing a hundred times on one host drove the meter to 100 on its own --
+        the meter is meant to catch *several different* suspicious behaviours
+        accumulating, which a single repeating rule is not.
+        """
         if host_id not in self.host_profiles:
             self.host_profiles[host_id] = HostRiskProfile(host_id=host_id)
 
         profile = self.host_profiles[host_id]
         self._decay(profile, timestamp)
+
+        now = _parse_ts(timestamp)
+        recent = [
+            r for r in profile.event_timeline
+            if r.rule_id == rule_id and (
+                now is None
+                or (_parse_ts(r.timestamp) or now) >= now - timedelta(seconds=self.half_life_seconds)
+            )
+        ]
+        if recent:
+            return None
 
         points = self.LEVEL_TO_POINTS.get(level, 10)
         profile.current_score = min(100, profile.current_score + points)
@@ -98,6 +117,7 @@ class EntityRiskScorer:
             level=level,
             points_added=points,
             summary=summary,
+            confidence=confidence,
         )
         profile.event_timeline.append(record)
 
@@ -145,19 +165,28 @@ class EntityRiskScorer:
         return Alert(
             alert_id="RISK-" + hashlib.sha1(_key.encode("utf-8")).hexdigest()[:8].upper(),
             rule_id="CORR-RISK-001",
-            title=f"[HOST COMPROMISE THREAT METER] Critical Threat Accumulation on {profile.host_id}",
-            description=f"Host risk score breached threshold ({profile.current_score}/100) across {len(profile.event_timeline)} security events.",
-            level=15,
-            severity="critical",
-            confidence=0.97,
+            title=f"[HOST RISK] Several distinct detections accumulated on {profile.host_id}",
+            description=(
+                f"Host risk score reached {profile.current_score}/100 from "
+                f"{len({r.rule_id for r in profile.event_timeline})} distinct rule(s). "
+                "The detections need not be related; related ones form incidents."
+            ),
+            level=12,
+            severity="high",
+            # The mean confidence of what contributed, not an invented constant.
+            confidence=round(
+                sum(r.confidence for r in profile.event_timeline) / len(profile.event_timeline), 3
+            ) if profile.event_timeline else 0.5,
             host_id=profile.host_id,
-            timestamp=profile.event_timeline[-1].timestamp if profile.event_timeline else datetime.utcnow().isoformat(),
+            timestamp=profile.event_timeline[-1].timestamp if profile.event_timeline else "",
             event_id=None,
             evidence=evidence,
+            # Accumulated unrelated detections justify gathering more evidence,
+            # not cutting a host off the network: read-only, auto-safe.
             active_response={
-                "action": "ISOLATE_HOST",
+                "action": "COLLECT_NETWORK_CONNECTIONS",
                 "host_id": profile.host_id,
-                "reason": f"Host Threat Meter crossed critical breach threshold ({profile.current_score}/100)",
+                "reason": f"Host risk meter reached {profile.current_score}/100",
             },
             # An accumulation of unrelated detections has no single technique;
             # the contributing rules' own mappings are in the timeline.

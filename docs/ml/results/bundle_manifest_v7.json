@@ -1,0 +1,42 @@
+{
+ "model_id": "panopticon-process-start",
+ "recipe": "v7_lgb_no_stats",
+ "model_type": "lgb",
+ "featurizer_version": 4,
+ "engine_git_sha": "fa8a333422dff38c4feef4059f5e859944e7bb66",
+ "golden_max_abs_error": 5.329070518200751e-15,
+ "rounds": 170,
+ "training_environments": [
+  "atlasv2",
+  "attack_range",
+  "botsv1",
+  "mordor",
+  "officer_vm",
+  "optc"
+ ],
+ "training_units": 2971,
+ "versions": {
+  "lightgbm": "4.7.0",
+  "scikit_learn": "1.9.1",
+  "numpy": "2.5.4",
+  "python": "3.12.12"
+ },
+ "pins_sha256": "36c573a056043f5bdab425e4ba334afa18bb359de00995d9f53c87f3fd94beb2",
+ "rows_sha256": {
+  "attack_data": "451e8bd5bb9d32863cf35f3a9462e4baf1c4c00622eab81104566e35efa8e19a",
+  "otrf": "c4b5546107783b7e31184586e51f42219fa8a490aedfe6d4fe0f824ecfdea95a",
+  "otrf_compound": "a17be5b583a0d0466c8708f94af9ba36e5ee407740d73c7bdbc403f84fbe7aa0",
+  "botsv1": "8e0114ddb0278c0ad1c11d7372433e7f16a7ac11d1e5f8dfa8c1cff215a2cf12",
+  "officer_vm": "0175ff4ccf6dbc5b330bb546ad41aea5a7362613cf326e6e6f39a7daeb94ff93",
+  "optc": "9f3f9f84a05961e6740a6b46d21c90c4a31ee7f5a6f2ba7eeed7b274f2289229",
+  "atlasv2": "719c1d775abe2289c198e991aee4d12bb1abf03c8b9f56b9fdbedadbcf0503ce"
+ },
+ "final_candidate": false,
+ "files": {
+  "model.json": "838c163c214fcc2907b4bd91a76767d7d4e92ba8e7799673aa9c0fbb66553737",
+  "features.json": "06180320c616089116d41951237bb8e0383c96150e9fe0b4186cc00456d58173",
+  "thresholds.json": "bb9433c8d484a33f6927103600e651f06415a416077e208326eef0640936ae89",
+  "calibration.json": "34389b37186ff12678d28719f976a17213ef71798ed46a397d2694552b41da51",
+  "golden.json": "8f4eac29502a1392c9dca73c8611924eb5a86db4972eedb7366fc40e1e591d10"
+ }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "Reconnaissance fires the discovery-burst and sweep rules, but a single tactic is not an intrusion story: no incident.",
+  "must_fire": [
+    "DET-DISC-001",
+    "DET-NET-005"
+  ],
+  "must_not_fire": [
+    "DET-NET-008",
+    "DET-NET-004"
+  ],
+  "fire_counts": {
+    "DET-NET-005": 1,
+    "DET-DISC-001": 1
+  },
+  "incidents": []
+}

@@ -17,9 +17,14 @@ def op_equals(actual: Any, target: Any, case_sensitive: bool = False) -> bool:
     return _normalize_case(actual, case_sensitive) == _normalize_case(target, case_sensitive)
 
 
+# Negated operators do not match a missing field. "not X" on a field the event
+# does not carry says nothing about the event; a rule that means "absent" says
+# so with `exists: false`.
+
+
 def op_not_equals(actual: Any, target: Any, case_sensitive: bool = False) -> bool:
     if actual is None:
-        return True
+        return False
     return _normalize_case(actual, case_sensitive) != _normalize_case(target, case_sensitive)
 
 
@@ -32,6 +37,8 @@ def op_contains(actual: Any, target: Any, case_sensitive: bool = False) -> bool:
 
 
 def op_not_contains(actual: Any, target: Any, case_sensitive: bool = False) -> bool:
+    if actual is None:
+        return False
     return not op_contains(actual, target, case_sensitive)
 
 
@@ -43,7 +50,14 @@ def op_in(actual: Any, target_list: Union[List[Any], set, tuple], case_sensitive
 
 
 def op_not_in(actual: Any, target_list: Union[List[Any], set, tuple], case_sensitive: bool = False) -> bool:
+    if actual is None:
+        return False
     return not op_in(actual, target_list, case_sensitive)
+
+
+def op_exists(actual: Any, target: Any, case_sensitive: bool = False) -> bool:
+    present = actual is not None and actual != "" and actual != [] and actual != {}
+    return present == bool(target)
 
 
 def op_starts_with(actual: Any, prefix: Any, case_sensitive: bool = False) -> bool:
@@ -125,4 +139,7 @@ OPERATOR_MAP = {
     "less_than": op_less_than,
     "cidr": op_cidr,
     "windash": op_windash,
+    "exists": op_exists,
 }
+
+NEGATED_OPERATORS = frozenset({"not_equals", "not_contains", "not_in"})

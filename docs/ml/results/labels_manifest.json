@@ -1,0 +1,58 @@
+{
+  "labeller_version": 3,
+  "sources": [
+    "attack_data",
+    "otrf",
+    "otrf_compound",
+    "botsv1",
+    "officer_vm",
+    "optc"
+  ],
+  "rows_in": 120866,
+  "by_rule": {
+    "attack_data benign/background": 2157,
+    "attack_data benign/infrastructure": 46890,
+    "attack_data excluded/browser": 287,
+    "attack_data excluded/console_host": 214,
+    "attack_data excluded/defensive_tool": 130,
+    "attack_data excluded/interactive": 354,
+    "attack_data malicious/attack_recording": 19857,
+    "botsv1 benign/environment": 686,
+    "botsv1 malicious/documented_scenario": 81,
+    "officer_vm benign/agent_recording": 2485,
+    "optc benign/optc_benign_period": 44712,
+    "otrf benign/background": 536,
+    "otrf benign/infrastructure": 73,
+    "otrf excluded/browser": 7,
+    "otrf excluded/console_host": 121,
+    "otrf excluded/interactive": 20,
+    "otrf malicious/attack_recording": 280,
+    "otrf_compound benign/background": 842,
+    "otrf_compound benign/infrastructure": 351,
+    "otrf_compound excluded/browser": 128,
+    "otrf_compound excluded/console_host": 301,
+    "otrf_compound excluded/interactive": 22,
+    "otrf_compound malicious/attack_recording": 332
+  },
+  "duplicates_removed": 110300,
+  "label_conflict_keys_removed": 13,
+  "rows_out": 8969,
+  "rows_out_by_label": {
+    "0": 3362,
+    "1": 5607
+  },
+  "rows_out_by_source_label": {
+    "attack_data 0": 268,
+    "attack_data 1": 5332,
+    "botsv1 0": 262,
+    "botsv1 1": 46,
+    "officer_vm 0": 884,
+    "optc 0": 1585,
+    "otrf 0": 183,
+    "otrf 1": 113,
+    "otrf_compound 0": 180,
+    "otrf_compound 1": 116
+  },
+  "malicious_groups": 98,
+  "sha256": "5da82214cd7d9c771a385ae46ba503aa3369525cdd70723c3f222359138c4563"
+}

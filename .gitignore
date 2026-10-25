@@ -48,3 +48,7 @@ dist/
 # Local alert/spool output
 alerts.ndjson
 spool/
+
+# Downloaded and generated datasets (panopticon-dataset fetch/normalize).
+# Reproduce with the commands in docs/datasets.md; never commit raw recordings.
+/data/

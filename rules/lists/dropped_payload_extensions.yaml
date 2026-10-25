@@ -1,0 +1,11 @@
+# File extensions that can be executed directly or by a script host.
+values:
+  - .exe
+  - .dll
+  - .scr
+  - .ps1
+  - .vbs
+  - .js
+  - .bat
+  - .cmd
+  - .hta

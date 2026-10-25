@@ -1,0 +1,45 @@
+id: DET-CRED-010
+name: LSASS Opened With Memory-Read Rights
+description: >-
+  A process outside the known LSASS readers opened lsass.exe with
+  PROCESS_VM_READ, the access a credential dumper needs. Reads Sysmon
+  EventID 10 (process access), schema 0.5.
+version: 1
+status: enabled
+event_type: process_access
+
+logic:
+  all:
+    - field: target.name
+      operator: equals
+      value: lsass.exe
+    - field: process_access.can_read_memory
+      operator: equals
+      value: true
+  none:
+    - field: process.name
+      operator: in
+      value: $lsass_readers
+
+level: 12
+active_response: COLLECT_PROCESS_INFO
+severity: high
+confidence: 0.8
+
+evidence:
+  - process.name
+  - process.executable
+  - process.pid
+  - target.name
+  - target.pid
+  - process_access.granted_access
+
+mitre:
+  tactic: Credential Access
+  technique: T1003.001
+  name: "OS Credential Dumping: LSASS Memory"
+
+tags:
+  - attack.credential_access
+  - lsass
+  - process_access

@@ -1,0 +1,168 @@
+{
+ "featurizer_version": 5,
+ "feature_count": 540,
+ "cases": [
+  {
+   "id": "office_spawns_encoded_powershell",
+   "event": {
+    "process": {
+     "name": "powershell.exe",
+     "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+     "command_line": "powershell.exe -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+    },
+    "parent": {
+     "name": "WINWORD.EXE"
+    },
+    "user": {
+     "name": "alice",
+     "domain": "CORP"
+    }
+   },
+   "integrity": "Medium",
+   "vector": {
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "8": 1.0,
+    "15": 1.0,
+    "52": 1.0,
+    "59": 4.75359,
+    "60": 1.94591,
+    "61": 4.287,
+    "63": 0.034783,
+    "64": 10.0,
+    "65": 2.922,
+    "67": 3.0,
+    "84": 1.0,
+    "206": 1.0,
+    "347": 1.0,
+    "358": 1.0,
+    "373": 1.0
+   }
+  },
+  {
+   "id": "rundll32_comsvcs_minidump",
+   "event": {
+    "process": {
+     "name": "rundll32.exe",
+     "executable": "C:\\Windows\\System32\\rundll32.exe",
+     "command_line": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 624 C:\\Users\\bob\\AppData\\Local\\Temp\\l.dmp full"
+    },
+    "parent": {
+     "name": "cmd.exe"
+    },
+    "user": {
+     "name": "SYSTEM",
+     "domain": "NT AUTHORITY"
+    }
+   },
+   "integrity": "System",
+   "vector": {
+    "37": 1.0,
+    "52": 1.0,
+    "59": 4.60517,
+    "60": 2.639057,
+    "61": 4.541,
+    "63": 0.181818,
+    "64": 8.0,
+    "65": 2.75,
+    "66": 0.25,
+    "67": 1.0,
+    "90": 1.0,
+    "221": 1.0,
+    "349": 1.0,
+    "360": 1.0,
+    "401": 1.0
+   }
+  },
+  {
+   "id": "benign_chrome_child",
+   "event": {
+    "process": {
+     "name": "chrome.exe",
+     "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+     "command_line": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --lang=en-US"
+    },
+    "parent": {
+     "name": "chrome.exe"
+    },
+    "user": {
+     "name": "carol",
+     "domain": "CORP"
+    }
+   },
+   "integrity": "Low",
+   "vector": {
+    "51": 1.0,
+    "53": 1.0,
+    "59": 4.454347,
+    "60": 2.302585,
+    "61": 4.401,
+    "62": 2.0,
+    "63": 0.188235,
+    "64": 6.0,
+    "65": 2.585,
+    "67": 4.0,
+    "76": 1.0,
+    "214": 1.0,
+    "346": 1.0,
+    "359": 1.0,
+    "385": 1.0
+   }
+  },
+  {
+   "id": "service_host",
+   "event": {
+    "process": {
+     "name": "svchost.exe",
+     "executable": "C:\\Windows\\System32\\svchost.exe",
+     "command_line": "C:\\Windows\\system32\\svchost.exe -k netsvcs -p -s Schedule"
+    },
+    "parent": {
+     "name": "services.exe"
+    },
+    "user": {
+     "name": "LOCAL SERVICE",
+     "domain": "NT AUTHORITY"
+    }
+   },
+   "integrity": null,
+   "vector": {
+    "52": 1.0,
+    "59": 3.970292,
+    "60": 2.079442,
+    "61": 4.212,
+    "63": 0.134615,
+    "64": 7.0,
+    "65": 2.522,
+    "67": 1.0,
+    "180": 1.0,
+    "317": 1.0,
+    "352": 1.0,
+    "365": 1.0,
+    "469": 1.0
+   }
+  },
+  {
+   "id": "everything_missing",
+   "event": {
+    "process": {},
+    "parent": {},
+    "user": {}
+   },
+   "integrity": null,
+   "vector": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 1.0,
+    "58": 1.0,
+    "205": 1.0,
+    "344": 1.0,
+    "357": 1.0,
+    "370": 1.0,
+    "539": 1.0
+   }
+  }
+ ]
+}

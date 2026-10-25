@@ -1,0 +1,3970 @@
+{
+ "protocol": {
+  "version": 1,
+  "criteria": {
+   "C1": "<= 1.0 FP/host-hour at alert in every held-out environment; <= 0.1 at high where >= 20 h",
+   "C2": "macro recall at alert: L1 - B2 (start-only, the v6/v7 ingredients) >= +0.15 with paired 95% CI lower bound > 0; L1 - B1 (rules, full replay) CI lower bound > -0.05",
+   "C3": "macro partial AUC (FPR <= 1%) over environments with attacks >= 0.75; BOTSv1 >= 0.65",
+   "C4": "benign-environment predictability macro AUC <= 0.70; no single group alone > 0.80; the availability pattern alone predicts the label with AUC <= 0.55",
+   "C5": "start+lineage+children only: FP/host-hour <= B2's + 0.2 in every environment",
+   "C6": "median time to detect (start -> first checkpoint over alert) <= 120 s",
+   "C7": "bit-identical rebuild; golden parity <= 1e-9 including NaN vectors",
+   "C8": "each held-out mutation family, and losing any one admitted family group at test time, costs <= 0.10 recall"
+  },
+  "selection_rule": "candidates meeting C1's alert condition in every environment: highest macro recall wins; otherwise the lowest worst-environment FP/host-hour wins (and C1 fails)",
+  "decision_rule": "L1 enters the engine (shadow mode, behind a flag) only if C1-C8 pass. Kill rule: if C1 or C2 fails, L1 is not shipped and L3 runs on rules plus rarity only",
+  "candidates": {
+   "ctx_lgb": {
+    "params": {
+     "num_leaves": 15,
+     "max_depth": 4,
+     "min_data_in_leaf": 50
+    },
+    "groups": "admitted"
+   },
+   "ctx_lgb_wide": {
+    "params": {
+     "num_leaves": 31,
+     "max_depth": -1,
+     "min_data_in_leaf": 20
+    },
+    "groups": "admitted"
+   }
+  },
+  "reference_models": {
+   "B2_start_only": {
+    "params": {
+     "num_leaves": 15,
+     "max_depth": 4,
+     "min_data_in_leaf": 50
+    },
+    "groups": [
+     "start"
+    ]
+   },
+   "C5_start_lineage_children": {
+    "params": {
+     "num_leaves": 15,
+     "max_depth": 4,
+     "min_data_in_leaf": 50
+    },
+    "groups": [
+     "start",
+     "lineage",
+     "children"
+    ]
+   }
+  },
+  "admission": {
+   "coverage": 0.5,
+   "benign_min_hours": 100.0,
+   "attack_min_envs": 2
+  },
+  "budgets": {
+   "alert": 1.0,
+   "high": 0.1
+  },
+  "seed": 20261023
+ },
+ "data": {
+  "join": {
+   "atlasv2": {
+    "starts": 65488,
+    "label_0": 65167,
+    "unjoined": 234,
+    "label_1": 87
+   },
+   "attack_range": {
+    "starts": 69889,
+    "label_1": 19839,
+    "label_0": 49053,
+    "unjoined": 997
+   },
+   "botsv1": {
+    "starts": 767,
+    "label_0": 686,
+    "label_1": 81
+   },
+   "mordor": {
+    "starts": 3013,
+    "label_0": 1883,
+    "label_1": 530,
+    "unjoined": 600
+   },
+   "officer_vm": {
+    "starts": 2485,
+    "label_0": 2485
+   },
+   "optc": {
+    "starts": 61818,
+    "label_0": 44712,
+    "unjoined": 17106
+   }
+  },
+  "malicious_groups_merged_by_template": 82,
+  "processes": {
+   "atlasv2 0": 65167,
+   "atlasv2 1": 87,
+   "attack_range 1": 19839,
+   "attack_range 0": 49053,
+   "botsv1 0": 686,
+   "botsv1 1": 81,
+   "mordor 0": 1883,
+   "mordor 1": 530,
+   "officer_vm 0": 2485,
+   "optc 0": 44712
+  },
+  "host_hours": {
+   "atlasv2": 212.28,
+   "attack_range": 278.07,
+   "botsv1": 18.06,
+   "mordor": 31.48,
+   "officer_vm": 4.48,
+   "optc": 223.94
+  },
+  "environments": [
+   "attack_range",
+   "mordor",
+   "botsv1",
+   "officer_vm",
+   "optc",
+   "atlasv2"
+  ]
+ },
+ "admission": {
+  "network": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.464,
+    "botsv1": 1.0,
+    "mordor": 0.995,
+    "officer_vm": 0.0,
+    "optc": 1.0
+   },
+   "benign_only_envs": [
+    "optc"
+   ],
+   "attack_envs": [
+    "mordor",
+    "botsv1"
+   ],
+   "admitted": true
+  },
+  "image_load": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.239,
+    "botsv1": 1.0,
+    "mordor": 0.997,
+    "officer_vm": 0.0,
+    "optc": 1.0
+   },
+   "benign_only_envs": [
+    "optc"
+   ],
+   "attack_envs": [
+    "mordor",
+    "botsv1"
+   ],
+   "admitted": true
+  },
+  "file": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.435,
+    "botsv1": 0.0,
+    "mordor": 1.0,
+    "officer_vm": 0.0,
+    "optc": 1.0
+   },
+   "benign_only_envs": [
+    "optc"
+   ],
+   "attack_envs": [
+    "mordor"
+   ],
+   "admitted": false
+  },
+  "registry": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.687,
+    "botsv1": 0.0,
+    "mordor": 1.0,
+    "officer_vm": 0.0,
+    "optc": 1.0
+   },
+   "benign_only_envs": [
+    "optc"
+   ],
+   "attack_envs": [
+    "attack_range",
+    "mordor"
+   ],
+   "admitted": true
+  },
+  "process_access": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.413,
+    "botsv1": 0.0,
+    "mordor": 0.998,
+    "officer_vm": 0.0,
+    "optc": 0.0
+   },
+   "benign_only_envs": [],
+   "attack_envs": [
+    "mordor"
+   ],
+   "admitted": false
+  },
+  "remote_thread": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.06,
+    "botsv1": 0.0,
+    "mordor": 0.188,
+    "officer_vm": 0.0,
+    "optc": 1.0
+   },
+   "benign_only_envs": [
+    "optc"
+   ],
+   "attack_envs": [],
+   "admitted": false
+  },
+  "dns": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.305,
+    "botsv1": 0.0,
+    "mordor": 0.975,
+    "officer_vm": 0.0,
+    "optc": 0.0
+   },
+   "benign_only_envs": [],
+   "attack_envs": [
+    "mordor"
+   ],
+   "admitted": false
+  },
+  "script_block": {
+   "coverage": {
+    "atlasv2": 0.0,
+    "attack_range": 0.0,
+    "botsv1": 0.0,
+    "mordor": 0.109,
+    "officer_vm": 0.0,
+    "optc": 0.0
+   },
+   "benign_only_envs": [],
+   "attack_envs": [],
+   "admitted": false
+  }
+ },
+ "admitted_groups": [
+  "start",
+  "lineage",
+  "children",
+  "network",
+  "image_load",
+  "registry"
+ ],
+ "models": {
+  "ctx_lgb": {
+   "folds": {
+    "attack_range": {
+     "benign": 49053,
+     "malicious": 19839,
+     "host_hours": 278.07,
+     "alert": {
+      "threshold": 6.755342,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0164,
+      "recall_ci95": [
+       0.0147,
+       0.0183
+      ]
+     },
+     "high": {
+      "threshold": 10.030523,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0001,
+      "recall_ci95": [
+       0.0,
+       0.0003
+      ]
+     },
+     "roc_auc": 0.6679,
+     "pauc_fpr_0.01": 0.6883,
+     "time_to_detect_s": {
+      "n": 326,
+      "median": 0.0,
+      "p90": 0.0685
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.879214,
+       "high": 4.4201
+      },
+      "botsv1": {
+       "alert": 2.633507,
+       "high": 4.863685
+      },
+      "mordor": {
+       "alert": 4.916749,
+       "high": 7.110462
+      },
+      "officer_vm": {
+       "alert": 6.755342,
+       "high": 10.030523
+      },
+      "optc": {
+       "alert": 4.083938,
+       "high": 5.262601
+      }
+     },
+     "top_benign": [
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\28972AFA-EAAA-4C84-8F88-DB6EC4BEEC98\\dismhost.exe {F9AA79DA-F38B-4053-AEBE-C978736C963D}",
+       "bits": []
+      },
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\3166590C-DA91-48FF-9478-8B6734340D32\\dismhost.exe {D423633F-901A-42B0-B1AD-41FF5EA68F55}",
+       "bits": []
+      },
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\42BE0D36-54ED-4647-9FB9-D7CA1A3CA489\\dismhost.exe {86505FA9-9489-40D0-B704-DDF3B1886E01}",
+       "bits": []
+      },
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\82D7D3E9-C96C-47CC-A933-C7ADB79F2316\\dismhost.exe {A33C8AFD-94BA-44BF-9BB6-E8CC7C02BB53}",
+       "bits": []
+      },
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\D67C1AE8-EF77-4E3C-B7D7-BDCEFA974160\\dismhost.exe {7595CF66-79A8-42CE-939F-E76F5D5F4DC5}",
+       "bits": []
+      },
+      {
+       "score": 5.285,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\7D56C5AC-22A3-4D6C-9623-CF08A0AF3F9C\\dismhost.exe {898B6816-8B23-464D-8135-F3BD18B83A99}",
+       "bits": []
+      },
+      {
+       "score": 5.065,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\3D4195AC-0B9D-4D46-97E4-0EE7E1467DC7\\dismhost.exe {DDE86E2B-35CD-46E7-B256-B59AAC98D470}",
+       "bits": []
+      },
+      {
+       "score": 5.065,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\CF356674-7E6B-4232-BC0E-1F57A8A26C6E\\dismhost.exe {7B7E88D6-23A5-4006-BC86-1DD595B679C9}",
+       "bits": []
+      },
+      {
+       "score": 5.065,
+       "parent": "wmiprvse.exe",
+       "image": "dismhost.exe",
+       "command_line": "C:\\Windows\\TEMP\\4F433611-5F9A-4494-AC75-0269C64E6C9B\\dismhost.exe {483A9CEF-D984-4C37-9741-4E6E0D8DFCBC}",
+       "bits": []
+      },
+      {
+       "score": 4.439,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool web list settings --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.439,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list general --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.439,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list kvstore --no-log",
+       "bits": []
+      }
+     ]
+    },
+    "mordor": {
+     "benign": 1883,
+     "malicious": 530,
+     "host_hours": 31.48,
+     "alert": {
+      "threshold": 10.02022,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "high": {
+      "threshold": 12.932469,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "roc_auc": 0.669,
+     "pauc_fpr_0.01": 0.5592,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.186015,
+       "high": 7.860097
+      },
+      "attack_range": {
+       "alert": 6.325086,
+       "high": 7.632097
+      },
+      "botsv1": {
+       "alert": 0.170219,
+       "high": 2.633034
+      },
+      "officer_vm": {
+       "alert": 10.02022,
+       "high": 12.932469
+      },
+      "optc": {
+       "alert": 6.472428,
+       "high": 8.706635
+      }
+     },
+     "top_benign": [
+      {
+       "score": 0.891,
+       "parent": "cmd.exe",
+       "image": "customscripthandler.exe",
+       "command_line": "bin\\CustomScriptHandler.exe  \"enable\"",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  trace stop",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Provider Filters\"  Reg\\AllCredFilter.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\Wlansvc\\Parameters\\WlanAPIPermissions\"  Reg\\APIPerm.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\dot3svc\"  Reg\\HKLMDot3Svc.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKCU\\SOFTWARE\\Microsoft\\dot3svc\"  Reg\\HKCUDot3Svc.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WiredL2\\GP_Policy\"  Reg\\L2GP.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\MICROSOFT\\Windows NT\\CurrentVersion\\NetworkList\"  Reg\\NetworkProfiles.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Policies\\Microsoft\\WcmSvc\"  Reg\\WCMPolicy.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "wevtutil.exe",
+       "command_line": "wevtutil  epl \"Microsoft-Windows-WWAN-SVC-EVENTS/Operational\" config\\WWANLog.evtx",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "wevtutil.exe",
+       "command_line": "wevtutil  epl \"Microsoft-Windows-Windows Firewall With Advanced Security/FirewallVerbose\" config\\WindowsFirewallLogVerbose.evtx",
+       "bits": []
+      },
+      {
+       "score": 0.824,
+       "parent": "cmd.exe",
+       "image": "wevtutil.exe",
+       "command_line": "wevtutil  al config\\WindowsFirewallLogVerbose.evtx",
+       "bits": []
+      }
+     ]
+    },
+    "botsv1": {
+     "benign": 686,
+     "malicious": 81,
+     "host_hours": 18.06,
+     "alert": {
+      "threshold": 8.741771,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "high": {
+      "threshold": 10.410078,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "roc_auc": 0.8301,
+     "pauc_fpr_0.01": 0.5594,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.133455,
+       "high": 9.478616
+      },
+      "attack_range": {
+       "alert": 3.851015,
+       "high": 6.20869
+      },
+      "mordor": {
+       "alert": 4.713825,
+       "high": 5.516103
+      },
+      "officer_vm": {
+       "alert": 8.741771,
+       "high": 10.410078
+      },
+      "optc": {
+       "alert": 3.509958,
+       "high": 3.552835
+      }
+     },
+     "top_benign": [
+      {
+       "score": 4.576,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  advfirewall show allprofiles firewallpolicy",
+       "bits": []
+      },
+      {
+       "score": 4.38,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.38,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.38,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.38,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 2.761,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  advfirewall show allprofiles firewallpolicy",
+       "bits": []
+      },
+      {
+       "score": 2.653,
+       "parent": "svchost.exe",
+       "image": "wmiprvse.exe",
+       "command_line": "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 2.035,
+       "parent": "cmd.exe",
+       "image": "attrib.exe",
+       "command_line": "attrib  +R +H +S +A *.cui",
+       "bits": []
+      },
+      {
+       "score": 1.72,
+       "parent": "splunkd.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe\" _RAW_envvars",
+       "bits": []
+      },
+      {
+       "score": 1.72,
+       "parent": "splunkd.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe\" _internal_extra_splunkd_service_args",
+       "bits": []
+      },
+      {
+       "score": 1.72,
+       "parent": "splunk.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c btool web list settings --no-log",
+       "bits": []
+      },
+      {
+       "score": 1.72,
+       "parent": "splunk.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list general --no-log",
+       "bits": []
+      }
+     ]
+    },
+    "officer_vm": {
+     "benign": 2485,
+     "malicious": 0,
+     "host_hours": 4.48,
+     "alert": {
+      "threshold": 6.630694,
+      "fp": 28,
+      "fp_per_host_hour": 6.25,
+      "fp_ci95": [
+       4.1531,
+       9.033
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 10.69238,
+      "fp": 1,
+      "fp_per_host_hour": 0.2232,
+      "fp_ci95": [
+       0.0057,
+       1.2437
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 6.630694,
+       "high": 10.69238
+      },
+      "attack_range": {
+       "alert": 4.504652,
+       "high": 6.156991
+      },
+      "botsv1": {
+       "alert": 1.730758,
+       "high": 2.015033
+      },
+      "mordor": {
+       "alert": 5.375291,
+       "high": 6.416913
+      },
+      "optc": {
+       "alert": 3.519443,
+       "high": 4.072768
+      }
+     },
+     "top_benign": [
+      {
+       "score": 12.058,
+       "parent": "powershell.exe",
+       "image": "powershell.exe",
+       "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\<user> <user>\\AppData\\Local\\Tem",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 10.595,
+       "parent": "powershell.exe",
+       "image": "powershell.exe",
+       "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\panopticon\\panopticon-agent\\tools\\co",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 10.442,
+       "parent": "powershell.exe",
+       "image": "cmd.exe",
+       "command_line": "\"cmd.exe\" /c echo line-one 1>&2 & echo line-two 1>&2",
+       "bits": []
+      },
+      {
+       "score": 10.126,
+       "parent": "powershell.exe",
+       "image": "ping.exe",
+       "command_line": "\"C:\\WINDOWS\\system32\\PING.EXE\" -n 120 127.0.0.1 ",
+       "bits": []
+      },
+      {
+       "score": 9.24,
+       "parent": "powershell.exe",
+       "image": "csc.exe",
+       "command_line": "\"C:\\Windows\\Microsoft.NET\\FrameworkArm64\\v4.0.30319\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user> <user>\\AppData\\Local\\Temp\\ma3oisuj\\ma3oisu",
+       "bits": []
+      },
+      {
+       "score": 9.101,
+       "parent": "powershell.exe",
+       "image": "csc.exe",
+       "command_line": "\"C:\\Windows\\Microsoft.NET\\FrameworkArm64\\v4.0.30319\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user> <user>\\AppData\\Local\\Temp\\51y0kub4\\51y0kub",
+       "bits": []
+      },
+      {
+       "score": 8.87,
+       "parent": "powershell.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0xffffffff -ForceV1",
+       "bits": []
+      },
+      {
+       "score": 8.615,
+       "parent": "vc_redist.x86.exe",
+       "image": "vc_redist.x86.exe",
+       "command_line": "\"C:\\WINDOWS\\Temp\\{EE95CBDF-D3D3-4B66-9E72-B8E886D07719}\\.be\\VC_redist.x86.exe\" -q -burn.elevated BurnPipe.{E7C2207B-3305-4682-9BE7-9F0D1678A",
+       "bits": []
+      },
+      {
+       "score": 7.871,
+       "parent": "vc_redist.x86.exe",
+       "image": "vc_redist.x86.exe",
+       "command_line": "\"C:\\WINDOWS\\Temp\\{9A7B15D3-0B48-4C7D-A109-ECE4A927E465}\\.cr\\vc_redist.x86.exe\" -burn.clean.room=\"C:\\Program Files\\Microsoft Office\\root\\inte",
+       "bits": []
+      },
+      {
+       "score": 7.688,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      },
+      {
+       "score": 7.688,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      },
+      {
+       "score": 7.688,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      }
+     ]
+    },
+    "optc": {
+     "benign": 44712,
+     "malicious": 0,
+     "host_hours": 223.94,
+     "alert": {
+      "threshold": 8.767347,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 11.078206,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 3.751882,
+       "high": 4.64821
+      },
+      "attack_range": {
+       "alert": 4.452946,
+       "high": 5.870072
+      },
+      "botsv1": {
+       "alert": 4.111109,
+       "high": 7.162559
+      },
+      "mordor": {
+       "alert": 4.806725,
+       "high": 6.173774
+      },
+      "officer_vm": {
+       "alert": 8.767347,
+       "high": 11.078206
+      }
+     },
+     "top_benign": [
+      {
+       "score": 8.128,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.184",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.223,
+       "parent": "python.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\SysNative\\qwinsta.exe /server 142.20.61.184\"",
+       "bits": [
+        "child:shell_or_lolbin",
+        "remote_thread:out",
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.124,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.180",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.124,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  dcoombes /server 142.20.61.187",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.124,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.186",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.124,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.179",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.108,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.188",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.108,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.185",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.108,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.180",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.028,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  zleazer /server 142.20.61.188",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.028,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  zleazer /server 142.20.61.188",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 7.028,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  zleazer /server 142.20.61.188",
+       "bits": [
+        "remote_thread:in"
+       ]
+      }
+     ]
+    },
+    "atlasv2": {
+     "benign": 65167,
+     "malicious": 87,
+     "host_hours": 212.28,
+     "alert": {
+      "threshold": 9.092885,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0174
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "high": {
+      "threshold": 9.177324,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0174
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "roc_auc": 0.715,
+     "pauc_fpr_0.01": 0.6761,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "attack_range": {
+       "alert": 4.237095,
+       "high": 6.221742
+      },
+      "botsv1": {
+       "alert": 1.629003,
+       "high": 4.225607
+      },
+      "mordor": {
+       "alert": 3.871716,
+       "high": 3.871716
+      },
+      "officer_vm": {
+       "alert": 9.092885,
+       "high": 9.177324
+      },
+      "optc": {
+       "alert": 4.548967,
+       "high": 6.863742
+      }
+     },
+     "top_benign": [
+      {
+       "score": 7.798,
+       "parent": "plugin_host.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"python -u \"C:\\Users\\aalsahee\\Documents\\sts_parsing\\parse.py\"\"",
+       "bits": []
+      },
+      {
+       "score": 7.798,
+       "parent": "plugin_host.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"python -u \"C:\\Users\\aalsahee\\Documents\\sts_parsing\\parse.py\"\"",
+       "bits": []
+      },
+      {
+       "score": 7.488,
+       "parent": "discord.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /q /d /s /c \"undefined\\NVIDIA^ Corporation\\NVSMI\\nvidia-smi.exe\"",
+       "bits": []
+      },
+      {
+       "score": 6.387,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 5.93,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      }
+     ]
+    }
+   },
+   "summary": {
+    "worst_environment_alert": "officer_vm",
+    "worst_fp_per_host_hour_alert": 6.25,
+    "fp_per_host_hour_alert": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 6.25,
+     "optc": 0.0,
+     "atlasv2": 0.0
+    },
+    "fp_per_host_hour_high": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 0.2232,
+     "optc": 0.0,
+     "atlasv2": 0.0
+    },
+    "recall_alert": {
+     "attack_range": 0.0164,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "atlasv2": 0.0
+    },
+    "pauc": {
+     "attack_range": 0.6883,
+     "mordor": 0.5592,
+     "botsv1": 0.5594,
+     "atlasv2": 0.6761
+    },
+    "C1_alert": false,
+    "C1_high": true,
+    "macro_recall_alert": 0.0041
+   },
+   "paired": {
+    "vs_B1_rules": {
+     "model": 0.0041,
+     "baseline": 0.2748,
+     "diff": -0.2707,
+     "ci95": [
+      -0.3733,
+      -0.2114
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B2_start_only": {
+     "model": 0.0041,
+     "baseline": 0.0,
+     "diff": 0.0041,
+     "ci95": [
+      0.0,
+      0.0108
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B3_allowlist": {
+     "model": 0.0041,
+     "baseline": 0.697,
+     "diff": -0.6929,
+     "ci95": [
+      -0.852,
+      -0.6661
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B5_heuristic": {
+     "model": 0.0041,
+     "baseline": 0.0088,
+     "diff": -0.0047,
+     "ci95": [
+      -0.0086,
+      0.0036
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    }
+   }
+  },
+  "ctx_lgb_wide": {
+   "folds": {
+    "attack_range": {
+     "benign": 49053,
+     "malicious": 19839,
+     "host_hours": 278.07,
+     "alert": {
+      "threshold": 6.453075,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0324,
+      "recall_ci95": [
+       0.0299,
+       0.0349
+      ]
+     },
+     "high": {
+      "threshold": 7.513606,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.003,
+      "recall_ci95": [
+       0.0023,
+       0.0039
+      ]
+     },
+     "roc_auc": 0.5869,
+     "pauc_fpr_0.01": 0.6831,
+     "time_to_detect_s": {
+      "n": 642,
+      "median": 0.0,
+      "p90": 0.056
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.847991,
+       "high": 4.448991
+      },
+      "botsv1": {
+       "alert": 3.547518,
+       "high": 6.937784
+      },
+      "mordor": {
+       "alert": 5.854116,
+       "high": 6.924447
+      },
+      "officer_vm": {
+       "alert": 6.453075,
+       "high": 7.513606
+      },
+      "optc": {
+       "alert": 4.944366,
+       "high": 6.658291
+      }
+     },
+     "top_benign": [
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool web list settings --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list general --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list kvstore --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list watchdog --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list sslConfig --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list replication_port --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.919,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list general --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.762,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool web list settings --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.762,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list general --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.762,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list kvstore --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.762,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list watchdog --no-log",
+       "bits": []
+      },
+      {
+       "score": 4.762,
+       "parent": "splunk.exe",
+       "image": "ftp.exe",
+       "command_line": "C:\\Windows\\system32\\Ftp.exe /c btool server list sslConfig --no-log",
+       "bits": []
+      }
+     ]
+    },
+    "mordor": {
+     "benign": 1883,
+     "malicious": 530,
+     "host_hours": 31.48,
+     "alert": {
+      "threshold": 8.862321,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "high": {
+      "threshold": 9.488419,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "roc_auc": 0.6502,
+     "pauc_fpr_0.01": 0.5025,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.54745,
+       "high": 7.658538
+      },
+      "attack_range": {
+       "alert": 5.49743,
+       "high": 8.38264
+      },
+      "botsv1": {
+       "alert": 0.644605,
+       "high": 1.886601
+      },
+      "officer_vm": {
+       "alert": 8.862321,
+       "high": 9.488419
+      },
+      "optc": {
+       "alert": 5.338068,
+       "high": 6.456662
+      }
+     },
+     "top_benign": [
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  trace stop",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Winlogon\\Notifications\"  Reg\\Notif.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "gpresult.exe",
+       "command_line": "gpresult  /scope:computer /v",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Providers\"  Reg\\AllCred.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Provider Filters\"  Reg\\AllCredFilter.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Providers\\{07AA0886-CC8D-4e19-A410-1C75AF686E62}\"  Reg",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Providers\\{33c86cd6-705f-4ba1-9adb-67070b837775}\"  Reg",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Authentication\\Credential Provider Filters\\{edd749de-2ef1-4a80-98d1-81f20e6df58e",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\Wlansvc\\Parameters\\WlanAPIPermissions\"  Reg\\APIPerm.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Wireless\\GPTWirelessPolicy\"  Reg\\GPT.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKCU\\SOFTWARE\\Microsoft\\Wlansvc\"  Reg\\HKCUWlanSvc.reg.txt /y",
+       "bits": []
+      },
+      {
+       "score": 1.185,
+       "parent": "cmd.exe",
+       "image": "reg.exe",
+       "command_line": "reg  export \"HKLM\\SOFTWARE\\Microsoft\\Wlansvc\"  Reg\\HKLMWlanSvc.reg.txt /y",
+       "bits": []
+      }
+     ]
+    },
+    "botsv1": {
+     "benign": 686,
+     "malicious": 81,
+     "host_hours": 18.06,
+     "alert": {
+      "threshold": 9.204944,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "high": {
+      "threshold": 9.955463,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "roc_auc": 0.8328,
+     "pauc_fpr_0.01": 0.5672,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.799279,
+       "high": 8.342892
+      },
+      "attack_range": {
+       "alert": 3.883977,
+       "high": 7.119135
+      },
+      "mordor": {
+       "alert": 5.144014,
+       "high": 5.76846
+      },
+      "officer_vm": {
+       "alert": 9.204944,
+       "high": 9.955463
+      },
+      "optc": {
+       "alert": 3.331841,
+       "high": 3.967613
+      }
+     },
+     "top_benign": [
+      {
+       "score": 5.205,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  advfirewall show allprofiles firewallpolicy",
+       "bits": []
+      },
+      {
+       "score": 4.601,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.601,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.601,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 4.601,
+       "parent": "cmd.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+       "bits": []
+      },
+      {
+       "score": 3.178,
+       "parent": "cmd.exe",
+       "image": "netsh.exe",
+       "command_line": "netsh  advfirewall show allprofiles firewallpolicy",
+       "bits": []
+      },
+      {
+       "score": 1.708,
+       "parent": "svchost.exe",
+       "image": "wsqmcons.exe",
+       "command_line": "C:\\Windows\\System32\\wsqmcons.exe",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 1.502,
+       "parent": "splunkd.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe\" _RAW_envvars",
+       "bits": []
+      },
+      {
+       "score": 1.502,
+       "parent": "splunkd.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe\" _internal_extra_splunkd_service_args",
+       "bits": []
+      },
+      {
+       "score": 1.502,
+       "parent": "splunk.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c btool web list settings --no-log",
+       "bits": []
+      },
+      {
+       "score": 1.502,
+       "parent": "splunk.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list general --no-log",
+       "bits": []
+      },
+      {
+       "score": 1.502,
+       "parent": "splunk.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c btool server list kvstore --no-log",
+       "bits": []
+      }
+     ]
+    },
+    "officer_vm": {
+     "benign": 2485,
+     "malicious": 0,
+     "host_hours": 4.48,
+     "alert": {
+      "threshold": 5.8825,
+      "fp": 34,
+      "fp_per_host_hour": 7.5893,
+      "fp_ci95": [
+       5.2558,
+       10.6053
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 6.294119,
+      "fp": 31,
+      "fp_per_host_hour": 6.9196,
+      "fp_ci95": [
+       4.7016,
+       9.8219
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 4.345322,
+       "high": 4.925755
+      },
+      "attack_range": {
+       "alert": 3.546951,
+       "high": 4.563608
+      },
+      "botsv1": {
+       "alert": 2.609114,
+       "high": 2.609114
+      },
+      "mordor": {
+       "alert": 5.8825,
+       "high": 6.294119
+      },
+      "optc": {
+       "alert": 2.682226,
+       "high": 3.231908
+      }
+     },
+     "top_benign": [
+      {
+       "score": 9.365,
+       "parent": "powershell.exe",
+       "image": "powershell.exe",
+       "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\panopticon\\panopticon-agent\\tools\\co",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 9.026,
+       "parent": "powershell.exe",
+       "image": "powershell.exe",
+       "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\<user> <user>\\AppData\\Local\\Tem",
+       "bits": [
+        "child:shell_or_lolbin"
+       ]
+      },
+      {
+       "score": 8.609,
+       "parent": "powershell.exe",
+       "image": "ping.exe",
+       "command_line": "\"C:\\WINDOWS\\system32\\PING.EXE\" -n 120 127.0.0.1 ",
+       "bits": []
+      },
+      {
+       "score": 8.584,
+       "parent": "powershell.exe",
+       "image": "csc.exe",
+       "command_line": "\"C:\\Windows\\Microsoft.NET\\FrameworkArm64\\v4.0.30319\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user> <user>\\AppData\\Local\\Temp\\51y0kub4\\51y0kub",
+       "bits": []
+      },
+      {
+       "score": 8.417,
+       "parent": "powershell.exe",
+       "image": "cmd.exe",
+       "command_line": "\"cmd.exe\" /c echo line-one 1>&2 & echo line-two 1>&2",
+       "bits": []
+      },
+      {
+       "score": 8.285,
+       "parent": "powershell.exe",
+       "image": "csc.exe",
+       "command_line": "\"C:\\Windows\\Microsoft.NET\\FrameworkArm64\\v4.0.30319\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user> <user>\\AppData\\Local\\Temp\\ma3oisuj\\ma3oisu",
+       "bits": []
+      },
+      {
+       "score": 8.101,
+       "parent": "powershell.exe",
+       "image": "conhost.exe",
+       "command_line": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0xffffffff -ForceV1",
+       "bits": []
+      },
+      {
+       "score": 7.521,
+       "parent": "powershell.exe",
+       "image": "csc.exe",
+       "command_line": "\"C:\\Windows\\Microsoft.NET\\FrameworkArm64\\v4.0.30319\\csc.exe\" /noconfig /fullpaths @\"C:\\Users\\<user> <user>\\AppData\\Local\\Temp\\1ns5t4qu\\1ns5t4q",
+       "bits": []
+      },
+      {
+       "score": 7.508,
+       "parent": "powershell.exe",
+       "image": "cmd.exe",
+       "command_line": "\"C:\\WINDOWS\\system32\\cmd.exe\" /c \"C:\\panopticon\\_cv\\dl\\sysmon\\x\\Sysmon64a.exe -c 2>&1\"",
+       "bits": []
+      },
+      {
+       "score": 7.313,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      },
+      {
+       "score": 7.313,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      },
+      {
+       "score": 7.313,
+       "parent": "claude.exe",
+       "image": "powershell.exe",
+       "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -NoLogo -EncodedCommand CgBmAHUAbgBjAHQAaQBvAG4AIABXAHI",
+       "bits": []
+      }
+     ]
+    },
+    "optc": {
+     "benign": 44712,
+     "malicious": 0,
+     "host_hours": 223.94,
+     "alert": {
+      "threshold": 8.595733,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 8.911156,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 3.340892,
+       "high": 7.613395
+      },
+      "attack_range": {
+       "alert": 4.488495,
+       "high": 5.353097
+      },
+      "botsv1": {
+       "alert": 4.656976,
+       "high": 6.89654
+      },
+      "mordor": {
+       "alert": 5.777719,
+       "high": 6.104939
+      },
+      "officer_vm": {
+       "alert": 8.595733,
+       "high": 8.911156
+      }
+     },
+     "top_benign": [
+      {
+       "score": 7.791,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.184",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.588,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.180",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.579,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.194",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.579,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  zleazer /server 142.20.61.194",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.579,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  zleazer /server 142.20.61.194",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.579,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.196",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.188",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.180",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.185",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  dcoombes /server 142.20.61.187",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.186",
+       "bits": [
+        "remote_thread:in"
+       ]
+      },
+      {
+       "score": 6.551,
+       "parent": "cmd.exe",
+       "image": "qwinsta.exe",
+       "command_line": "C:\\Windows\\SysNative\\qwinsta.exe  /server 142.20.61.179",
+       "bits": [
+        "remote_thread:in"
+       ]
+      }
+     ]
+    },
+    "atlasv2": {
+     "benign": 65167,
+     "malicious": 87,
+     "host_hours": 212.28,
+     "alert": {
+      "threshold": 7.737911,
+      "fp": 2,
+      "fp_per_host_hour": 0.0094,
+      "fp_ci95": [
+       0.0011,
+       0.034
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "high": {
+      "threshold": 7.777808,
+      "fp": 2,
+      "fp_per_host_hour": 0.0094,
+      "fp_ci95": [
+       0.0011,
+       0.034
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "roc_auc": 0.6413,
+     "pauc_fpr_0.01": 0.6752,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "attack_range": {
+       "alert": 3.748474,
+       "high": 5.046234
+      },
+      "botsv1": {
+       "alert": 1.557983,
+       "high": 5.068349
+      },
+      "mordor": {
+       "alert": 5.126752,
+       "high": 5.126752
+      },
+      "officer_vm": {
+       "alert": 7.737911,
+       "high": 7.777808
+      },
+      "optc": {
+       "alert": 3.921293,
+       "high": 6.188729
+      }
+     },
+     "top_benign": [
+      {
+       "score": 7.783,
+       "parent": "plugin_host.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"python -u \"C:\\Users\\aalsahee\\Documents\\sts_parsing\\parse.py\"\"",
+       "bits": []
+      },
+      {
+       "score": 7.783,
+       "parent": "plugin_host.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /c \"python -u \"C:\\Users\\aalsahee\\Documents\\sts_parsing\\parse.py\"\"",
+       "bits": []
+      },
+      {
+       "score": 7.61,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.242,
+       "parent": "discord.exe",
+       "image": "cmd.exe",
+       "command_line": "C:\\Windows\\system32\\cmd.exe /q /d /s /c \"undefined\\NVIDIA^ Corporation\\NVSMI\\nvidia-smi.exe\"",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      },
+      {
+       "score": 7.079,
+       "parent": "discord.exe",
+       "image": "discord.exe",
+       "command_line": "\"C:\\Users\\aalsahee\\AppData\\Local\\Discord\\app-1.0.9005\\Discord.exe\" --type=renderer --autoplay-policy=no-user-gesture-required --field-trial-",
+       "bits": []
+      }
+     ]
+    }
+   },
+   "summary": {
+    "worst_environment_alert": "officer_vm",
+    "worst_fp_per_host_hour_alert": 7.5893,
+    "fp_per_host_hour_alert": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 7.5893,
+     "optc": 0.0,
+     "atlasv2": 0.0094
+    },
+    "fp_per_host_hour_high": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 6.9196,
+     "optc": 0.0,
+     "atlasv2": 0.0094
+    },
+    "recall_alert": {
+     "attack_range": 0.0324,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "atlasv2": 0.0
+    },
+    "pauc": {
+     "attack_range": 0.6831,
+     "mordor": 0.5025,
+     "botsv1": 0.5672,
+     "atlasv2": 0.6752
+    },
+    "C1_alert": false,
+    "C1_high": true,
+    "macro_recall_alert": 0.0081
+   },
+   "paired": {
+    "vs_B1_rules": {
+     "model": 0.0081,
+     "baseline": 0.2748,
+     "diff": -0.2667,
+     "ci95": [
+      -0.3723,
+      -0.208
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B2_start_only": {
+     "model": 0.0081,
+     "baseline": 0.0,
+     "diff": 0.0081,
+     "ci95": [
+      0.002,
+      0.0147
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B3_allowlist": {
+     "model": 0.0081,
+     "baseline": 0.697,
+     "diff": -0.6889,
+     "ci95": [
+      -0.8479,
+      -0.6621
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    },
+    "vs_B5_heuristic": {
+     "model": 0.0081,
+     "baseline": 0.0088,
+     "diff": -0.0007,
+     "ci95": [
+      -0.006,
+      0.0073
+     ],
+     "environments": [
+      "atlasv2",
+      "attack_range",
+      "botsv1",
+      "mordor"
+     ]
+    }
+   }
+  },
+  "B2_start_only": {
+   "folds": {
+    "attack_range": {
+     "benign": 49053,
+     "malicious": 19839,
+     "host_hours": 278.07,
+     "alert": {
+      "threshold": 6.482846,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0001,
+      "recall_ci95": [
+       0.0,
+       0.0004
+      ]
+     },
+     "high": {
+      "threshold": 7.866727,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0002
+      ]
+     },
+     "roc_auc": 0.8141,
+     "pauc_fpr_0.01": 0.6831,
+     "time_to_detect_s": {
+      "n": 2,
+      "median": 0.0,
+      "p90": 0.0
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 3.084939,
+       "high": 5.101114
+      },
+      "botsv1": {
+       "alert": 3.37403,
+       "high": 6.153835
+      },
+      "mordor": {
+       "alert": 3.906751,
+       "high": 3.906752
+      },
+      "officer_vm": {
+       "alert": 6.482846,
+       "high": 7.866727
+      },
+      "optc": {
+       "alert": 3.357718,
+       "high": 3.78191
+      }
+     }
+    },
+    "mordor": {
+     "benign": 1883,
+     "malicious": 530,
+     "host_hours": 31.48,
+     "alert": {
+      "threshold": 7.464131,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "high": {
+      "threshold": 7.464132,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "roc_auc": 0.6417,
+     "pauc_fpr_0.01": 0.5527,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.764188,
+       "high": 4.803709
+      },
+      "attack_range": {
+       "alert": 2.237968,
+       "high": 4.455066
+      },
+      "botsv1": {
+       "alert": 2.553678,
+       "high": 3.364262
+      },
+      "officer_vm": {
+       "alert": 7.464131,
+       "high": 7.464132
+      },
+      "optc": {
+       "alert": 3.007422,
+       "high": 3.007422
+      }
+     }
+    },
+    "botsv1": {
+     "benign": 686,
+     "malicious": 81,
+     "host_hours": 18.06,
+     "alert": {
+      "threshold": 8.920759,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "high": {
+      "threshold": 8.92076,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "roc_auc": 0.8863,
+     "pauc_fpr_0.01": 0.5098,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.877219,
+       "high": 5.049349
+      },
+      "attack_range": {
+       "alert": 2.173197,
+       "high": 2.611425
+      },
+      "mordor": {
+       "alert": 3.089731,
+       "high": 5.795337
+      },
+      "officer_vm": {
+       "alert": 8.920759,
+       "high": 8.92076
+      },
+      "optc": {
+       "alert": 3.842373,
+       "high": 3.842373
+      }
+     }
+    },
+    "officer_vm": {
+     "benign": 2485,
+     "malicious": 0,
+     "host_hours": 4.48,
+     "alert": {
+      "threshold": 5.210332,
+      "fp": 37,
+      "fp_per_host_hour": 8.2589,
+      "fp_ci95": [
+       5.815,
+       11.3838
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 5.210332,
+      "fp": 37,
+      "fp_per_host_hour": 8.2589,
+      "fp_ci95": [
+       5.815,
+       11.3838
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.926587,
+       "high": 3.261056
+      },
+      "attack_range": {
+       "alert": 2.624937,
+       "high": 3.586977
+      },
+      "botsv1": {
+       "alert": 2.169817,
+       "high": 3.780497
+      },
+      "mordor": {
+       "alert": 3.001102,
+       "high": 4.351458
+      },
+      "optc": {
+       "alert": 5.210332,
+       "high": 5.210332
+      }
+     }
+    },
+    "optc": {
+     "benign": 44712,
+     "malicious": 0,
+     "host_hours": 223.94,
+     "alert": {
+      "threshold": 5.73617,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 5.774002,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 2.921474,
+       "high": 4.394391
+      },
+      "attack_range": {
+       "alert": 2.142272,
+       "high": 2.142272
+      },
+      "botsv1": {
+       "alert": 3.326449,
+       "high": 4.359145
+      },
+      "mordor": {
+       "alert": 2.744681,
+       "high": 4.359144
+      },
+      "officer_vm": {
+       "alert": 5.73617,
+       "high": 5.774002
+      }
+     }
+    },
+    "atlasv2": {
+     "benign": 65167,
+     "malicious": 87,
+     "host_hours": 212.28,
+     "alert": {
+      "threshold": 6.323267,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0174
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "high": {
+      "threshold": 6.323268,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0174
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "roc_auc": 0.7009,
+     "pauc_fpr_0.01": 0.7647,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "attack_range": {
+       "alert": 2.495726,
+       "high": 2.69358
+      },
+      "botsv1": {
+       "alert": 1.835942,
+       "high": 4.10467
+      },
+      "mordor": {
+       "alert": 3.311248,
+       "high": 4.340385
+      },
+      "officer_vm": {
+       "alert": 6.323267,
+       "high": 6.323268
+      },
+      "optc": {
+       "alert": 4.622911,
+       "high": 4.622911
+      }
+     }
+    }
+   },
+   "summary": {
+    "worst_environment_alert": "officer_vm",
+    "worst_fp_per_host_hour_alert": 8.2589,
+    "fp_per_host_hour_alert": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 8.2589,
+     "optc": 0.0,
+     "atlasv2": 0.0
+    },
+    "fp_per_host_hour_high": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 8.2589,
+     "optc": 0.0,
+     "atlasv2": 0.0
+    },
+    "recall_alert": {
+     "attack_range": 0.0001,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "atlasv2": 0.0
+    },
+    "pauc": {
+     "attack_range": 0.6831,
+     "mordor": 0.5527,
+     "botsv1": 0.5098,
+     "atlasv2": 0.7647
+    },
+    "C1_alert": false,
+    "C1_high": true,
+    "macro_recall_alert": 2.5e-05
+   }
+  },
+  "C5_start_lineage_children": {
+   "folds": {
+    "attack_range": {
+     "benign": 49053,
+     "malicious": 19839,
+     "host_hours": 278.07,
+     "alert": {
+      "threshold": 7.056031,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0007,
+      "recall_ci95": [
+       0.0004,
+       0.0012
+      ]
+     },
+     "high": {
+      "threshold": 9.001103,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0133
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0002
+      ]
+     },
+     "roc_auc": 0.8363,
+     "pauc_fpr_0.01": 0.7278,
+     "time_to_detect_s": {
+      "n": 14,
+      "median": 0.0555,
+      "p90": 5.7717
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.819636,
+       "high": 3.999873
+      },
+      "botsv1": {
+       "alert": 3.272583,
+       "high": 4.44735
+      },
+      "mordor": {
+       "alert": 4.215555,
+       "high": 5.312695
+      },
+      "officer_vm": {
+       "alert": 7.056031,
+       "high": 9.001103
+      },
+      "optc": {
+       "alert": 3.520359,
+       "high": 4.576829
+      }
+     }
+    },
+    "mordor": {
+     "benign": 1883,
+     "malicious": 530,
+     "host_hours": 31.48,
+     "alert": {
+      "threshold": 9.066504,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "high": {
+      "threshold": 10.910215,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.1172
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0069
+      ]
+     },
+     "roc_auc": 0.6587,
+     "pauc_fpr_0.01": 0.5621,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 3.849763,
+       "high": 7.110057
+      },
+      "attack_range": {
+       "alert": 4.874639,
+       "high": 6.630796
+      },
+      "botsv1": {
+       "alert": 1.684062,
+       "high": 2.861168
+      },
+      "officer_vm": {
+       "alert": 9.066504,
+       "high": 10.910215
+      },
+      "optc": {
+       "alert": 5.962009,
+       "high": 6.734581
+      }
+     }
+    },
+    "botsv1": {
+     "benign": 686,
+     "malicious": 81,
+     "host_hours": 18.06,
+     "alert": {
+      "threshold": 8.152348,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "high": {
+      "threshold": 9.756263,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.2043
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0445
+      ]
+     },
+     "roc_auc": 0.8332,
+     "pauc_fpr_0.01": 0.5646,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 1.249229,
+       "high": 7.629771
+      },
+      "attack_range": {
+       "alert": 3.525859,
+       "high": 7.235776
+      },
+      "mordor": {
+       "alert": 4.687271,
+       "high": 5.866445
+      },
+      "officer_vm": {
+       "alert": 8.152348,
+       "high": 9.756263
+      },
+      "optc": {
+       "alert": 4.458457,
+       "high": 5.331907
+      }
+     }
+    },
+    "officer_vm": {
+     "benign": 2485,
+     "malicious": 0,
+     "host_hours": 4.48,
+     "alert": {
+      "threshold": 5.239505,
+      "fp": 48,
+      "fp_per_host_hour": 10.7143,
+      "fp_ci95": [
+       7.8999,
+       14.2056
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 7.908191,
+      "fp": 8,
+      "fp_per_host_hour": 1.7857,
+      "fp_ci95": [
+       0.7709,
+       3.5186
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 5.239505,
+       "high": 7.908191
+      },
+      "attack_range": {
+       "alert": 4.492034,
+       "high": 6.944178
+      },
+      "botsv1": {
+       "alert": 3.098638,
+       "high": 3.530309
+      },
+      "mordor": {
+       "alert": 4.86223,
+       "high": 6.632448
+      },
+      "optc": {
+       "alert": 4.343684,
+       "high": 5.053453
+      }
+     }
+    },
+    "optc": {
+     "benign": 44712,
+     "malicious": 0,
+     "host_hours": 223.94,
+     "alert": {
+      "threshold": 8.371766,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "high": {
+      "threshold": 9.807079,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0165
+      ],
+      "recall": null,
+      "recall_ci95": [
+       null,
+       null
+      ]
+     },
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "atlasv2": {
+       "alert": 3.761411,
+       "high": 4.789246
+      },
+      "attack_range": {
+       "alert": 3.781904,
+       "high": 4.567713
+      },
+      "botsv1": {
+       "alert": 4.079891,
+       "high": 6.306393
+      },
+      "mordor": {
+       "alert": 3.702071,
+       "high": 5.580863
+      },
+      "officer_vm": {
+       "alert": 8.371766,
+       "high": 9.807079
+      }
+     }
+    },
+    "atlasv2": {
+     "benign": 65167,
+     "malicious": 87,
+     "host_hours": 212.28,
+     "alert": {
+      "threshold": 8.22659,
+      "fp": 2,
+      "fp_per_host_hour": 0.0094,
+      "fp_ci95": [
+       0.0011,
+       0.034
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "high": {
+      "threshold": 9.139126,
+      "fp": 0,
+      "fp_per_host_hour": 0.0,
+      "fp_ci95": [
+       0.0,
+       0.0174
+      ],
+      "recall": 0.0,
+      "recall_ci95": [
+       0.0,
+       0.0415
+      ]
+     },
+     "roc_auc": 0.6969,
+     "pauc_fpr_0.01": 0.7032,
+     "time_to_detect_s": {
+      "n": 0,
+      "median": null,
+      "p90": null
+     },
+     "thresholds_per_training_environment": {
+      "attack_range": {
+       "alert": 4.063565,
+       "high": 6.10602
+      },
+      "botsv1": {
+       "alert": 1.830777,
+       "high": 3.643983
+      },
+      "mordor": {
+       "alert": 4.743618,
+       "high": 4.916708
+      },
+      "officer_vm": {
+       "alert": 8.22659,
+       "high": 9.139126
+      },
+      "optc": {
+       "alert": 5.525528,
+       "high": 6.597476
+      }
+     }
+    }
+   },
+   "summary": {
+    "worst_environment_alert": "officer_vm",
+    "worst_fp_per_host_hour_alert": 10.7143,
+    "fp_per_host_hour_alert": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 10.7143,
+     "optc": 0.0,
+     "atlasv2": 0.0094
+    },
+    "fp_per_host_hour_high": {
+     "attack_range": 0.0,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "officer_vm": 1.7857,
+     "optc": 0.0,
+     "atlasv2": 0.0
+    },
+    "recall_alert": {
+     "attack_range": 0.0007,
+     "mordor": 0.0,
+     "botsv1": 0.0,
+     "atlasv2": 0.0
+    },
+    "pauc": {
+     "attack_range": 0.7278,
+     "mordor": 0.5621,
+     "botsv1": 0.5646,
+     "atlasv2": 0.7032
+    },
+    "C1_alert": false,
+    "C1_high": true,
+    "macro_recall_alert": 0.000175
+   }
+  }
+ },
+ "baselines": {
+  "attack_range": {
+   "B1_rules": {
+    "benign": 49053,
+    "malicious": 19839,
+    "host_hours": 278.07,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 2616,
+     "fp_per_host_hour": 9.4077,
+     "fp_ci95": [
+      9.0506,
+      9.7753
+     ],
+     "recall": 0.3612,
+     "recall_ci95": [
+      0.3545,
+      0.3679
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 2616,
+     "fp_per_host_hour": 9.4077,
+     "fp_ci95": [
+      9.0506,
+      9.7753
+     ],
+     "recall": 0.3612,
+     "recall_ci95": [
+      0.3545,
+      0.3679
+     ]
+    },
+    "roc_auc": 0.6539,
+    "pauc_fpr_0.01": 0.5145
+   },
+   "B3_allowlist": {
+    "benign": 49053,
+    "malicious": 19839,
+    "host_hours": 278.07,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 44495,
+     "fp_per_host_hour": 160.0137,
+     "fp_ci95": [
+      158.5303,
+      161.5075
+     ],
+     "recall": 0.6568,
+     "recall_ci95": [
+      0.6501,
+      0.6634
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 44495,
+     "fp_per_host_hour": 160.0137,
+     "fp_ci95": [
+      158.5303,
+      161.5075
+     ],
+     "recall": 0.6568,
+     "recall_ci95": [
+      0.6501,
+      0.6634
+     ]
+    },
+    "roc_auc": 0.3749,
+    "pauc_fpr_0.01": 0.4993
+   },
+   "B5_heuristic": {
+    "benign": 49053,
+    "malicious": 19839,
+    "host_hours": 278.07,
+    "alert": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0133
+     ],
+     "recall": 0.001,
+     "recall_ci95": [
+      0.0006,
+      0.0016
+     ]
+    },
+    "high": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0133
+     ],
+     "recall": 0.001,
+     "recall_ci95": [
+      0.0006,
+      0.0016
+     ]
+    },
+    "roc_auc": 0.8209,
+    "pauc_fpr_0.01": 0.806
+   }
+  },
+  "mordor": {
+   "B1_rules": {
+    "benign": 1883,
+    "malicious": 530,
+    "host_hours": 31.48,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 184,
+     "fp_per_host_hour": 5.845,
+     "fp_ci95": [
+      5.0309,
+      6.7533
+     ],
+     "recall": 0.2509,
+     "recall_ci95": [
+      0.2146,
+      0.2901
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 184,
+     "fp_per_host_hour": 5.845,
+     "fp_ci95": [
+      5.0309,
+      6.7533
+     ],
+     "recall": 0.2509,
+     "recall_ci95": [
+      0.2146,
+      0.2901
+     ]
+    },
+    "roc_auc": 0.5766,
+    "pauc_fpr_0.01": 0.5039
+   },
+   "B3_allowlist": {
+    "benign": 1883,
+    "malicious": 530,
+    "host_hours": 31.48,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 587,
+     "fp_per_host_hour": 18.6468,
+     "fp_ci95": [
+      17.1686,
+      20.2181
+     ],
+     "recall": 0.6132,
+     "recall_ci95": [
+      0.5703,
+      0.6549
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 587,
+     "fp_per_host_hour": 18.6468,
+     "fp_ci95": [
+      17.1686,
+      20.2181
+     ],
+     "recall": 0.6132,
+     "recall_ci95": [
+      0.5703,
+      0.6549
+     ]
+    },
+    "roc_auc": 0.6507,
+    "pauc_fpr_0.01": 0.5024
+   },
+   "B5_heuristic": {
+    "benign": 1883,
+    "malicious": 530,
+    "host_hours": 31.48,
+    "alert": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.1172
+     ],
+     "recall": 0.0113,
+     "recall_ci95": [
+      0.0042,
+      0.0245
+     ]
+    },
+    "high": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.1172
+     ],
+     "recall": 0.0113,
+     "recall_ci95": [
+      0.0042,
+      0.0245
+     ]
+    },
+    "roc_auc": 0.6078,
+    "pauc_fpr_0.01": 0.5475
+   }
+  },
+  "botsv1": {
+   "B1_rules": {
+    "benign": 686,
+    "malicious": 81,
+    "host_hours": 18.06,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 59,
+     "fp_per_host_hour": 3.2669,
+     "fp_ci95": [
+      2.4869,
+      4.214
+     ],
+     "recall": 0.3951,
+     "recall_ci95": [
+      0.2881,
+      0.5099
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 59,
+     "fp_per_host_hour": 3.2669,
+     "fp_ci95": [
+      2.4869,
+      4.214
+     ],
+     "recall": 0.3951,
+     "recall_ci95": [
+      0.2881,
+      0.5099
+     ]
+    },
+    "roc_auc": 0.6545,
+    "pauc_fpr_0.01": 0.509
+   },
+   "B3_allowlist": {
+    "benign": 686,
+    "malicious": 81,
+    "host_hours": 18.06,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 179,
+     "fp_per_host_hour": 9.9114,
+     "fp_ci95": [
+      8.5126,
+      11.4745
+     ],
+     "recall": 0.679,
+     "recall_ci95": [
+      0.566,
+      0.7785
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 179,
+     "fp_per_host_hour": 9.9114,
+     "fp_ci95": [
+      8.5126,
+      11.4745
+     ],
+     "recall": 0.679,
+     "recall_ci95": [
+      0.566,
+      0.7785
+     ]
+    },
+    "roc_auc": 0.709,
+    "pauc_fpr_0.01": 0.504
+   },
+   "B5_heuristic": {
+    "benign": 686,
+    "malicious": 81,
+    "host_hours": 18.06,
+    "alert": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.2043
+     ],
+     "recall": 0.0,
+     "recall_ci95": [
+      0.0,
+      0.0445
+     ]
+    },
+    "high": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.2043
+     ],
+     "recall": 0.0,
+     "recall_ci95": [
+      0.0,
+      0.0445
+     ]
+    },
+    "roc_auc": 0.5515,
+    "pauc_fpr_0.01": 0.5061
+   }
+  },
+  "officer_vm": {
+   "B1_rules": {
+    "benign": 2485,
+    "malicious": 0,
+    "host_hours": 4.48,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 44,
+     "fp_per_host_hour": 9.8214,
+     "fp_ci95": [
+      7.1363,
+      13.1848
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 44,
+     "fp_per_host_hour": 9.8214,
+     "fp_ci95": [
+      7.1363,
+      13.1848
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   },
+   "B3_allowlist": {
+    "benign": 2485,
+    "malicious": 0,
+    "host_hours": 4.48,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 2010,
+     "fp_per_host_hour": 448.6607,
+     "fp_ci95": [
+      429.2589,
+      468.7134
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 2010,
+     "fp_per_host_hour": 448.6607,
+     "fp_ci95": [
+      429.2589,
+      468.7134
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   },
+   "B5_heuristic": {
+    "benign": 2485,
+    "malicious": 0,
+    "host_hours": 4.48,
+    "alert": {
+     "threshold": 1.5,
+     "fp": 61,
+     "fp_per_host_hour": 13.6161,
+     "fp_ci95": [
+      10.4152,
+      17.4904
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 2.0,
+     "fp": 33,
+     "fp_per_host_hour": 7.3661,
+     "fp_ci95": [
+      5.0705,
+      10.3447
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   }
+  },
+  "optc": {
+   "B1_rules": {
+    "benign": 44712,
+    "malicious": 0,
+    "host_hours": 223.94,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 20264,
+     "fp_per_host_hour": 90.4885,
+     "fp_ci95": [
+      89.2469,
+      91.7431
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 20264,
+     "fp_per_host_hour": 90.4885,
+     "fp_ci95": [
+      89.2469,
+      91.7431
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   },
+   "B3_allowlist": {
+    "benign": 44712,
+    "malicious": 0,
+    "host_hours": 223.94,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 24694,
+     "fp_per_host_hour": 110.2706,
+     "fp_ci95": [
+      108.8995,
+      111.6547
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 24694,
+     "fp_per_host_hour": 110.2706,
+     "fp_ci95": [
+      108.8995,
+      111.6547
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   },
+   "B5_heuristic": {
+    "benign": 44712,
+    "malicious": 0,
+    "host_hours": 223.94,
+    "alert": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0165
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    },
+    "high": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0165
+     ],
+     "recall": null,
+     "recall_ci95": [
+      null,
+      null
+     ]
+    }
+   }
+  },
+  "atlasv2": {
+   "B1_rules": {
+    "benign": 65167,
+    "malicious": 87,
+    "host_hours": 212.28,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 100,
+     "fp_per_host_hour": 0.4711,
+     "fp_ci95": [
+      0.3833,
+      0.573
+     ],
+     "recall": 0.092,
+     "recall_ci95": [
+      0.0405,
+      0.1732
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 100,
+     "fp_per_host_hour": 0.4711,
+     "fp_ci95": [
+      0.3833,
+      0.573
+     ],
+     "recall": 0.092,
+     "recall_ci95": [
+      0.0405,
+      0.1732
+     ]
+    },
+    "roc_auc": 0.5452,
+    "pauc_fpr_0.01": 0.5418
+   },
+   "B3_allowlist": {
+    "benign": 65167,
+    "malicious": 87,
+    "host_hours": 212.28,
+    "alert": {
+     "threshold": 0.5,
+     "fp": 62640,
+     "fp_per_host_hour": 295.082,
+     "fp_ci95": [
+      292.7756,
+      297.402
+     ],
+     "recall": 0.8391,
+     "recall_ci95": [
+      0.7448,
+      0.9091
+     ]
+    },
+    "high": {
+     "threshold": 0.5,
+     "fp": 62640,
+     "fp_per_host_hour": 295.082,
+     "fp_ci95": [
+      292.7756,
+      297.402
+     ],
+     "recall": 0.8391,
+     "recall_ci95": [
+      0.7448,
+      0.9091
+     ]
+    },
+    "roc_auc": 0.4389,
+    "pauc_fpr_0.01": 0.4997
+   },
+   "B5_heuristic": {
+    "benign": 65167,
+    "malicious": 87,
+    "host_hours": 212.28,
+    "alert": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0174
+     ],
+     "recall": 0.023,
+     "recall_ci95": [
+      0.0028,
+      0.0806
+     ]
+    },
+    "high": {
+     "threshold": 4.000001,
+     "fp": 0,
+     "fp_per_host_hour": 0.0,
+     "fp_ci95": [
+      0.0,
+      0.0174
+     ],
+     "recall": 0.023,
+     "recall_ci95": [
+      0.0028,
+      0.0806
+     ]
+    },
+    "roc_auc": 0.5781,
+    "pauc_fpr_0.01": 0.5797
+   }
+  }
+ },
+ "selection": {
+  "selected": "ctx_lgb",
+  "reason": "no candidate meets C1 at alert; lowest worst-environment FP/host-hour"
+ },
+ "criteria": {
+  "C1": {
+   "passes": false,
+   "alert": {
+    "attack_range": 0.0,
+    "mordor": 0.0,
+    "botsv1": 0.0,
+    "officer_vm": 6.25,
+    "optc": 0.0,
+    "atlasv2": 0.0
+   },
+   "high": {
+    "attack_range": 0.0,
+    "mordor": 0.0,
+    "botsv1": 0.0,
+    "officer_vm": 0.2232,
+    "optc": 0.0,
+    "atlasv2": 0.0
+   }
+  },
+  "C2": {
+   "passes": false,
+   "vs_B2": {
+    "model": 0.0041,
+    "baseline": 0.0,
+    "diff": 0.0041,
+    "ci95": [
+     0.0,
+     0.0108
+    ],
+    "environments": [
+     "atlasv2",
+     "attack_range",
+     "botsv1",
+     "mordor"
+    ]
+   },
+   "vs_B1": {
+    "model": 0.0041,
+    "baseline": 0.2748,
+    "diff": -0.2707,
+    "ci95": [
+     -0.3733,
+     -0.2114
+    ],
+    "environments": [
+     "atlasv2",
+     "attack_range",
+     "botsv1",
+     "mordor"
+    ]
+   }
+  },
+  "C3": {
+   "passes": false,
+   "pauc": {
+    "attack_range": 0.6883,
+    "mordor": 0.5592,
+    "botsv1": 0.5594,
+    "atlasv2": 0.6761
+   },
+   "macro": 0.62075
+  },
+  "C4": {
+   "benign_environment_auc": {
+    "atlasv2": 0.9983,
+    "attack_range": 0.9918,
+    "botsv1": 1.0,
+    "mordor": 0.9647,
+    "officer_vm": 0.9979,
+    "optc": 0.9911
+   },
+   "macro_auc": 0.990633,
+   "group_macro_auc": {
+    "start": 0.88915,
+    "lineage": 0.899017,
+    "children": 0.807167,
+    "network": 0.768533,
+    "image_load": 0.77475,
+    "registry": 0.7733
+   },
+   "availability_to_label_auc": 0.731684,
+   "passes": false
+  },
+  "C5": {
+   "passes": false,
+   "c5": {
+    "attack_range": 0.0,
+    "mordor": 0.0,
+    "botsv1": 0.0,
+    "officer_vm": 10.7143,
+    "optc": 0.0,
+    "atlasv2": 0.0094
+   },
+   "b2": {
+    "attack_range": 0.0,
+    "mordor": 0.0,
+    "botsv1": 0.0,
+    "officer_vm": 8.2589,
+    "optc": 0.0,
+    "atlasv2": 0.0
+   }
+  },
+  "C6": {
+   "passes": true,
+   "median_of_environment_medians_s": 0.0
+  },
+  "C7": {
+   "passes": true,
+   "golden_max_abs_error": 0.0,
+   "golden_vectors_with_nan": 167,
+   "note": "bit-identical rebuild checked by rerunning this step into a second version"
+  },
+  "C8": {
+   "passes": true,
+   "families": {
+    "quote_split": {
+     "changed": 20490,
+     "recall_before": 0.0159,
+     "recall_after": 0.0075,
+     "drop": 0.0084,
+     "passes": true
+    },
+    "envvar_substring": {
+     "changed": 20490,
+     "recall_before": 0.0159,
+     "recall_after": 0.0075,
+     "drop": 0.0084,
+     "passes": true
+    },
+    "short_path": {
+     "changed": 2076,
+     "recall_before": 0.0029,
+     "recall_after": 0.0029,
+     "drop": 0.0,
+     "passes": true
+    },
+    "unicode_dash": {
+     "changed": 7707,
+     "recall_before": 0.0132,
+     "recall_after": 0.0122,
+     "drop": 0.001,
+     "passes": true
+    },
+    "flag_prefix": {
+     "changed": 3163,
+     "recall_before": 0.0063,
+     "recall_after": 0.0038,
+     "drop": 0.0025,
+     "passes": true
+    },
+    "renamed_copy": {
+     "changed": 20537,
+     "recall_before": 0.0159,
+     "recall_after": 0.0062,
+     "drop": 0.0096,
+     "passes": true
+    },
+    "group_loss:network": {
+     "changed": 13038,
+     "drop": -0.0085,
+     "passes": true
+    },
+    "group_loss:image_load": {
+     "changed": 4537,
+     "drop": 0.0075,
+     "passes": true
+    },
+    "group_loss:registry": {
+     "changed": 11914,
+     "drop": 0.0189,
+     "passes": true
+    }
+   }
+  }
+ },
+ "export": {
+  "model_id": "panopticon-process-context",
+  "candidate": "ctx_lgb",
+  "context_version": 1,
+  "start_featurizer_version": 5,
+  "admitted_groups": [
+   "start",
+   "lineage",
+   "children",
+   "network",
+   "image_load",
+   "registry"
+  ],
+  "engine_git_sha": "811b27cee57342338722a46a0f5035656b844a18",
+  "golden_max_abs_error": 0.0,
+  "golden_vectors_with_nan": 167,
+  "rounds": 702,
+  "training_processes": 8774,
+  "versions": {
+   "lightgbm": "4.7.0",
+   "scikit_learn": "1.9.1",
+   "numpy": "2.5.4",
+   "python": "3.12.12"
+  },
+  "pins_sha256": "36c573a056043f5bdab425e4ba334afa18bb359de00995d9f53c87f3fd94beb2",
+  "final_candidate": false,
+  "files": {
+   "model.json": "2bed0a5a1d5deff7943948be6fa8168f0163d2df74dacb03a1873c08e6b203e0",
+   "features.json": "94f128f175941cc5e1f32bac04de695abb020140c9dd769ea4d74f13dc8b9533",
+   "thresholds.json": "ef742f175c12f834c0141cf3f2c9b0ca302b0c0bfb37f136835670e90791cdfb",
+   "golden.json": "7320d77b4b4061339415df8c555234113112e268edf54c1367d700e6a5296bae"
+  }
+ }
+}

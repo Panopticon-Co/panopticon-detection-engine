@@ -3,7 +3,6 @@
 import hashlib
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from panopticon_detection.alerting.active_response import ActiveResponseEngine
@@ -52,12 +51,20 @@ class Alert:
     mitre_technique: Optional[str] = None
     compliance: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    # Set on incident alerts: stable across an incident's revisions, while
+    # alert_id changes with each one.
+    incident_id: Optional[str] = None
 
     @classmethod
     def from_detection_result(cls, result: DetectionResult) -> "Alert":
         rule = result.rule
         event = result.event
         
+        evidence = dict(result.matched_evidence)
+        conditions = getattr(result, "matched_conditions", None)
+        if conditions:
+            evidence["matched_conditions"] = list(conditions)
+
         mitre_tactic = rule.mitre.tactic if rule.mitre else None
         mitre_technique = rule.mitre.technique if rule.mitre else None
 
@@ -70,7 +77,7 @@ class Alert:
         )
 
         return cls(
-            alert_id=_stable_alert_id(rule.id, event, result.matched_evidence),
+            alert_id=_stable_alert_id(rule.id, event, evidence),
             rule_id=rule.id,
             title=rule.name,
             description=rule.description,
@@ -78,9 +85,9 @@ class Alert:
             severity=rule.severity.value if hasattr(rule.severity, "value") else str(rule.severity),
             confidence=rule.confidence,
             host_id=event.get("host_id", "UNKNOWN_HOST"),
-            timestamp=event.get("timestamp", datetime.utcnow().isoformat() + "Z"),
+            timestamp=event.get("timestamp") or "",
             event_id=event.get("event_id"),
-            evidence=result.matched_evidence,
+            evidence=evidence,
             active_response=ar_action.to_dict() if ar_action else None,
             mitre_tactic=mitre_tactic,
             mitre_technique=mitre_technique,

@@ -1,0 +1,45 @@
+id: DET-PS-010
+name: PowerShell Script Disables AMSI or Script-Block Logging
+description: >-
+  A PowerShell script block, after undoing string concatenation, backticks
+  and similar evasion, reaches into AMSI (AmsiUtils / amsiInitFailed) or
+  turns script-block logging off -- standard in Empire, Covenant and other
+  stagers before they load their payload. Reads PowerShell Operational
+  EventID 4104, schema 0.5.
+version: 1
+status: enabled
+event_type: script_block
+
+logic:
+  any:
+    - field: script_block.deobfuscated_text
+      operator: contains
+      value: amsiInitFailed
+    - field: script_block.deobfuscated_text
+      operator: contains
+      value: AmsiUtils
+    - field: script_block.deobfuscated_text
+      operator: contains
+      value: EnableScriptBlockLogging
+
+level: 13
+active_response: COLLECT_PROCESS_INFO
+severity: high
+confidence: 0.9
+
+evidence:
+  - process.name
+  - process.pid
+  - script_block.script_block_id
+  - script_block.is_obfuscated
+  - script_block.evasion_techniques
+
+mitre:
+  tactic: Defense Evasion
+  technique: T1562.001
+  name: "Impair Defenses: Disable or Modify Tools"
+
+tags:
+  - attack.defense_evasion
+  - powershell
+  - amsi_bypass

@@ -1,0 +1,37 @@
+id: DET-DISC-001
+name: Burst of Distinct Discovery Tools From One Parent
+description: >
+  One process launches at least three different discovery tools (whoami, net,
+  nltest, ipconfig, systeminfo ...) within a minute -- scripted reconnaissance
+  rather than an administrator's one-off check.
+version: 1
+status: enabled
+type: value_count
+by: parent
+event_type: process_create
+field: process.name
+count: 3
+window: 60s
+
+level: 10
+severity: medium
+confidence: 0.8
+
+logic:
+  all:
+    - field: process.name
+      operator: in
+      value: $discovery_tools
+
+evidence:
+  - parent.name
+  - process.lineage
+
+mitre:
+  tactic: Discovery
+  technique: T1087
+  name: "Account Discovery"
+
+tags:
+  - attack.discovery
+  - value_count

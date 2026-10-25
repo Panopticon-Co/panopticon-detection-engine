@@ -1,86 +1,35 @@
-"""Extracts fields from events and matches atomic rule conditions with process tree, threat intel, and deobfuscation awareness."""
+"""Field extraction, condition matching, and condition-tree evaluation.
 
-from typing import Any, Dict, Optional
+``evaluate_logic`` is the single implementation of the rule condition tree
+(``all`` / ``any`` / ``none``); single-event and stateful rules both use it. It
+optionally records which conditions matched and with what value, which is what
+lets an alert explain itself instead of only naming the rule that fired.
+"""
 
-from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
+from typing import Any, Dict, List, Optional
+
+from panopticon_detection import enrichment
+from panopticon_detection.enrichment import MatchContext
 from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
-from panopticon_detection.evaluator.operators import OPERATOR_MAP
-from panopticon_detection.provenance.identity import ProcessRegistry
-from panopticon_detection.rules.schema import Condition
-from panopticon_detection.threat_intel.ioc_lookup import ThreatIntelEngine
+from panopticon_detection.evaluator.operators import NEGATED_OPERATORS, OPERATOR_MAP
+from panopticon_detection.rules.schema import Condition, LogicNode
 
 
 def extract_field(
     event: Dict[str, Any],
     field_path: str,
-    registry: Optional[ProcessRegistry] = None,
-    threat_intel: Optional[ThreatIntelEngine] = None,
+    registry=None,
+    threat_intel=None,
+    graph=None,
+    ctx: Optional[MatchContext] = None,
 ) -> Any:
-    """Extracts a nested field value from a dictionary using dot notation or dynamic analyzers."""
-    proc = event.get("process", {})
-    raw_cmd = proc.get("command_line", "")
+    """A dotted field from the event, or a derived one from the enrichment layer."""
+    if field_path in enrichment.DERIVED_FIELDS:
+        context = ctx or MatchContext(registry=registry, graph=graph, threat_intel=threat_intel)
+        return enrichment.derive(event, field_path, context)
 
-    # Dynamic Deobfuscation fields
-    if field_path in ("process.deobfuscated_command", "process.normalized_command"):
-        return CommandDeobfuscator.deobfuscate(raw_cmd)["full_deobfuscated"]
-
-    if field_path == "process.is_obfuscated":
-        return CommandDeobfuscator.deobfuscate(raw_cmd)["is_obfuscated"]
-
-    if field_path == "process.evasion_techniques":
-        return CommandDeobfuscator.deobfuscate(raw_cmd)["evasion_techniques"]
-
-    # Dynamic Shannon Entropy fields
-    if field_path == "process.entropy":
-        return ShannonEntropyCalculator.calculate_entropy(raw_cmd)
-
-    if field_path == "process.is_high_entropy":
-        return ShannonEntropyCalculator.analyze_tokens(raw_cmd)["is_anomaly"]
-
-    # Dynamic provenance fields.
-    #
-    # Resolved from the *event* rather than from process.entity_id/process_guid.
-    # The agent derives entity_id with a different formula for process-create
-    # than for network/file/registry/image_load telemetry (see
-    # provenance/identity.py), so a guid lookup silently missed on four of the
-    # five families and every ancestry check quietly returned nothing. The
-    # registry joins on (host_id, pid, timestamp) instead, which the agent's
-    # own contract guarantees.
-    if field_path in ("process.lineage", "process.ancestry") and registry:
-        actor = registry.resolve_event(event)
-        if actor:
-            return registry.lineage(actor.node_id)
-
-    if field_path == "process.ancestor_names" and registry:
-        actor = registry.resolve_event(event)
-        if actor:
-            return [a.name for a in registry.ancestors(actor.node_id)]
-
-    # Dynamic DNS & DGA fields
-    if field_path.startswith("network.is_dga") or field_path.startswith("network.is_dns_tunneling") or field_path.startswith("network.domain_entropy"):
-        from panopticon_detection.behavioral.dns import DnsAnalyzer
-        domain = event.get("network", {}).get("dns_query") or event.get("network", {}).get("destination_domain") or event.get("dns", {}).get("query")
-        dns_res = DnsAnalyzer.analyze_domain(domain)
-        if field_path == "network.is_dga":
-            return dns_res["is_dga"]
-        if field_path == "network.is_dns_tunneling":
-            return dns_res["is_tunneling"]
-        if field_path == "network.domain_entropy":
-            return dns_res["entropy"]
-
-    # Dynamic ThreatIntel fields
-    if field_path == "threat_intel.hash_match" and threat_intel:
-        file_hash = proc.get("file_hash") or event.get("file", {}).get("hash")
-        return threat_intel.check_hash(file_hash)
-
-    if field_path == "threat_intel.ip_match" and threat_intel:
-        dest_ip = event.get("network", {}).get("destination_ip")
-        return threat_intel.check_ip(dest_ip)
-
-    # Dotted nested path lookup (e.g. process.name)
-    parts = field_path.split(".")
-    current = event
-    for part in parts:
+    current: Any = event
+    for part in field_path.split("."):
         if not isinstance(current, dict):
             return None
         current = current.get(part)
@@ -89,60 +38,135 @@ def extract_field(
     return current
 
 
+def match_condition(condition: Condition, event: Dict[str, Any], ctx: MatchContext) -> tuple:
+    """``(matched, actual_value)`` for one condition."""
+    if condition.operator == "has_ancestor":
+        # The declared field is documentation only: ancestry is a property of
+        # the process that emitted the event, resolved through the registry, so
+        # it works on a process_create and on that process's later telemetry.
+        if ctx.registry is None:
+            return False, None
+        actor = ctx.registry.resolve_event(event)
+        if actor is None:
+            return False, None
+        targets = condition.value if isinstance(condition.value, list) else [condition.value]
+        wanted = {str(t).lower() for t in targets}
+        names = [a.name for a in ctx.registry.ancestors(actor.node_id)]
+        hit = next((n for n in names if n in wanted), None)
+        return hit is not None, hit
+
+    actual = extract_field(event, condition.field, ctx=ctx)
+
+    if condition.operator == "in_threat_intel":
+        if ctx.threat_intel is None:
+            return False, actual
+        kind = str(condition.value).lower()
+        if kind in ("hash", "file_hash", "sha256", "md5"):
+            return ctx.threat_intel.check_hash(actual) is not None, actual
+        if kind in ("ip", "ip_address", "c2"):
+            return ctx.threat_intel.check_ip(actual) is not None, actual
+        return False, actual
+
+    if condition.operator == "entropy_greater_than":
+        entropy = ShannonEntropyCalculator.calculate_entropy(str(actual or ""))
+        try:
+            return entropy >= float(condition.value), round(entropy, 3)
+        except (ValueError, TypeError):
+            return False, entropy
+
+    op = OPERATOR_MAP.get(condition.operator)
+    if op is None:
+        return False, actual
+    matched = op(actual, condition.value, case_sensitive=condition.case_sensitive)
+
+    # A command line that does not match as written is re-checked in its
+    # deobfuscated form (carets, backticks, concatenation, -enc payloads).
+    # Only for positive operators: re-running a negation against a different
+    # string could turn "does not contain X" into a match it never earned.
+    if (
+        not matched
+        and condition.field == "process.command_line"
+        and condition.operator not in NEGATED_OPERATORS
+    ):
+        decoded = extract_field(event, "process.deobfuscated_command", ctx=ctx)
+        if decoded and decoded != actual:
+            matched = op(decoded, condition.value, case_sensitive=condition.case_sensitive)
+            if matched:
+                actual = decoded
+    return matched, actual
+
+
 class ConditionMatcher:
-    """Evaluates a single rule Condition against an event."""
+    """Kept for callers that match one condition at a time."""
 
     @staticmethod
-    def evaluate(
-        condition: Condition,
-        event: Dict[str, Any],
-        registry: Optional[ProcessRegistry] = None,
-        threat_intel: Optional[ThreatIntelEngine] = None,
-    ) -> bool:
-        # 1. Special operator: has_ancestor
-        #
-        # The rule's declared `field` is documentation only -- ancestry is a
-        # property of the process that emitted the event, resolved through the
-        # registry, so this works identically on a process_create and on a
-        # later network/file/registry event from the same process.
-        if condition.operator == "has_ancestor" and registry:
-            actor = registry.resolve_event(event)
-            if actor is None:
+    def evaluate(condition, event, registry=None, threat_intel=None, graph=None) -> bool:
+        ctx = MatchContext(registry=registry, graph=graph, threat_intel=threat_intel)
+        return match_condition(condition, event, ctx)[0]
+
+
+def evaluate_logic(
+    node: LogicNode,
+    event: Dict[str, Any],
+    ctx: MatchContext,
+    trace: Optional[List[Dict[str, Any]]] = None,
+) -> bool:
+    """Evaluate a condition tree with short-circuiting.
+
+    When ``trace`` is given, the conditions that made the tree true are
+    appended to it; conditions from branches that ultimately failed are not.
+    """
+    local: List[Dict[str, Any]] = []
+
+    def check(item) -> bool:
+        if isinstance(item, Condition):
+            matched, actual = match_condition(item, event, ctx)
+            if matched:
+                local.append(_describe(item, actual))
+            return matched
+        sub: List[Dict[str, Any]] = []
+        ok = evaluate_logic(item, event, ctx, sub)
+        if ok:
+            local.extend(sub)
+        return ok
+
+    if node.all is not None and not all(check(item) for item in node.all):
+        return False
+
+    if node.any is not None and not any(check(item) for item in node.any):
+        return False
+
+    if node.none is not None:
+        for item in node.none:
+            if isinstance(item, Condition):
+                if match_condition(item, event, ctx)[0]:
+                    return False
+            elif evaluate_logic(item, event, ctx):
                 return False
-            targets = condition.value if isinstance(condition.value, list) else [condition.value]
-            wanted = {str(t).lower() for t in targets}
-            return any(a.name in wanted for a in registry.ancestors(actor.node_id))
 
-        # 2. Special operator: in_threat_intel (IOC Blacklist Check)
-        if condition.operator == "in_threat_intel" and threat_intel:
-            actual_val = extract_field(event, condition.field, registry=registry, threat_intel=threat_intel)
-            target_type = str(condition.value).lower()
-            if target_type in ("hash", "file_hash", "sha256", "md5"):
-                return threat_intel.check_hash(actual_val) is not None
-            elif target_type in ("ip", "ip_address", "c2"):
-                return threat_intel.check_ip(actual_val) is not None
+    if trace is not None:
+        trace.extend(local)
+    return True
 
-        # 3. Special operator: entropy_greater_than
-        if condition.operator == "entropy_greater_than":
-            raw_text = extract_field(event, condition.field, registry=registry, threat_intel=threat_intel)
-            actual_entropy = ShannonEntropyCalculator.calculate_entropy(str(raw_text or ""))
-            try:
-                return actual_entropy >= float(condition.value)
-            except (ValueError, TypeError):
-                return False
 
-        # Standard field extraction & comparison
-        actual_val = extract_field(event, condition.field, registry=registry, threat_intel=threat_intel)
+def _describe(condition: Condition, actual: Any) -> Dict[str, Any]:
+    shown = actual
+    if isinstance(shown, str) and len(shown) > 160:
+        shown = shown[:157] + "..."
+    return {
+        "field": condition.field,
+        "operator": condition.operator,
+        "value": condition.value,
+        "actual": shown,
+    }
 
-        # If matching against process.command_line and normal match fails, fallback to deobfuscated view!
-        op_func = OPERATOR_MAP.get(condition.operator)
-        if not op_func:
-            return False
 
-        match_result = op_func(actual_val, condition.value, case_sensitive=condition.case_sensitive)
-        if not match_result and condition.field == "process.command_line":
-            # Transparent fallback to deobfuscated / decoded command line!
-            deobf_val = extract_field(event, "process.deobfuscated_command", registry=registry, threat_intel=threat_intel)
-            match_result = op_func(deobf_val, condition.value, case_sensitive=condition.case_sensitive)
-
-        return match_result
+def format_trace(trace: List[Dict[str, Any]]) -> List[str]:
+    """Human-readable matched conditions for alert evidence."""
+    lines = []
+    for entry in trace:
+        value = entry["value"]
+        if isinstance(value, list) and len(value) > 6:
+            value = value[:6] + ["..."]
+        lines.append(f"{entry['field']} {entry['operator']} {value!r} (saw {entry['actual']!r})")
+    return lines

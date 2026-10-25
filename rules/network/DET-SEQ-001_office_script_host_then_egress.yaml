@@ -1,0 +1,51 @@
+id: DET-SEQ-001
+name: Office-Spawned Script Host Followed by Public Network Egress
+description: >
+  A script host starts under an Office application, and a process in the same
+  process tree then connects to a public address within five minutes.
+version: 1
+status: enabled
+type: sequence
+by: process_tree
+maxspan: 5m
+
+level: 13
+severity: high
+confidence: 0.9
+
+steps:
+  - name: office spawns script host
+    event_type: process_create
+    logic:
+      all:
+        - field: process.name
+          operator: in
+          value: $script_hosts
+        - field: process.process_guid
+          operator: has_ancestor
+          value: $office
+  - name: tree connects out
+    event_type: network_connect
+    logic:
+      all:
+        - field: network.direction
+          operator: equals
+          value: outbound
+        - field: network.destination_scope
+          operator: equals
+          value: public
+
+evidence:
+  - process.name
+  - network.destination_ip
+  - network.destination_port
+  - process.lineage
+
+mitre:
+  tactic: Command and Control
+  technique: T1071.001
+  name: "Application Layer Protocol: Web Protocols"
+
+tags:
+  - attack.command_and_control
+  - sequence
