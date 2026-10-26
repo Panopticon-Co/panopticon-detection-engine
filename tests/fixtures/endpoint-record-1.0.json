@@ -1,0 +1,867 @@
+[
+  {
+    "category": "process",
+    "data": {
+      "agent": {
+        "id": "agent-1",
+        "version": "1.0-dev"
+      },
+      "enrichment": {},
+      "event": {
+        "category": "process",
+        "id": "evt_b3d76f60065e98584df362d1e85299e9dee7fcbc95d2643334b11f539ee23730",
+        "timestamp": "2024-09-05T08:53:20.000Z",
+        "type": "start"
+      },
+      "host": {
+        "hostname": "LAB",
+        "id": "host-1",
+        "os": {
+          "build": "26100",
+          "name": "Windows"
+        }
+      },
+      "process": {
+        "command_line": "whoami /priv",
+        "entity_id": "proc_95f62b70d5edd95983ad5af22c394c89718ee5a201fad96765b75fb6716f57ca",
+        "executable": null,
+        "hash": {
+          "sha256": null
+        },
+        "name": "whoami.exe",
+        "parent": {
+          "entity_id": null,
+          "identity": null,
+          "name": null,
+          "pid": null
+        },
+        "pid": 1234,
+        "start_time_ticks": "133700000000000001"
+      },
+      "source": {
+        "channel": null,
+        "kind": "etw",
+        "provider": "Microsoft-Windows-Kernel-Process",
+        "record_id": null
+      },
+      "source_facts": {
+        "event_time_ns": "1725526400000000100",
+        "family": "process",
+        "process": {
+          "command_line": "whoami /priv",
+          "executable": null,
+          "parent_executable": null,
+          "parent_pid": null,
+          "parent_process_guid": null,
+          "pid": 1234,
+          "process_guid": null,
+          "sha256": null,
+          "start_time_ticks": "133700000000000001",
+          "user_name": null,
+          "user_sid": null
+        },
+        "representation": "decoded_source_facts_v1",
+        "source": {
+          "channel": null,
+          "kind": "etw",
+          "kind_value": 0,
+          "provider": "Microsoft-Windows-Kernel-Process",
+          "record_id": null
+        }
+      },
+      "user": {
+        "domain": null,
+        "name": null,
+        "sid": null
+      }
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "observation",
+    "observed_at": "2024-09-05T08:53:20.000Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": null,
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "unverified",
+      "event_time_ns": "1725526400000000100",
+      "kind": "etw",
+      "native_observation_id": "evt_b3d76f60065e98584df362d1e85299e9dee7fcbc95d2643334b11f539ee23730",
+      "native_record_id": null,
+      "provider": "Microsoft-Windows-Kernel-Process",
+      "received_at": "2026-10-05T23:25:24.218Z",
+      "sequence": "1"
+    },
+    "record_id": "rec_28bf62f2cd7d249585785f56522987bef7c06ef30169696333a683378e4521b2",
+    "schema_version": "1.0",
+    "subject": {
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "entity_id": "proc_95f62b70d5edd95983ad5af22c394c89718ee5a201fad96765b75fb6716f57ca",
+      "native_creation_ticks": "133700000000000001",
+      "observed_pid": 1234,
+      "resolution": "native_exact",
+      "source_guid": null,
+      "source_namespace": "etw:Microsoft-Windows-Kernel-Process:"
+    }
+  },
+  {
+    "category": "process",
+    "data": {
+      "agent": {
+        "id": "agent-1",
+        "version": "1.0-dev"
+      },
+      "enrichment": {},
+      "event": {
+        "category": "process",
+        "id": "evt_99fd9fcd60cbd6e0f85fe371f20d33b342bd8e49f862c1d9b0c53aacf1ecc434",
+        "timestamp": "2024-09-05T08:53:20.000Z",
+        "type": "start"
+      },
+      "host": {
+        "hostname": "LAB",
+        "id": "host-1",
+        "os": {
+          "build": "26100",
+          "name": "Windows"
+        }
+      },
+      "process": {
+        "command_line": null,
+        "entity_id": "proc_5cac358010542bc5acca51e47ec11b8c7e049a72d5b45ad2f8b434c0b5cd8064",
+        "executable": null,
+        "hash": {
+          "sha256": null
+        },
+        "name": null,
+        "parent": {
+          "entity_id": null,
+          "identity": null,
+          "name": null,
+          "pid": null
+        },
+        "pid": 1234,
+        "start_time_ticks": null
+      },
+      "source": {
+        "channel": "Microsoft-Windows-Sysmon/Operational",
+        "kind": "sysmon",
+        "provider": "Microsoft-Windows-Sysmon",
+        "record_id": 18446744073709551615
+      },
+      "source_facts": {
+        "event_time_ns": "1725526400000000100",
+        "family": "process",
+        "process": {
+          "command_line": null,
+          "executable": null,
+          "parent_executable": null,
+          "parent_pid": null,
+          "parent_process_guid": null,
+          "pid": 1234,
+          "process_guid": "{source-instance-guid}",
+          "sha256": null,
+          "start_time_ticks": null,
+          "user_name": null,
+          "user_sid": null
+        },
+        "representation": "decoded_source_facts_v1",
+        "source": {
+          "channel": "Microsoft-Windows-Sysmon/Operational",
+          "kind": "sysmon",
+          "kind_value": 1,
+          "provider": "Microsoft-Windows-Sysmon",
+          "record_id": "18446744073709551615"
+        }
+      },
+      "user": {
+        "domain": null,
+        "name": null,
+        "sid": null
+      }
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "observation",
+    "observed_at": "2024-09-05T08:53:20.000Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": "Microsoft-Windows-Sysmon/Operational",
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "unverified",
+      "event_time_ns": "1725526400000000100",
+      "kind": "sysmon",
+      "native_observation_id": "evt_99fd9fcd60cbd6e0f85fe371f20d33b342bd8e49f862c1d9b0c53aacf1ecc434",
+      "native_record_id": "18446744073709551615",
+      "provider": "Microsoft-Windows-Sysmon",
+      "received_at": "2026-10-05T23:25:24.219Z",
+      "sequence": "2"
+    },
+    "record_id": "rec_7b3e3d730a4445cb80c1c8b34dd3ca916562617785e9b7daa1f00990edb4193a",
+    "schema_version": "1.0",
+    "subject": {
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "entity_id": "proc_5cac358010542bc5acca51e47ec11b8c7e049a72d5b45ad2f8b434c0b5cd8064",
+      "native_creation_ticks": null,
+      "observed_pid": 1234,
+      "resolution": "source_scoped",
+      "source_guid": "{source-instance-guid}",
+      "source_namespace": "sysmon:Microsoft-Windows-Sysmon:Microsoft-Windows-Sysmon/Operational"
+    }
+  },
+  {
+    "category": "network",
+    "data": {
+      "agent": {
+        "id": "agent-1",
+        "version": "1.0-dev"
+      },
+      "enrichment": {},
+      "event": {
+        "category": "network",
+        "id": "evt_f2d1df684d7bdf743038a131d830567c87ba3a6fb33b9d0ec498c5e10bdbd52e",
+        "timestamp": "2024-09-05T08:53:20.000Z",
+        "type": "connect"
+      },
+      "host": {
+        "hostname": "LAB",
+        "id": "host-1",
+        "os": {
+          "build": "26100",
+          "name": "Windows"
+        }
+      },
+      "network": {
+        "destination_hostname": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "direction": "outbound",
+        "protocol": null,
+        "source_ip": null,
+        "source_port": null
+      },
+      "process": {
+        "command_line": null,
+        "entity_id": "proc_5cac358010542bc5acca51e47ec11b8c7e049a72d5b45ad2f8b434c0b5cd8064",
+        "executable": null,
+        "hash": {
+          "sha256": null
+        },
+        "name": null,
+        "parent": {
+          "entity_id": null,
+          "name": null,
+          "pid": null
+        },
+        "pid": 1234,
+        "start_time_ticks": null
+      },
+      "source": {
+        "channel": "Microsoft-Windows-Sysmon/Operational",
+        "kind": "sysmon",
+        "provider": "Microsoft-Windows-Sysmon",
+        "record_id": 18446744073709551615
+      },
+      "source_facts": {
+        "event_time_ns": "1725526400000000100",
+        "family": "network",
+        "network": {
+          "destination_hostname": null,
+          "destination_ip": null,
+          "destination_port": null,
+          "direction_value": 1,
+          "protocol_value": 2,
+          "source_ip": null,
+          "source_port": null
+        },
+        "process": {
+          "executable": null,
+          "pid": 1234,
+          "process_guid": "{source-instance-guid}",
+          "process_name": null,
+          "user_name": null,
+          "user_sid": null
+        },
+        "representation": "decoded_source_facts_v1",
+        "source": {
+          "channel": "Microsoft-Windows-Sysmon/Operational",
+          "kind": "sysmon",
+          "kind_value": 1,
+          "provider": "Microsoft-Windows-Sysmon",
+          "record_id": "18446744073709551615"
+        }
+      },
+      "user": {
+        "domain": null,
+        "name": null,
+        "sid": null
+      }
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "observation",
+    "observed_at": "2024-09-05T08:53:20.000Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": "Microsoft-Windows-Sysmon/Operational",
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "unverified",
+      "event_time_ns": "1725526400000000100",
+      "kind": "sysmon",
+      "native_observation_id": "evt_f2d1df684d7bdf743038a131d830567c87ba3a6fb33b9d0ec498c5e10bdbd52e",
+      "native_record_id": "18446744073709551615",
+      "provider": "Microsoft-Windows-Sysmon",
+      "received_at": "2026-10-05T23:25:24.220Z",
+      "sequence": "3"
+    },
+    "record_id": "rec_b244af195fc033b58d631287f5aaad62a000a5c72a61fcdccaec249d16b28dc2",
+    "schema_version": "1.0",
+    "subject": {
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "entity_id": "proc_5cac358010542bc5acca51e47ec11b8c7e049a72d5b45ad2f8b434c0b5cd8064",
+      "native_creation_ticks": null,
+      "observed_pid": 1234,
+      "resolution": "source_scoped",
+      "source_guid": "{source-instance-guid}",
+      "source_namespace": "sysmon:Microsoft-Windows-Sysmon:Microsoft-Windows-Sysmon/Operational"
+    }
+  },
+  {
+    "category": "network",
+    "data": {
+      "agent": {
+        "id": "agent-1",
+        "version": "1.0-dev"
+      },
+      "enrichment": {},
+      "event": {
+        "category": "network",
+        "id": "evt_f2d1df684d7bdf743038a131d830567c87ba3a6fb33b9d0ec498c5e10bdbd52e",
+        "timestamp": "2024-09-05T08:53:20.000Z",
+        "type": "connect"
+      },
+      "host": {
+        "hostname": "LAB",
+        "id": "host-1",
+        "os": {
+          "build": "26100",
+          "name": "Windows"
+        }
+      },
+      "network": {
+        "destination_hostname": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "direction": "outbound",
+        "protocol": null,
+        "source_ip": null,
+        "source_port": null
+      },
+      "process": {
+        "command_line": null,
+        "entity_id": null,
+        "executable": null,
+        "hash": {
+          "sha256": null
+        },
+        "name": null,
+        "parent": {
+          "entity_id": null,
+          "name": null,
+          "pid": null
+        },
+        "pid": 1234,
+        "start_time_ticks": null
+      },
+      "source": {
+        "channel": "Microsoft-Windows-Sysmon/Operational",
+        "kind": "sysmon",
+        "provider": "Microsoft-Windows-Sysmon",
+        "record_id": 18446744073709551615
+      },
+      "source_facts": {
+        "event_time_ns": "1725526400000000100",
+        "family": "network",
+        "network": {
+          "destination_hostname": null,
+          "destination_ip": null,
+          "destination_port": null,
+          "direction_value": 1,
+          "protocol_value": 2,
+          "source_ip": null,
+          "source_port": null
+        },
+        "process": {
+          "executable": null,
+          "pid": 1234,
+          "process_guid": null,
+          "process_name": null,
+          "user_name": null,
+          "user_sid": null
+        },
+        "representation": "decoded_source_facts_v1",
+        "source": {
+          "channel": "Microsoft-Windows-Sysmon/Operational",
+          "kind": "sysmon",
+          "kind_value": 1,
+          "provider": "Microsoft-Windows-Sysmon",
+          "record_id": "18446744073709551615"
+        }
+      },
+      "user": {
+        "domain": null,
+        "name": null,
+        "sid": null
+      }
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "observation",
+    "observed_at": "2024-09-05T08:53:20.000Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": "Microsoft-Windows-Sysmon/Operational",
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "unverified",
+      "event_time_ns": "1725526400000000100",
+      "kind": "sysmon",
+      "native_observation_id": "evt_f2d1df684d7bdf743038a131d830567c87ba3a6fb33b9d0ec498c5e10bdbd52e",
+      "native_record_id": "18446744073709551615",
+      "provider": "Microsoft-Windows-Sysmon",
+      "received_at": "2026-10-05T23:25:24.220Z",
+      "sequence": "4"
+    },
+    "record_id": "rec_f17ff29b9317526aa219e596ee34f9b2c83588f61d81e1f3cca1460bfbc74eac",
+    "schema_version": "1.0",
+    "subject": {
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "entity_id": null,
+      "native_creation_ticks": null,
+      "observed_pid": 1234,
+      "resolution": "unresolved",
+      "source_guid": null,
+      "source_namespace": "sysmon:Microsoft-Windows-Sysmon:Microsoft-Windows-Sysmon/Operational"
+    }
+  },
+  {
+    "category": "endpoint_health",
+    "data": {
+      "agent_id": "agent-1",
+      "capabilities": [
+        {
+          "failure_count": 0,
+          "id": "A.host",
+          "reason": "boot/device/install identity and host-state inventory pending",
+          "scope": "hostname and OS name/build",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "B.process",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "C.thread_handle",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "D.user_session",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "E.authentication",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "F.powershell",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "G.scripting_lolbin",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "H.filesystem",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "I.registry",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "J.persistence",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "K.service_driver",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "L.scheduled_task",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "M.wmi",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "N.network",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "O.dns",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "P.firewall",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "Q.security_product",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "R.memory_injection",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "S.browser",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "T.office",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "U.remote_access",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "V.ipc",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "W.enterprise_identity",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "X.virtualization",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "Y.posture",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "Z.software",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AA.windows_logs",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AB.forensics",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AC.response",
+          "reason": "response requires explicit configuration and enrolled identity",
+          "scope": "typed actions; full response qualification pending",
+          "state": "disabled",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AD.isolation",
+          "reason": "response configuration required; IPv6 and recovery qualification pending",
+          "scope": "existing IPv4 WFP actions",
+          "state": "disabled",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AE.self_protection",
+          "reason": "service split, tamper monitoring, driver/PPL qualification pending",
+          "scope": "journal DACL and user-scoped DPAPI only",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AF.loss",
+          "reason": "provider-loss counters, durable gap records and emergency reserve pending",
+          "scope": "runtime failure counters and legacy migration gaps",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AG.durability",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AH.transport",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AI.configuration",
+          "reason": "signed policy and controlled configuration lifecycle pending",
+          "scope": "validated CLI options",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AJ.update",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AK.performance",
+          "reason": "approved workload budgets have not been qualified",
+          "scope": "component test runtime only",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AL.compatibility",
+          "reason": "OS/security configuration and ARM64 matrix not qualified",
+          "scope": "current Windows x64 development host",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AM.validation",
+          "reason": "VM, attack simulation, stress, chaos and soak qualification pending",
+          "scope": "component/contract tests",
+          "state": "degraded",
+          "updated_at": "2026-10-05T23:25:24.221Z"
+        },
+        {
+          "failure_count": 0,
+          "id": "AN.detection_context",
+          "reason": "full-domain implementation or qualification pending",
+          "scope": "approved full-surface domain",
+          "state": "unavailable",
+          "updated_at": "2026-10-05T23:25:24.220Z"
+        }
+      ],
+      "host_id": "host-1",
+      "kind": "endpoint_health",
+      "observed_at": "2026-10-05T23:25:24.221Z",
+      "schema_version": "1.0"
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "health",
+    "observed_at": "2026-10-05T23:25:24.222Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": null,
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "snapshot",
+      "event_time_ns": "1791242724222020700",
+      "kind": "agent",
+      "native_observation_id": null,
+      "native_record_id": null,
+      "provider": "Officer-Health",
+      "received_at": "2026-10-05T23:25:24.222Z",
+      "sequence": "5"
+    },
+    "record_id": "rec_a943c50c2b7511aa1b070ac651ec3373209f3ecbbbd8ef3ca90d99579fa7281c",
+    "schema_version": "1.0",
+    "subject": null
+  },
+  {
+    "category": "host",
+    "data": {
+      "hostname": "LAB",
+      "inventory_complete": false
+    },
+    "endpoint": {
+      "agent_id": "agent-1",
+      "boot_id": "boot_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "device_id": "device-1",
+      "host_id": "host-1",
+      "installation_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "kind": "state",
+    "observed_at": "2026-10-05T23:25:24.222Z",
+    "provenance": {
+      "capture_clock": "windows_uptime_ms",
+      "capture_uptime_ms": "21495390",
+      "channel": null,
+      "collector_epoch": "epoch_6e05b0384b6aca59af242661a59798dfb465e9651384ddc1d243f549fda90719",
+      "collector_generation": "1",
+      "continuity": "snapshot",
+      "event_time_ns": "1791242724222165600",
+      "kind": "win32",
+      "native_observation_id": null,
+      "native_record_id": null,
+      "provider": "Officer-State",
+      "received_at": "2026-10-05T23:25:24.222Z",
+      "sequence": "6"
+    },
+    "record_id": "rec_a9eb019d0fe867924b2ec9510d153ccb48eb4ca98320276019feb8095a785e7f",
+    "schema_version": "1.0",
+    "subject": null
+  }
+]

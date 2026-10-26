@@ -9,6 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Optional, Union
 
+from panopticon_detection.ingestion.endpoint_adapter import EndpointIngestionAdapter
 from panopticon_detection.ingestion.officer_adapter import OfficerIngestionAdapter
 
 _OFFICER_ETW_SESSION = "Panopticon-Officer-Process"
@@ -76,7 +77,9 @@ class LiveTelemetryStream:
                 try:
                     raw = json.loads(clean_line)
                     if isinstance(raw, dict):
-                        if OfficerIngestionAdapter.is_officer_event(raw):
+                        if EndpointIngestionAdapter.is_endpoint_record(raw):
+                            yield EndpointIngestionAdapter.transform(raw)
+                        elif OfficerIngestionAdapter.is_officer_event(raw):
                             yield OfficerIngestionAdapter.transform_officer_event(raw)
                         else:
                             yield raw

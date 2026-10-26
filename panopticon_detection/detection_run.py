@@ -25,12 +25,13 @@ so their behaviour cannot drift apart.
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from panopticon_detection import enrichment
-from panopticon_detection.alerting.alert import Alert
+from panopticon_detection.alerting.alert import Alert, _stable_alert_id
 from panopticon_detection.alerting.formatter import AlertFormatter
 from panopticon_detection.features import FeatureExtractor
 from panopticon_detection.provenance.graph import actor_of
@@ -109,11 +110,20 @@ class DetectionRun:
         self.risk_breach_alerts_count = 0
         self.suppressed_duplicates = 0
         self.active_responses_count = 0
+        self._endpoint_context = None
 
     # ------------------------------------------------------------------
     def process_event(self, event: Dict[str, Any]) -> List[Alert]:
         """Run every detector against one event; return the alerts produced."""
         produced: List[Alert] = []
+        # Facts about the triggering canonical record, attached to every alert it
+        # produces (endpoint record 1.0 only; legacy events carry none).
+        self._endpoint_context = (
+            {"record_id": event["event_id"], "kind": event["record_kind"],
+             "category": event["telemetry_category"], "endpoint": event["endpoint"],
+             "provenance": event["provenance"], "subject": event["process_reference"]}
+            if event.get("identity_model") == "endpoint_record_v1" else None
+        )
         self.events_count += 1
         enrichment.reset(event)
 
@@ -228,6 +238,16 @@ class DetectionRun:
             self.behavioral_signals_count += 1
 
     def _emit(self, alert: Alert, produced: List[Alert]) -> None:
+        if self._endpoint_context is not None:
+            alert.endpoint_context = copy.deepcopy(self._endpoint_context)
+        # Per-event alerts get agent-scoped replay IDs; correlation alerts keep
+        # their own identity (incident alert IDs carry the revision, INC-...-R<n>).
+        if self._endpoint_context is not None and alert.detection_source != "correlation":
+            alert.alert_id = _stable_alert_id(
+                alert.rule_id,
+                {"identity_model": "endpoint_record_v1", "endpoint": self._endpoint_context["endpoint"],
+                 "event_id": self._endpoint_context["record_id"]}, alert.evidence,
+            )
         produced.append(alert)
         self.all_alerts.append(alert)
         if alert.active_response:
