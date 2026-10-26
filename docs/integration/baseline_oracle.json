@@ -1,0 +1,138 @@
+{
+ "context_feature_names": "c68e804f2105aec4",
+ "context_version": 1,
+ "field_registry": "b674294c614473f3",
+ "start_feature_names": "e53022d0af4ee7e9",
+ "streams": {
+  "samples/attack_simulation.ndjson": {
+   "alert_count": 13,
+   "alerts": "7a23947eafc575a4",
+   "checkpoints": 14,
+   "edges": "f290eb52b738470e",
+   "graph_stats": {
+    "edges": 10,
+    "nodes": 11,
+    "tagged_edges": 6
+   },
+   "tap_records": "9f8740c778fefa6d",
+   "vectors": "b93e20070043bfd4"
+  },
+  "samples/officer_live_sample.ndjson": {
+   "alert_count": 10,
+   "alerts": "11a60fe64df33209",
+   "checkpoints": 8,
+   "edges": "f5236c7e3ae68822",
+   "graph_stats": {
+    "edges": 12,
+    "nodes": 13,
+    "tagged_edges": 4
+   },
+   "tap_records": "6831159575e6cd60",
+   "vectors": "4bf99e96e1b00a0c"
+  },
+  "samples/v3/mixed_families_sample.ndjson": {
+   "alert_count": 7,
+   "alerts": "5a5480ca1d8ed1c4",
+   "checkpoints": 5,
+   "edges": "9c2189db65ba0b3e",
+   "graph_stats": {
+    "edges": 6,
+    "nodes": 7,
+    "tagged_edges": 4
+   },
+   "tap_records": "d1fe82f6f8e8a29c",
+   "vectors": "b6d362b7e6653365"
+  },
+  "tests/corpus/benign_workstation/events.ndjson": {
+   "alert_count": 0,
+   "alerts": "4f53cda18c2baa0c",
+   "checkpoints": 12,
+   "edges": "bd163c9832e4bdd2",
+   "graph_stats": {
+    "edges": 96,
+    "nodes": 90,
+    "tagged_edges": 0
+   },
+   "tap_records": "ec0c2a12699363b1",
+   "vectors": "c9f26c5b8f7b9f98"
+  },
+  "tests/corpus/download_execute_lsass_dump/events.ndjson": {
+   "alert_count": 4,
+   "alerts": "895ee828fd4d656e",
+   "checkpoints": 8,
+   "edges": "e26f7fb1a978972a",
+   "graph_stats": {
+    "edges": 19,
+    "nodes": 19,
+    "tagged_edges": 2
+   },
+   "tap_records": "ec2e50d4a3d07a18",
+   "vectors": "d0edf292c5292f87"
+  },
+  "tests/corpus/fileless_powershell_lsass_dump/events.ndjson": {
+   "alert_count": 13,
+   "alerts": "15c9bc637dee616b",
+   "checkpoints": 11,
+   "edges": "6c851a901e251f3d",
+   "graph_stats": {
+    "edges": 15,
+    "nodes": 16,
+    "tagged_edges": 5
+   },
+   "tap_records": "e7f3f72129576c3f",
+   "vectors": "0cd306a4602c319b"
+  },
+  "tests/corpus/internal_reconnaissance/events.ndjson": {
+   "alert_count": 4,
+   "alerts": "0e069a2353c43467",
+   "checkpoints": 9,
+   "edges": "2b94294911455801",
+   "graph_stats": {
+    "edges": 28,
+    "nodes": 29,
+    "tagged_edges": 3
+   },
+   "tap_records": "687f62d891d9fd01",
+   "vectors": "5aa425d6422f3263"
+  },
+  "tests/corpus/office_macro_to_c2_and_persistence/events.ndjson": {
+   "alert_count": 14,
+   "alerts": "2c1d0491ba0e75a1",
+   "checkpoints": 13,
+   "edges": "6ade3018d0c1bf59",
+   "graph_stats": {
+    "edges": 64,
+    "nodes": 54,
+    "tagged_edges": 15
+   },
+   "tap_records": "2dcf5992a853698b",
+   "vectors": "24e3879ae4d433f7"
+  },
+  "tests/corpus/ransomware_precursors_and_encryption/events.ndjson": {
+   "alert_count": 6,
+   "alerts": "08fe9786bfce594a",
+   "checkpoints": 6,
+   "edges": "e2af0cfcedd27d09",
+   "graph_stats": {
+    "edges": 25,
+    "nodes": 26,
+    "tagged_edges": 17
+   },
+   "tap_records": "e70044f009045953",
+   "vectors": "4f366e70839bc2b4"
+  },
+  "tests/corpus/sibling_noise_no_merge/events.ndjson": {
+   "alert_count": 3,
+   "alerts": "199ec63a52680a3c",
+   "checkpoints": 7,
+   "edges": "71375d655aae1bb9",
+   "graph_stats": {
+    "edges": 10,
+    "nodes": 11,
+    "tagged_edges": 2
+   },
+   "tap_records": "a6dba9318edf5b00",
+   "vectors": "77cca2a8aae1a6f2"
+  }
+ }
+}
