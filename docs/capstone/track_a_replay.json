@@ -1,0 +1,324 @@
+{
+  "summary": {
+    "scenarios": 7,
+    "attack_chains": 4,
+    "attack_chains_detected": 4,
+    "attack_chains_incident_correct": 4,
+    "no_incident_scenarios": 2,
+    "no_incident_scenarios_correct": 2,
+    "no_incident_scenarios_detected": 2,
+    "benign_scenarios": 1,
+    "benign_events": 88,
+    "benign_alerts": 0,
+    "benign_incidents": 0,
+    "replay_idempotent": true,
+    "median_stage_to_incident_s": 2.0,
+    "max_ms_per_event": 0.33
+  },
+  "scenarios": [
+    {
+      "scenario": "benign_workstation",
+      "kind": "benign",
+      "description": "Nothing here is an attack: no behavioural rule and no incident may fire.",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 88,
+      "alerts": 0,
+      "rules_fired": {},
+      "unexpected_rules": [],
+      "suppressed_repeats": 0,
+      "incidents": 0,
+      "incident_alerts": 0,
+      "incident_roots": [],
+      "incident_tactics": [],
+      "incident_score": [],
+      "expected_incidents": 0,
+      "detected": null,
+      "incident_correct": true,
+      "stage_to_incident_s": null,
+      "ms_per_event": 0.13,
+      "responses": {},
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "download_execute_lsass_dump",
+      "kind": "attack chain",
+      "description": "One incident rooted at the payload the user launched, with the browser that delivered it named as the provenance origin.",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 14,
+      "alerts": 3,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-EXEC-001": 1,
+        "DET-PROC-005": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001"
+      ],
+      "suppressed_repeats": 0,
+      "incidents": 1,
+      "incident_alerts": 1,
+      "incident_roots": [
+        "invoice_2026.exe"
+      ],
+      "incident_tactics": [
+        [
+          "Execution",
+          "Credential Access"
+        ]
+      ],
+      "incident_score": [
+        0.664
+      ],
+      "expected_incidents": 1,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": 5.0,
+      "ms_per_event": 0.21,
+      "responses": {
+        "record-only (no start_time_ticks)": 1,
+        "auto": 1
+      },
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "fileless_powershell_lsass_dump",
+      "kind": "attack chain",
+      "description": "Schema 0.5 telemetry joins the existing incident: the script block's AMSI bypass (PowerShell 4104) and the LSASS read (Sysmon 10) are stages of one incident rooted at winword.exe. lsass.exe is never a stage: a handle opened to it is not causation.",
+      "schema_versions": [
+        "0.3",
+        "0.5"
+      ],
+      "wire_compatible": false,
+      "events": 11,
+      "alerts": 11,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-CRED-010": 1,
+        "DET-CRED-011": 1,
+        "DET-NET-001": 1,
+        "DET-PROC-001": 1,
+        "DET-PROC-005": 1,
+        "DET-PROC-009": 1,
+        "DET-PROC-011": 1,
+        "DET-PROC-012": 1,
+        "DET-PS-010": 1,
+        "DET-SEQ-001": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001",
+        "DET-PROC-001",
+        "DET-PROC-009",
+        "DET-PROC-011",
+        "DET-PROC-012",
+        "DET-SEQ-001"
+      ],
+      "suppressed_repeats": 0,
+      "incidents": 1,
+      "incident_alerts": 2,
+      "incident_roots": [
+        "winword.exe"
+      ],
+      "incident_tactics": [
+        [
+          "Execution",
+          "Defense Evasion",
+          "Command and Control",
+          "Credential Access"
+        ]
+      ],
+      "incident_score": [
+        0.854
+      ],
+      "expected_incidents": 1,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": 3.0,
+      "ms_per_event": 0.33,
+      "responses": {
+        "record-only (no start_time_ticks)": 6,
+        "auto": 3
+      },
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "internal_reconnaissance",
+      "kind": "single tactic",
+      "description": "Reconnaissance fires the discovery-burst and sweep rules, but a single tactic is not an intrusion story: no incident.",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 21,
+      "alerts": 4,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-DISC-001": 1,
+        "DET-NET-005": 1,
+        "DET-PROC-008": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001",
+        "DET-PROC-008"
+      ],
+      "suppressed_repeats": 0,
+      "incidents": 0,
+      "incident_alerts": 0,
+      "incident_roots": [],
+      "incident_tactics": [],
+      "incident_score": [],
+      "expected_incidents": 0,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": null,
+      "ms_per_event": 0.17,
+      "responses": {
+        "record-only (no start_time_ticks)": 1,
+        "auto": 1
+      },
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "office_macro_to_c2_and_persistence",
+      "kind": "attack chain",
+      "description": "The full chain must become one incident rooted at winword.exe; the browser and OneDrive activity on the same host must stay out of it.",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 57,
+      "alerts": 12,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-EXEC-001": 1,
+        "DET-NET-001": 1,
+        "DET-NET-004": 1,
+        "DET-NET-007": 2,
+        "DET-PERS-001": 1,
+        "DET-PROC-001": 1,
+        "DET-PROC-009": 1,
+        "DET-PROC-012": 1,
+        "DET-SEQ-001": 1,
+        "DET-SEQ-002": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001",
+        "DET-NET-001",
+        "DET-PROC-009",
+        "DET-PROC-012"
+      ],
+      "suppressed_repeats": 9,
+      "incidents": 1,
+      "incident_alerts": 2,
+      "incident_roots": [
+        "winword.exe"
+      ],
+      "incident_tactics": [
+        [
+          "Execution",
+          "Command and Control",
+          "Persistence"
+        ]
+      ],
+      "incident_score": [
+        0.796
+      ],
+      "expected_incidents": 1,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": 1.0,
+      "ms_per_event": 0.17,
+      "responses": {
+        "record-only (no start_time_ticks)": 8,
+        "auto": 1
+      },
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "ransomware_precursors_and_encryption",
+      "kind": "attack chain",
+      "description": "One incident rooted at the encryptor, covering Defense Evasion and Impact; the rename burst fires the declarative threshold rule once.",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 20,
+      "alerts": 5,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-EVAS-001": 1,
+        "DET-PROC-006": 1,
+        "DET-RANS-001": 1,
+        "DET-RANS-002": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001"
+      ],
+      "suppressed_repeats": 14,
+      "incidents": 1,
+      "incident_alerts": 1,
+      "incident_roots": [
+        "upd.exe"
+      ],
+      "incident_tactics": [
+        [
+          "Defense Evasion",
+          "Impact"
+        ]
+      ],
+      "incident_score": [
+        0.594
+      ],
+      "expected_incidents": 1,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": 1.0,
+      "ms_per_event": 0.22,
+      "responses": {
+        "record-only (no start_time_ticks)": 4,
+        "auto": 1
+      },
+      "replay_idempotent": true
+    },
+    {
+      "scenario": "sibling_noise_no_merge",
+      "kind": "single tactic",
+      "description": "Siblings under the explorer.exe hub must not merge into an incident (the old undirected walk merged them and blamed explorer).",
+      "schema_versions": [
+        "0.3"
+      ],
+      "wire_compatible": true,
+      "events": 5,
+      "alerts": 3,
+      "rules_fired": {
+        "CORR-RISK-001": 1,
+        "DET-PROC-006": 1,
+        "DET-PROC-008": 1
+      },
+      "unexpected_rules": [
+        "CORR-RISK-001"
+      ],
+      "suppressed_repeats": 0,
+      "incidents": 0,
+      "incident_alerts": 0,
+      "incident_roots": [],
+      "incident_tactics": [],
+      "incident_score": [],
+      "expected_incidents": 0,
+      "detected": true,
+      "incident_correct": true,
+      "stage_to_incident_s": null,
+      "ms_per_event": 0.3,
+      "responses": {
+        "record-only (no start_time_ticks)": 1,
+        "auto": 1
+      },
+      "replay_idempotent": true
+    }
+  ]
+}

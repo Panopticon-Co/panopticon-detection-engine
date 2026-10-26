@@ -1,0 +1,19 @@
+{
+  "description": "Nothing here is an attack: no behavioural rule and no incident may fire.",
+  "must_fire": [],
+  "must_not_fire": [
+    "DET-NET-004",
+    "DET-NET-005",
+    "DET-NET-008",
+    "DET-RANS-001",
+    "DET-DISC-001",
+    "DET-EXEC-001",
+    "DET-NET-007",
+    "DET-SEQ-001",
+    "DET-SEQ-002",
+    "DET-RANS-002",
+    "DET-RANS-003"
+  ],
+  "max_alerts": 0,
+  "incidents": []
+}

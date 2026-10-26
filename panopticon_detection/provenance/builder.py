@@ -15,8 +15,10 @@ this vocabulary.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
+from panopticon_detection.evaluator.deobfuscator import CommandDeobfuscator
+from panopticon_detection.evaluator.entropy import ShannonEntropyCalculator
 from panopticon_detection.provenance.graph import (
     Edge,
     EdgeKind,
@@ -44,6 +46,11 @@ _REGISTRY_EDGES = {
     "registry_add_key": EdgeKind.CREATED_KEY,
     "registry_delete_key": EdgeKind.DELETED_KEY,
     "registry_rename_key": EdgeKind.SET_VALUE,
+}
+# Schema 0.5 cross-process families: source process -> target process.
+_CROSS_PROCESS_EDGES = {
+    "process_access": EdgeKind.ACCESSED,
+    "remote_thread": EdgeKind.INJECTED,
 }
 
 
@@ -82,10 +89,12 @@ class EventGraphBuilder:
             self.registry.observe_stop(event)
             return None
 
-        # Every other family hangs off the process that caused it.
-        actor = self.registry.resolve_event(event)
+        # Every other family hangs off the process that caused it -- inferred
+        # from this event's process context if its creation was never seen.
+        actor = self.registry.observe_context(event)
         if actor is None:
             return None
+        self._ensure_process_node(actor)
 
         if event_type == "network_connect":
             return self._apply_network(event, when, actor)
@@ -95,6 +104,12 @@ class EventGraphBuilder:
             return self._apply_registry(event, when, actor, _REGISTRY_EDGES[event_type])
         if event_type == "image_load":
             return self._apply_image_load(event, when, actor)
+        if event_type == "dns_query":
+            return self._apply_dns(event, when, actor)
+        if event_type in _CROSS_PROCESS_EDGES:
+            return self._apply_cross_process(event, when, actor, _CROSS_PROCESS_EDGES[event_type])
+        if event_type == "script_block":
+            return self._apply_script_block(event, when, actor)
         return None
 
     # ------------------------------------------------------------------
@@ -106,6 +121,22 @@ class EventGraphBuilder:
             return None
 
         self._upsert_process(incarnation)
+
+        # A second report of a creation already recorded (ETW and Sysmon both
+        # report every start; observe_start merged it): the edges exist. Hand
+        # back the original fork edge so this report's detections tag the same
+        # relation, instead of drawing it twice.
+        recorded = self._creation_edges(incarnation.node_id)
+        if recorded is not None:
+            forked = recorded[1]
+            if forked is not None and not forked.attrs.get("command_line") and incarnation.command_line:
+                forked.attrs["command_line"] = incarnation.command_line
+            return forked
+
+        if incarnation.parent_node_id and incarnation.parent_node_id not in self.graph.nodes:
+            parent = self.registry.get(incarnation.parent_node_id)
+            if parent is not None:
+                self._upsert_process(parent)
 
         # The image a process runs is a first-class file node, so a dropper that
         # wrote the binary and the process that later executed it converge on
@@ -236,10 +267,12 @@ class EventGraphBuilder:
         if not path:
             return None
 
-        module_id = entity_node_id(NodeKind.MODULE, actor.host_id, path)
+        # A loaded module is the same file node a process may have written, so
+        # "wrote payload.dll, then loaded payload.dll" is one connected path.
+        module_id = entity_node_id(NodeKind.FILE, actor.host_id, path)
         self.graph.upsert_node(
             module_id,
-            NodeKind.MODULE,
+            NodeKind.FILE,
             path,
             actor.host_id,
             when,
@@ -256,7 +289,133 @@ class EventGraphBuilder:
             signature_status=info.get("signature_status"),
         )
 
+    def _apply_dns(
+        self, event: Dict[str, Any], when: datetime, actor: ProcessIncarnation
+    ) -> Optional[Edge]:
+        info = event.get("dns") or {}
+        name = info.get("query_name")
+        if not name:
+            return None
+        domain_id = entity_node_id(NodeKind.DOMAIN, actor.host_id, name)
+        self.graph.upsert_node(domain_id, NodeKind.DOMAIN, name, actor.host_id, when)
+        return self.graph.add_edge(
+            EdgeKind.RESOLVED,
+            actor.node_id,
+            domain_id,
+            when,
+            actor.host_id,
+            event.get("event_id"),
+            query_status=info.get("query_status"),
+            answers=tuple(info.get("answers") or ()) or None,
+        )
+
+    def _apply_cross_process(
+        self,
+        event: Dict[str, Any],
+        when: datetime,
+        actor: ProcessIncarnation,
+        kind: EdgeKind,
+    ) -> Optional[Edge]:
+        """Process access or remote thread: an edge from the source to the target.
+
+        The target is resolved by ``(host, pid, time)`` like any actor, and
+        inferred (flagged) when its start was never seen -- ``lsass.exe`` and
+        ``explorer.exe`` usually predate the agent.
+        """
+        target_info = event.get("target") or {}
+        target = self.registry.observe_reference(
+            actor.host_id, target_info.get("pid"), target_info.get("executable"), when
+        )
+        if target is None:
+            return None
+        self._ensure_process_node(target)
+        if kind == EdgeKind.ACCESSED:
+            access = event.get("process_access") or {}
+            attrs = {"granted_access": access.get("granted_access"), "access_mask": access.get("access_mask")}
+        else:
+            thread = event.get("remote_thread") or {}
+            attrs = {
+                "start_module": thread.get("start_module"),
+                "start_function": thread.get("start_function"),
+            }
+        return self.graph.add_edge(
+            kind, actor.node_id, target.node_id, when, actor.host_id, event.get("event_id"), **attrs
+        )
+
+    def _apply_script_block(
+        self, event: Dict[str, Any], when: datetime, actor: ProcessIncarnation
+    ) -> Optional[Edge]:
+        """A script block becomes a leaf node; its text is summarised, not kept.
+
+        Keeping every script's text in a 24-hour in-memory graph would grow
+        without bound on a PowerShell-heavy host, so the edge records its length,
+        hash, entropy and whether it is obfuscated. Rules still read the text
+        itself from the event.
+        """
+        info = event.get("script_block") or {}
+        key = info.get("script_block_id") or info.get("text_sha256")
+        if not key:
+            return None
+        part = info.get("message_number")
+        script_id = entity_node_id(NodeKind.SCRIPT, actor.host_id, f"{key}#{part or 1}")
+        self.graph.upsert_node(script_id, NodeKind.SCRIPT, str(key), actor.host_id, when, path=info.get("path"))
+        text = info.get("text") or ""
+        return self.graph.add_edge(
+            EdgeKind.RAN_SCRIPT,
+            actor.node_id,
+            script_id,
+            when,
+            actor.host_id,
+            event.get("event_id"),
+            text_length=info.get("text_length"),
+            text_sha256=info.get("text_sha256"),
+            entropy=round(ShannonEntropyCalculator.calculate_entropy(text), 4) if text else None,
+            obfuscated=bool(CommandDeobfuscator.deobfuscate(text)["is_obfuscated"]) if text else False,
+        )
+
     # ------------------------------------------------------------------
+    def _ensure_process_node(self, incarnation: ProcessIncarnation) -> None:
+        """Give an inferred process a node, and a FORKED edge from its parent.
+
+        The edge is dated at the first sighting (the real fork time is
+        unknown) and marked ``inferred`` so a reader can tell it apart.
+        """
+        if incarnation.node_id in self.graph.nodes:
+            return
+        self._upsert_process(incarnation)
+        parent = (
+            self.registry.get(incarnation.parent_node_id)
+            if incarnation.parent_node_id
+            else None
+        )
+        if parent is None:
+            return
+        if parent.node_id not in self.graph.nodes:
+            self._upsert_process(parent)
+        self.graph.add_edge(
+            EdgeKind.FORKED,
+            parent.node_id,
+            incarnation.node_id,
+            incarnation.start_time,
+            incarnation.host_id,
+            None,
+            inferred=True,
+            command_line=incarnation.command_line or None,
+        )
+
+    def _creation_edges(self, node_id: str) -> Optional[Tuple[Optional[Edge], Optional[Edge]]]:
+        """``(executed, forked)`` edges a creation already drew for ``node_id``,
+        or ``None`` when its creation has not been recorded yet."""
+        executed = forked = None
+        for e in self.graph.incident_edges(node_id):
+            if e.kind == EdgeKind.EXECUTED and e.src == node_id:
+                executed = e
+            elif e.kind == EdgeKind.FORKED and e.dst == node_id:
+                forked = e
+        if executed is None and forked is None:
+            return None
+        return executed, forked
+
     def _upsert_process(self, incarnation: ProcessIncarnation) -> None:
         self.graph.upsert_node(
             incarnation.node_id,
@@ -272,4 +431,5 @@ class EventGraphBuilder:
             # Threaded onto the node so a response recommendation raised from a
             # later event can still name a PID-reuse-safe kill target.
             start_time_ticks=incarnation.start_time_ticks,
+            inferred=incarnation.inferred or None,
         )

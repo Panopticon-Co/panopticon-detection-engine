@@ -1,0 +1,37 @@
+id: DET-NET-008
+name: Vertical Port Scan of One Host From One Process
+description: >
+  One process connects to at least fifteen distinct ports on the same
+  destination within a minute.
+version: 1
+status: enabled
+type: value_count
+by: [process, network.destination_ip]
+event_type: network_connect
+field: network.destination_port
+count: 15
+window: 60s
+
+level: 12
+severity: high
+confidence: 0.85
+
+logic:
+  all:
+    - field: network.direction
+      operator: equals
+      value: outbound
+
+evidence:
+  - process.name
+  - network.destination_ip
+  - process.lineage
+
+mitre:
+  tactic: Discovery
+  technique: T1046
+  name: "Network Service Discovery"
+
+tags:
+  - attack.discovery
+  - port_scan

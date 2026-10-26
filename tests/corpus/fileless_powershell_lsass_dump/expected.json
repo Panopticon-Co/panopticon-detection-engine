@@ -1,0 +1,20 @@
+{
+  "description": "Schema 0.5 telemetry joins the existing incident: the script block's AMSI bypass (PowerShell 4104) and the LSASS read (Sysmon 10) are stages of one incident rooted at winword.exe. lsass.exe is never a stage: a handle opened to it is not causation.",
+  "must_fire": ["DET-PS-010", "DET-CRED-010", "DET-CRED-011", "DET-PROC-005", "DET-NET-001"],
+  "must_not_fire": ["DET-INJ-010", "DET-INJ-011"],
+  "fire_counts": {"DET-PS-010": 1, "DET-CRED-010": 1, "DET-CRED-011": 1},
+  "incidents": [
+    {
+      "root": "winword.exe",
+      "provenance_origin": "winword.exe",
+      "tactics_include": ["Defense Evasion", "Command and Control", "Credential Access"],
+      "stage_rules_include": ["DET-PS-010", "DET-CRED-010", "DET-CRED-011", "DET-PROC-005"],
+      "stage_processes_exclude": ["explorer.exe", "lsass.exe"],
+      "causal_path_includes": [
+        "winword.exe[4100] -[forked]-> powershell.exe[4200]",
+        "powershell.exe[4200] -[forked]-> rundll32.exe[4300]"
+      ],
+      "min_score": 0.8
+    }
+  ]
+}

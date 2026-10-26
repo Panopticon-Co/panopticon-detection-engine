@@ -12,16 +12,25 @@ license = { file = "LICENSE" }
 dependencies = ["pyyaml>=6.0.1", "pydantic>=2.0.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0", "pytest-cov", "ruff"]
+# jsonschema: tests validate dataset-adapter output against the agent's
+# authoritative event.schema.json. Dev-only; the engine never imports it.
+dev = ["pytest>=8.0.0", "pytest-cov", "ruff", "jsonschema>=4.20.0"]
+# Offline training of the process-start classifier (tools/train). Dev-only:
+# panopticon_detection never imports these; scripts/check_runtime_deps.py
+# enforces that, and a trained model is served from an exported JSON file.
+train = ["lightgbm>=4.3.0", "scikit-learn>=1.4.0", "numpy>=1.26.0"]
 
 [project.scripts]
 panopticon-detect = "panopticon_detection.cli:main"
+panopticon-dataset = "panopticon_detection.datasets.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["panopticon_detection*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The offline training package (tools/train/pdtrain) is not installed with the engine.
+pythonpath = ["tools/train"]
 filterwarnings = ["ignore::DeprecationWarning:pydantic.*"]
 
 [tool.ruff]

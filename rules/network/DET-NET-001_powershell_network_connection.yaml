@@ -1,7 +1,7 @@
 id: DET-NET-001
 name: PowerShell Outbound Network Connection
 description: Detects powershell.exe initiating an outbound network socket connection to an external address.
-version: 1
+version: 2
 status: enabled
 event_type: network_connect
 
@@ -14,6 +14,11 @@ logic:
     - field: network.direction
       operator: equals
       value: outbound
+    # Command and Control means an external party. PowerShell talking to an
+    # internal file server or domain controller is administration, not C2.
+    - field: network.destination_scope
+      operator: equals
+      value: public
 
 level: 10
 severity: medium

@@ -1,0 +1,52 @@
+id: DET-SEQ-002
+name: Executable Dropped to User-Writable Path, Then Run Key Set
+description: >
+  A process tree writes an executable or script to a temp or user-writable
+  location and then sets a Run / RunOnce registry value within ten minutes.
+version: 1
+status: enabled
+type: sequence
+by: process_tree
+maxspan: 10m
+
+level: 13
+severity: high
+confidence: 0.85
+
+steps:
+  - name: payload written
+    event_type: file_create
+    logic:
+      all:
+        - field: file.extension
+          operator: in
+          value: $dropped_payload_extensions
+        - field: file.path_class
+          operator: in
+          value: [temp, user_writable]
+  - name: run key set
+    event_type: registry_write
+    logic:
+      any:
+        - field: registry.key_path
+          operator: contains
+          value: \CurrentVersion\Run
+        - field: registry.key_path
+          operator: contains
+          value: \CurrentVersion\RunOnce
+
+evidence:
+  - process.name
+  - registry.key_path
+  - registry.value_name
+  - registry.value_data
+  - process.lineage
+
+mitre:
+  tactic: Persistence
+  technique: T1547.001
+  name: "Boot or Logon Autostart Execution: Registry Run Keys"
+
+tags:
+  - attack.persistence
+  - sequence

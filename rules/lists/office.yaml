@@ -1,0 +1,10 @@
+# Office and document applications that commonly host malicious macros or exploits.
+values:
+  - winword.exe
+  - excel.exe
+  - powerpnt.exe
+  - outlook.exe
+  - onenote.exe
+  - msaccess.exe
+  - mspub.exe
+  - visio.exe

@@ -1,0 +1,11 @@
+# Processes that legitimately open lsass.exe with memory-read rights on a
+# typical Windows host. Deliberately short: anything not listed here that reads
+# LSASS memory is worth an analyst's look (DET-CRED-010). Extend per
+# environment (EDR/AV sensors, backup agents) rather than widening the rule.
+values:
+  - msmpeng.exe
+  - mssense.exe
+  - csrss.exe
+  - wininit.exe
+  - services.exe
+  - lsm.exe

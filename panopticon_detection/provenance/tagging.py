@@ -1,4 +1,4 @@
-"""L3 -- technique tags, and which of them anchor a campaign search.
+"""L3 -- technique tags, and which of them can open an incident.
 
 A rule match does not become an alert and then get re-correlated later. It
 becomes a **tag on the graph edge the event created**, so the detection is part
@@ -60,6 +60,9 @@ class Tag:
     # Carried so a campaign can hand the response layer the recommendation the
     # rule itself asked for, rather than re-deriving one from severity.
     active_response: Optional[str] = None
+    # The alert this detection was emitted as, so an incident can list its
+    # member alerts. None when the detection was suppressed as a repeat.
+    alert_id: Optional[str] = None
 
     @property
     def tactic_key(self) -> str:
@@ -89,4 +92,24 @@ def tag_from_detection(result) -> Tag:
         severity=getattr(severity, "value", severity) or "medium",
         confidence=getattr(rule, "confidence", 0.0) or 0.0,
         active_response=getattr(rule, "active_response", None),
+    )
+
+
+def tag_from_alert(alert) -> Tag:
+    """Build a :class:`Tag` from a behavioral :class:`Alert`.
+
+    Behavioral detectors (beaconing) produce alerts directly rather than rule
+    matches; tagging them onto the graph lets them join incidents like any
+    other detection.
+    """
+    action = (alert.active_response or {}).get("action") if alert.active_response else None
+    return Tag(
+        rule_id=alert.rule_id,
+        rule_name=alert.title,
+        tactic=alert.mitre_tactic or "",
+        technique=alert.mitre_technique or "",
+        level=alert.level,
+        severity=alert.severity,
+        confidence=alert.confidence,
+        active_response=action,
     )

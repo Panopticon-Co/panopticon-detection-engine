@@ -1,0 +1,2334 @@
+{
+ "seed": 20261023,
+ "gates": {
+  "G1": "E2 recall at the alert budget: model beats rules-only and LR (paired bootstrap 95% CI of the difference > 0); PR-AUC beats LR",
+  "G2": "E4 FP/host-hour <= 1 at alert and <= 0.1 at high, on the held-out host; same budget on E6 (agent-recorded benign, held-out second half) -- E6 added 2026-10-23 before run 3",
+  "G3": "E3 recall at alert within 15 percentage points of E2",
+  "G4": "no harness/lab tokens in the top-30 features; no train/test duplicates",
+  "G5": "calibrated ECE <= 0.10 (OOF)",
+  "G6": "rebuild gives a bit-identical model.json; golden vectors pass the pure-Python scorer"
+ },
+ "budgets_fp_per_host_hour": {
+  "alert": 1.0,
+  "high": 0.1
+ },
+ "data": {
+  "pool": {
+   "rows": 4972,
+   "malicious": 4514,
+   "benign": 458,
+   "groups": 134,
+   "observed_host_hours": 204.461851,
+   "benign_raw_events": 51546
+  },
+  "E3_otrf": {
+   "rows": 296,
+   "malicious": 113
+  },
+  "E4_holdout_host": {
+   "rows": 262,
+   "malicious": 26,
+   "raw_events": 588,
+   "observed_host_hours": 4.300461
+  },
+  "E5_winlolbin": {
+   "rows": 1000,
+   "malicious": 500
+  },
+  "officer_vm": {
+   "split_cutoff_utc": "2026-10-22T22:59:59.005Z",
+   "first_half_in_training": true,
+   "training_rows_after_image_cap": 306
+  },
+  "train_test_duplicate_keys": 0,
+  "pool_lab_infrastructure_rows_excluded": 378,
+  "run": 2
+ },
+ "tuning": {
+  "grid": [
+   {
+    "params": {
+     "num_leaves": 15,
+     "min_data_in_leaf": 20
+    },
+    "oof_pr_auc": 0.921357,
+    "best_iterations": [
+     246,
+     8,
+     29,
+     151,
+     5
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 15,
+     "min_data_in_leaf": 50
+    },
+    "oof_pr_auc": 0.909045,
+    "best_iterations": [
+     324,
+     10,
+     42,
+     93,
+     9
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 31,
+     "min_data_in_leaf": 20
+    },
+    "oof_pr_auc": 0.915398,
+    "best_iterations": [
+     246,
+     8,
+     32,
+     90,
+     5
+    ]
+   },
+   {
+    "params": {
+     "num_leaves": 31,
+     "min_data_in_leaf": 50
+    },
+    "oof_pr_auc": 0.904753,
+    "best_iterations": [
+     553,
+     10,
+     34,
+     85,
+     9
+    ]
+   }
+  ],
+  "chosen": {
+   "num_leaves": 15,
+   "min_data_in_leaf": 20
+  },
+  "note": "selected on the same OOF folds used for E2 (4 configs): slightly optimistic"
+ },
+ "E1_random_split_ceiling": {
+  "n": 4972,
+  "positives": 4514,
+  "groups": 134,
+  "metrics": {
+   "pr_auc": {
+    "value": 0.997353,
+    "ci95": [
+     0.992628,
+     0.999868
+    ]
+   },
+   "roc_auc": {
+    "value": 0.982984,
+    "ci95": [
+     0.95964,
+     0.994685
+    ]
+   },
+   "recall@alert": {
+    "value": 0.183872,
+    "ci95": [
+     0.156221,
+     0.209247
+    ]
+   },
+   "precision@alert": {
+    "value": 0.997596,
+    "ci95": [
+     0.991643,
+     1.0
+    ]
+   },
+   "recall@high": {
+    "value": 0.041205,
+    "ci95": [
+     0.029956,
+     0.05301
+    ]
+   },
+   "precision@high": {
+    "value": 0.994652,
+    "ci95": [
+     0.981129,
+     1.0
+    ]
+   }
+  }
+ },
+ "E2_group_oof": {
+  "model_A": {
+   "n": 4972,
+   "positives": 4514,
+   "groups": 134,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.921357,
+     "ci95": [
+      0.781647,
+      0.999593
+     ]
+    },
+    "roc_auc": {
+     "value": 0.604769,
+     "ci95": [
+      0.489344,
+      0.986616
+     ]
+    },
+    "recall@alert": {
+     "value": 0.081524,
+     "ci95": [
+      0.032397,
+      0.148926
+     ]
+    },
+    "precision@alert": {
+     "value": 0.874109,
+     "ci95": [
+      0.60346,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.054497,
+     "ci95": [
+      0.021119,
+      0.09839
+     ]
+    },
+    "precision@high": {
+     "value": 0.931818,
+     "ci95": [
+      0.751123,
+      1.0
+     ]
+    }
+   },
+   "thresholds_raw": {
+    "alert": 7.819475,
+    "high": 8.795536
+   },
+   "ece_oof": 0.033389,
+   "brier_oof": 0.074524,
+   "calibration": {
+    "a": 0.316145,
+    "b": 1.088259
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.987959,
+    "high": 0.088036
+   }
+  },
+  "model_B": {
+   "n": 4972,
+   "positives": 4514,
+   "groups": 134,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.915028,
+     "ci95": [
+      0.767294,
+      0.999414
+     ]
+    },
+    "roc_auc": {
+     "value": 0.575941,
+     "ci95": [
+      0.455883,
+      0.981659
+     ]
+    },
+    "recall@alert": {
+     "value": 0.079752,
+     "ci95": [
+      0.030552,
+      0.147564
+     ]
+    },
+    "precision@alert": {
+     "value": 0.871671,
+     "ci95": [
+      0.596421,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.062915,
+     "ci95": [
+      0.022262,
+      0.118886
+     ]
+    },
+    "precision@high": {
+     "value": 0.946667,
+     "ci95": [
+      0.778776,
+      1.0
+     ]
+    }
+   },
+   "thresholds_raw": {
+    "alert": 7.873129,
+    "high": 8.685579
+   },
+   "ece_oof": 0.051332,
+   "brier_oof": 0.078383,
+   "calibration": {
+    "a": 0.246953,
+    "b": 1.288486
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.997741,
+    "high": 0.097818
+   }
+  },
+  "logistic_regression": {
+   "n": 4972,
+   "positives": 4514,
+   "groups": 134,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.94476,
+     "ci95": [
+      0.842192,
+      0.999852
+     ]
+    },
+    "roc_auc": {
+     "value": 0.742889,
+     "ci95": [
+      0.67271,
+      0.994144
+     ]
+    },
+    "recall@alert": {
+     "value": 0.106557,
+     "ci95": [
+      0.069371,
+      0.151128
+     ]
+    },
+    "precision@alert": {
+     "value": 0.919694,
+     "ci95": [
+      0.762371,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.000665,
+     "ci95": [
+      0.0,
+      0.001945
+     ]
+    },
+    "precision@high": {
+     "value": 0.428571,
+     "ci95": [
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.860796,
+    "high": 0.083145
+   }
+  },
+  "heuristic": {
+   "n": 4972,
+   "positives": 4514,
+   "groups": 134,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.954658,
+     "ci95": [
+      0.884199,
+      0.993505
+     ]
+    },
+    "roc_auc": {
+     "value": 0.745593,
+     "ci95": [
+      0.694005,
+      0.852047
+     ]
+    },
+    "recall@alert": {
+     "value": 0.437085,
+     "ci95": [
+      0.364848,
+      0.516062
+     ]
+    },
+    "precision@alert": {
+     "value": 0.967157,
+     "ci95": [
+      0.905666,
+      0.999114
+     ]
+    },
+    "recall@high": {
+     "value": 0.087727,
+     "ci95": [
+      0.050339,
+      0.131996
+     ]
+    },
+    "precision@high": {
+     "value": 0.994975,
+     "ci95": [
+      0.98,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.983068,
+    "high": 0.048909
+   }
+  },
+  "rules_only": {
+   "n": 4972,
+   "positives": 4514,
+   "groups": 134,
+   "metrics": {
+    "pr_auc": {
+     "value": 0.929452,
+     "ci95": [
+      0.835798,
+      0.985361
+     ]
+    },
+    "roc_auc": {
+     "value": 0.621385,
+     "ci95": [
+      0.579158,
+      0.666189
+     ]
+    },
+    "recall@alert": {
+     "value": 0.292202,
+     "ci95": [
+      0.228569,
+      0.362982
+     ]
+    },
+    "precision@alert": {
+     "value": 0.980669,
+     "ci95": [
+      0.946452,
+      1.0
+     ]
+    },
+    "recall@high": {
+     "value": 0.023261,
+     "ci95": [
+      0.012378,
+      0.038485
+     ]
+    },
+    "precision@high": {
+     "value": 0.963303,
+     "ci95": [
+      0.891597,
+      1.0
+     ]
+    }
+   },
+   "fp_per_host_hour_oof": {
+    "alert": 0.180963,
+    "high": 0.019564
+   },
+   "any_rule_fired": {
+    "recall": 0.298848,
+    "fp_per_host_hour": 0.180963
+   }
+  },
+  "paired": {
+   "A_vs_lr_pr_auc": {
+    "diff": -0.023403,
+    "ci95": [
+     -0.061713,
+     0.001346
+    ]
+   },
+   "A_vs_lr_recall_alert": {
+    "diff": -0.025033,
+    "ci95": [
+     -0.050589,
+     0.005686
+    ]
+   },
+   "A_vs_rules_recall_alert": {
+    "diff": -0.210678,
+    "ci95": [
+     -0.308106,
+     -0.10311
+    ]
+   },
+   "A_vs_heuristic_recall_alert": {
+    "diff": -0.35556,
+    "ci95": [
+     -0.447339,
+     -0.261525
+    ]
+   },
+   "B_vs_A_pr_auc": {
+    "diff": -0.006329,
+    "ci95": [
+     -0.013561,
+     5.8e-05
+    ]
+   }
+  },
+  "per_group_recall_A_alert": {
+   "T:T1003": {
+    "detected": 0,
+    "total": 182
+   },
+   "T:T1016": {
+    "detected": 0,
+    "total": 34
+   },
+   "T:T1018": {
+    "detected": 0,
+    "total": 300
+   },
+   "T:T1020": {
+    "detected": 2,
+    "total": 4
+   },
+   "T:T1021": {
+    "detected": 0,
+    "total": 155
+   },
+   "T:T1027": {
+    "detected": 37,
+    "total": 53
+   },
+   "T:T1033": {
+    "detected": 41,
+    "total": 63
+   },
+   "T:T1036": {
+    "detected": 0,
+    "total": 85
+   },
+   "T:T1037": {
+    "detected": 0,
+    "total": 14
+   },
+   "T:T1040": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1046": {
+    "detected": 0,
+    "total": 16
+   },
+   "T:T1047": {
+    "detected": 0,
+    "total": 60
+   },
+   "T:T1048": {
+    "detected": 0,
+    "total": 300
+   },
+   "T:T1049": {
+    "detected": 3,
+    "total": 5
+   },
+   "T:T1053": {
+    "detected": 0,
+    "total": 122
+   },
+   "T:T1055": {
+    "detected": 0,
+    "total": 58
+   },
+   "T:T1057": {
+    "detected": 0,
+    "total": 7
+   },
+   "T:T1059": {
+    "detected": 0,
+    "total": 300
+   },
+   "T:T1068": {
+    "detected": 69,
+    "total": 130
+   },
+   "T:T1069": {
+    "detected": 0,
+    "total": 41
+   },
+   "T:T1070": {
+    "detected": 0,
+    "total": 123
+   },
+   "T:T1071": {
+    "detected": 0,
+    "total": 3
+   },
+   "T:T1078": {
+    "detected": 12,
+    "total": 18
+   },
+   "T:T1082": {
+    "detected": 0,
+    "total": 37
+   },
+   "T:T1087": {
+    "detected": 11,
+    "total": 33
+   },
+   "T:T1090": {
+    "detected": 15,
+    "total": 34
+   },
+   "T:T1105": {
+    "detected": 14,
+    "total": 47
+   },
+   "T:T1112": {
+    "detected": 99,
+    "total": 141
+   },
+   "T:T1125": {
+    "detected": 0,
+    "total": 2
+   },
+   "T:T1127": {
+    "detected": 0,
+    "total": 78
+   },
+   "T:T1135": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1136": {
+    "detected": 0,
+    "total": 44
+   },
+   "T:T1140": {
+    "detected": 0,
+    "total": 16
+   },
+   "T:T1185": {
+    "detected": 0,
+    "total": 6
+   },
+   "T:T1189": {
+    "detected": 0,
+    "total": 5
+   },
+   "T:T1190": {
+    "detected": 0,
+    "total": 14
+   },
+   "T:T1195": {
+    "detected": 6,
+    "total": 13
+   },
+   "T:T1197": {
+    "detected": 0,
+    "total": 14
+   },
+   "T:T1200": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1201": {
+    "detected": 0,
+    "total": 12
+   },
+   "T:T1202": {
+    "detected": 2,
+    "total": 7
+   },
+   "T:T1204": {
+    "detected": 0,
+    "total": 67
+   },
+   "T:T1210": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1216": {
+    "detected": 0,
+    "total": 8
+   },
+   "T:T1218": {
+    "detected": 0,
+    "total": 297
+   },
+   "T:T1219": {
+    "detected": 0,
+    "total": 28
+   },
+   "T:T1220": {
+    "detected": 7,
+    "total": 10
+   },
+   "T:T1222": {
+    "detected": 0,
+    "total": 52
+   },
+   "T:T1482": {
+    "detected": 0,
+    "total": 5
+   },
+   "T:T1485": {
+    "detected": 0,
+    "total": 7
+   },
+   "T:T1486": {
+    "detected": 0,
+    "total": 9
+   },
+   "T:T1490": {
+    "detected": 0,
+    "total": 50
+   },
+   "T:T1497": {
+    "detected": 0,
+    "total": 9
+   },
+   "T:T1505": {
+    "detected": 0,
+    "total": 56
+   },
+   "T:T1526": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1531": {
+    "detected": 0,
+    "total": 40
+   },
+   "T:T1542": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1543": {
+    "detected": 0,
+    "total": 61
+   },
+   "T:T1546": {
+    "detected": 0,
+    "total": 163
+   },
+   "T:T1547": {
+    "detected": 0,
+    "total": 124
+   },
+   "T:T1548": {
+    "detected": 0,
+    "total": 93
+   },
+   "T:T1550": {
+    "detected": 0,
+    "total": 16
+   },
+   "T:T1552": {
+    "detected": 0,
+    "total": 6
+   },
+   "T:T1553": {
+    "detected": 0,
+    "total": 35
+   },
+   "T:T1555": {
+    "detected": 0,
+    "total": 7
+   },
+   "T:T1556": {
+    "detected": 0,
+    "total": 4
+   },
+   "T:T1558": {
+    "detected": 0,
+    "total": 23
+   },
+   "T:T1560": {
+    "detected": 10,
+    "total": 15
+   },
+   "T:T1561": {
+    "detected": 1,
+    "total": 1
+   },
+   "T:T1562": {
+    "detected": 0,
+    "total": 278
+   },
+   "T:T1563": {
+    "detected": 0,
+    "total": 4
+   },
+   "T:T1564": {
+    "detected": 7,
+    "total": 8
+   },
+   "T:T1566": {
+    "detected": 31,
+    "total": 90
+   },
+   "T:T1567": {
+    "detected": 0,
+    "total": 2
+   },
+   "T:T1569": {
+    "detected": 0,
+    "total": 50
+   },
+   "T:T1572": {
+    "detected": 0,
+    "total": 19
+   },
+   "T:T1574": {
+    "detected": 0,
+    "total": 48
+   },
+   "T:T1587": {
+    "detected": 0,
+    "total": 2
+   },
+   "T:T1588": {
+    "detected": 0,
+    "total": 40
+   },
+   "T:T1590": {
+    "detected": 0,
+    "total": 15
+   },
+   "T:T1592": {
+    "detected": 0,
+    "total": 2
+   },
+   "T:T1595": {
+    "detected": 0,
+    "total": 29
+   },
+   "T:T1608": {
+    "detected": 0,
+    "total": 1
+   },
+   "T:T1649": {
+    "detected": 0,
+    "total": 21
+   },
+   "T:T1685": {
+    "detected": 0,
+    "total": 1
+   },
+   "botsv1:po1s0n1vy_webshell": {
+    "detected": 0,
+    "total": 20
+   },
+   "otrf_compound:LSASS_campaign_01": {
+    "detected": 0,
+    "total": 10
+   },
+   "otrf_compound:LSASS_campaign_02": {
+    "detected": 0,
+    "total": 4
+   },
+   "otrf_compound:LSASS_campaign_03": {
+    "detected": 0,
+    "total": 4
+   },
+   "otrf_compound:LSASS_campaign_04": {
+    "detected": 0,
+    "total": 7
+   },
+   "otrf_compound:LSASS_campaign_05": {
+    "detected": 0,
+    "total": 2
+   },
+   "otrf_compound:LSASS_campaign_06": {
+    "detected": 0,
+    "total": 2
+   },
+   "otrf_compound:LSASS_campaign_07": {
+    "detected": 0,
+    "total": 2
+   },
+   "otrf_compound:apt29": {
+    "detected": 0,
+    "total": 85
+   }
+  }
+ },
+ "tests": {
+  "E3_otrf_leave_source_out": {
+   "model_A": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.915842,
+      "ci95": [
+       0.787573,
+       0.993114
+      ]
+     },
+     "roc_auc": {
+      "value": 0.938924,
+      "ci95": [
+       0.913462,
+       0.969835
+      ]
+     },
+     "recall@alert": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@alert": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "model_B": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.928398,
+      "ci95": [
+       0.849989,
+       0.988688
+      ]
+     },
+     "roc_auc": {
+      "value": 0.93462,
+      "ci95": [
+       0.876244,
+       0.972131
+      ]
+     },
+     "recall@alert": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@alert": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "logistic_regression": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.920663,
+      "ci95": [
+       0.825468,
+       0.991776
+      ]
+     },
+     "roc_auc": {
+      "value": 0.936844,
+      "ci95": [
+       0.888819,
+       0.973398
+      ]
+     },
+     "recall@alert": {
+      "value": 0.061947,
+      "ci95": [
+       0.02439,
+       0.120009
+      ]
+     },
+     "precision@alert": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "heuristic": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.57076,
+      "ci95": [
+       0.335819,
+       0.915109
+      ]
+     },
+     "roc_auc": {
+      "value": 0.660622,
+      "ci95": [
+       0.572107,
+       0.746435
+      ]
+     },
+     "recall@alert": {
+      "value": 0.318584,
+      "ci95": [
+       0.206234,
+       0.488922
+      ]
+     },
+     "precision@alert": {
+      "value": 0.878049,
+      "ci95": [
+       0.646954,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.061947,
+      "ci95": [
+       0.014925,
+       0.133385
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   },
+   "rules_only": {
+    "n": 296,
+    "positives": 113,
+    "groups": 28,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.443396,
+      "ci95": [
+       0.19752,
+       0.883729
+      ]
+     },
+     "roc_auc": {
+      "value": 0.579936,
+      "ci95": [
+       0.532047,
+       0.658007
+      ]
+     },
+     "recall@alert": {
+      "value": 0.19469,
+      "ci95": [
+       0.10683,
+       0.320391
+      ]
+     },
+     "precision@alert": {
+      "value": 0.758621,
+      "ci95": [
+       0.428463,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.026549,
+      "ci95": [
+       0.0,
+       0.065811
+      ]
+     },
+     "precision@high": {
+      "value": 0.375,
+      "ci95": [
+       0.0,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "E5_winlolbin_ood": {
+   "model_A": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.70224,
+      "ci95": [
+       0.352892,
+       0.802738
+      ]
+     },
+     "roc_auc": {
+      "value": 0.690042,
+      "ci95": [
+       0.62145,
+       0.779001
+      ]
+     },
+     "recall@alert": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@alert": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "model_B": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.538041,
+      "ci95": [
+       0.180337,
+       0.68074
+      ]
+     },
+     "roc_auc": {
+      "value": 0.528242,
+      "ci95": [
+       0.496386,
+       0.553398
+      ]
+     },
+     "recall@alert": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@alert": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "logistic_regression": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.677225,
+      "ci95": [
+       0.303505,
+       0.785691
+      ]
+     },
+     "roc_auc": {
+      "value": 0.688448,
+      "ci95": [
+       0.638878,
+       0.74833
+      ]
+     },
+     "recall@alert": {
+      "value": 0.026,
+      "ci95": [
+       0.008908,
+       0.056566
+      ]
+     },
+     "precision@alert": {
+      "value": 0.8125,
+      "ci95": [
+       0.4,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ]
+     },
+     "precision@high": {
+      "value": null,
+      "ci95": [
+       null,
+       null
+      ]
+     }
+    }
+   },
+   "heuristic": {
+    "n": 1000,
+    "positives": 500,
+    "groups": 45,
+    "metrics": {
+     "pr_auc": {
+      "value": 0.64068,
+      "ci95": [
+       0.319596,
+       0.74339
+      ]
+     },
+     "roc_auc": {
+      "value": 0.6714,
+      "ci95": [
+       0.608629,
+       0.780444
+      ]
+     },
+     "recall@alert": {
+      "value": 0.634,
+      "ci95": [
+       0.527117,
+       0.82762
+      ]
+     },
+     "precision@alert": {
+      "value": 0.646939,
+      "ci95": [
+       0.298157,
+       1.0
+      ]
+     },
+     "recall@high": {
+      "value": 0.032,
+      "ci95": [
+       0.011258,
+       0.08089
+      ]
+     },
+     "precision@high": {
+      "value": 1.0,
+      "ci95": [
+       1.0,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "E4_holdout_host_raw_stream": {
+   "observed_host_hours": 4.300461,
+   "raw_events": 588,
+   "raw_malicious": 27,
+   "model_A": {
+    "alert": {
+     "threshold": 7.819475,
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    },
+    "high": {
+     "threshold": 8.795536,
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    },
+    "top_benign_scores": [
+     {
+      "score": 3.661,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.661,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.661,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.538,
+      "parent": "explorer.exe",
+      "image": "rundll32.exe",
+      "command_line": "\"C:\\Windows\\system32\\rundll32.exe\" C:\\Windows\\system32\\shell32.dll,OpenAs_RunDLL D:\\Work Stuff\\013\\013366.pdf"
+     },
+     {
+      "score": 3.531,
+      "parent": "igfxcuiservice.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Windows\\system32\\{A6D608F0-0BDE-491A-97AE-5C4B05D86E01}.bat\""
+     },
+     {
+      "score": 3.512,
+      "parent": "cmd.exe",
+      "image": "attrib.exe",
+      "command_line": "attrib  +R +H +S +A *.cui"
+     },
+     {
+      "score": 3.512,
+      "parent": "cmd.exe",
+      "image": "igfxtray.exe",
+      "command_line": "igfxTray.exe"
+     },
+     {
+      "score": 3.512,
+      "parent": "cmd.exe",
+      "image": "igfxhk.exe",
+      "command_line": "igfxHK.exe"
+     },
+     {
+      "score": 3.512,
+      "parent": "cmd.exe",
+      "image": "igfxem.exe",
+      "command_line": "igfxEM.exe"
+     },
+     {
+      "score": 3.361,
+      "parent": "cmd.exe",
+      "image": "schtasks.exe",
+      "command_line": "schtasks  /query /XML"
+     },
+     {
+      "score": 3.36,
+      "parent": "winword.exe",
+      "image": "splwow64.exe",
+      "command_line": "C:\\Windows\\splwow64.exe 8192"
+     },
+     {
+      "score": 3.213,
+      "parent": "explorer.exe",
+      "image": "onedrive.exe",
+      "command_line": "\"C:\\Users\\<user>\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+     },
+     {
+      "score": 3.116,
+      "parent": "explorer.exe",
+      "image": "hkcmd.exe",
+      "command_line": "\"C:\\Windows\\System32\\hkcmd.exe\""
+     },
+     {
+      "score": 3.101,
+      "parent": "splunkd.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"\"C:\\Program Files\\SplunkUniversalForwarder\\etc\\system\\bin\\MonitorNoHandle.cmd\" --scheme\""
+     },
+     {
+      "score": 3.101,
+      "parent": "splunkd.exe",
+      "image": "cmd.exe",
+      "command_line": "C:\\Windows\\system32\\cmd.exe /c \"C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe\" _RAW_envvars"
+     }
+    ]
+   },
+   "model_B": {
+    "alert": {
+     "threshold": 7.873129,
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    },
+    "high": {
+     "threshold": 8.685579,
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    },
+    "top_benign_scores": [
+     {
+      "score": 3.608,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES958E.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.608,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES936C.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.608,
+      "parent": "csc.exe",
+      "image": "cvtres.exe",
+      "command_line": "C:\\Windows\\Microsoft.NET\\Framework64\\v2.0.50727\\cvtres.exe /NOLOGO /READONLY /MACHINE:IX86 \"/OUT:C:\\Users\\<user>\\AppData\\Local\\Temp\\RES93AA.tmp\" \"c:\\Users"
+     },
+     {
+      "score": 3.573,
+      "parent": "wmiprvse.exe",
+      "image": "sc.exe",
+      "command_line": "sc start tenable_mw_scan type=1 output=nessus_SFBBT7QA.txt"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     },
+     {
+      "score": 3.484,
+      "parent": "csrss.exe",
+      "image": "conhost.exe",
+      "command_line": "\\??\\C:\\Windows\\system32\\conhost.exe"
+     }
+    ]
+   },
+   "logistic_regression": {
+    "alert": {
+     "fp_events": 1,
+     "fp_per_host_hour": 0.232533,
+     "recall_malicious_events": 0.037037
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    }
+   },
+   "heuristic": {
+    "alert": {
+     "fp_events": 29,
+     "fp_per_host_hour": 6.743463,
+     "recall_malicious_events": 0.259259
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0,
+     "recall_malicious_events": 0.0
+    }
+   },
+   "rules_only_any_fired": {
+    "fp_events": 51,
+    "fp_per_host_hour": 11.859194,
+    "recall_malicious_events": 0.333333
+   }
+  },
+  "E6_agent_benign_raw_stream": {
+   "observed_host_hours": 2.147687,
+   "raw_events": 1304,
+   "model_A": {
+    "alert": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    },
+    "top_scores": [
+     {
+      "score": 3.483,
+      "parent": "windowsterminal.exe",
+      "image": "powershell.exe",
+      "command_line": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+     },
+     {
+      "score": 3.38,
+      "parent": "powershell.exe",
+      "image": "w32tm.exe",
+      "command_line": "\"C:\\WINDOWS\\system32\\w32tm.exe\" /query /status"
+     },
+     {
+      "score": 3.265,
+      "parent": "cmd.exe",
+      "image": "chcp.com",
+      "command_line": "\"C:\\WINDOWS\\System32\\chcp.com\"  65001  "
+     },
+     {
+      "score": 3.265,
+      "parent": "cmd.exe",
+      "image": "chcp.com",
+      "command_line": "\"C:\\WINDOWS\\System32\\chcp.com\"  65001  "
+     },
+     {
+      "score": 3.265,
+      "parent": "cmd.exe",
+      "image": "chcp.com",
+      "command_line": "\"C:\\WINDOWS\\System32\\chcp.com\"  65001  "
+     },
+     {
+      "score": 3.175,
+      "parent": "cmd.exe",
+      "image": "powershell.exe",
+      "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"  -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$__claudeCodeScript = $env:CLAUDE_CODE"
+     },
+     {
+      "score": 3.175,
+      "parent": "cmd.exe",
+      "image": "powershell.exe",
+      "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"  -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$__claudeCodeScript = $env:CLAUDE_CODE"
+     },
+     {
+      "score": 3.175,
+      "parent": "cmd.exe",
+      "image": "powershell.exe",
+      "command_line": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"  -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$__claudeCodeScript = $env:CLAUDE_CODE"
+     },
+     {
+      "score": 3.146,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\AirSpace.Etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\VFS\\Pr"
+     },
+     {
+      "score": 3.146,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\msoutilstat.etw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Off"
+     },
+     {
+      "score": 3.038,
+      "parent": "jre-8u511-windows-x64.exe",
+      "image": "jre-8u511-windows-x64.exe",
+      "command_line": "\"C:\\Users\\<user>\\AppData\\Local\\Temp\\jds16150218.tmp\\jre-8u511-windows-x64.exe\""
+     },
+     {
+      "score": 2.913,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+     },
+     {
+      "score": 2.913,
+      "parent": "integrator.exe",
+      "image": "wevtutil.exe",
+      "command_line": "wevtutil.exe im \"C:\\ProgramData\\Microsoft\\ClickToRun\\{9AC08E99-230B-47e8-9721-4577B7F124EA}\\wordEtw.man\" /rf:\"C:\\Program Files\\Microsoft Office\\root\\Office16\\ww"
+     },
+     {
+      "score": 2.811,
+      "parent": "phfzgdbv.exe",
+      "image": "phfzgdbv.exe",
+      "command_line": "phfzgdbv.exe RELAUNCHED "
+     },
+     {
+      "score": 2.723,
+      "parent": "vc_redist.x86.exe",
+      "image": "vc_redist.x86.exe",
+      "command_line": "\"C:\\ProgramData\\Package Cache\\{0b5169e3-39da-4313-808e-1f9c0407f3bf}\\VC_redist.x86.exe\" -burn.clean.room=\"C:\\ProgramData\\Package Cache\\{0b5169e3-39da-4313-808e-"
+     },
+     {
+      "score": 2.639,
+      "parent": "onedrivesetup.exe",
+      "image": "onedrivesetup.exe",
+      "command_line": "\"C:\\Program Files\\Microsoft Office\\root\\integration\\Addons\\OneDriveSetup.exe\" C:\\Program Files\\Microsoft Office\\root\\integration\\Addons\\OneDriveSetup.exe /silen"
+     },
+     {
+      "score": 2.538,
+      "parent": "officeclicktorun.exe",
+      "image": "inspectorofficegadget.exe",
+      "command_line": "InspectorOfficeGadget.exe deprovisionuninstall --displayname \"Microsoft.Office.Desktop\" --logfile \"C:\\Users\\<user>\\AppData\\Local\\Temp\\Office.DeprovisionError."
+     },
+     {
+      "score": 2.51,
+      "parent": "vc_redist.x86.exe",
+      "image": "vc_redist.x86.exe",
+      "command_line": "\"C:\\ProgramData\\Package Cache\\{0b5169e3-39da-4313-808e-1f9c0407f3bf}\\VC_redist.x86.exe\" -uninstall -quiet -burn.related.upgrade -burn.ancestors={0e4ccf1b-d073-4"
+     },
+     {
+      "score": 2.51,
+      "parent": "vc_redist.x86.exe",
+      "image": "vc_redist.x86.exe",
+      "command_line": "\"C:\\ProgramData\\Package Cache\\{0b5169e3-39da-4313-808e-1f9c0407f3bf}\\VC_redist.x86.exe\" -q -burn.elevated BurnPipe.{2B05D072-4F28-4987-8698-835435C30AC7} {D7099"
+     },
+     {
+      "score": 2.467,
+      "parent": "officeclicktorun.exe",
+      "image": "onedrivesetup.exe",
+      "command_line": "\"C:\\Program Files\\Microsoft Office\\root\\integration\\Addons\\OneDriveSetup.exe\" /silent /allusers"
+     }
+    ]
+   },
+   "logistic_regression": {
+    "alert": {
+     "fp_events": 1,
+     "fp_per_host_hour": 0.465617
+    },
+    "high": {
+     "fp_events": 0,
+     "fp_per_host_hour": 0.0
+    }
+   },
+   "heuristic": {
+    "alert": {
+     "fp_events": 112,
+     "fp_per_host_hour": 52.149121
+    },
+    "high": {
+     "fp_events": 4,
+     "fp_per_host_hour": 1.862469
+    }
+   },
+   "rules_only_any_fired": {
+    "fp_events": 15,
+    "fp_per_host_hour": 6.984257
+   }
+  }
+ },
+ "robustness_E3_variant_A": {
+  "n": 113,
+  "baseline_recall_alert": 0.0,
+  "caret": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": -0.280402
+  },
+  "case": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": 0.0
+  },
+  "envvar": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": -0.138115
+  },
+  "whitespace": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": 0.019916
+  },
+  "argswap": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": 0.002561
+  },
+  "renamed_binary": {
+   "recall_alert": 0.0,
+   "mean_raw_score_change": -0.153827
+  }
+ },
+ "ablations_oof_pr_auc": {
+  "full_A": 0.921357,
+  "full_B": 0.915028,
+  "no_cmdline_ngrams": 0.905824,
+  "names_only": 0.895478
+ },
+ "leakage": {
+  "source_predictability_auc": {
+   "attack_data": 0.804054,
+   "botsv1": 0.223801,
+   "officer_vm": 0.073832,
+   "otrf_compound": 0.596375
+  },
+  "top_features_A": [
+   {
+    "feature": "path_class=program_files",
+    "gain": 2835.24,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "user_category=user",
+    "gain": 2385.0,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent_missing",
+    "gain": 1431.56,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name_length",
+    "gain": 1212.45,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#210",
+    "gain": 757.35,
+    "tokens": [
+     "l.",
+     "^r"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_token_count",
+    "gain": 708.77,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#13",
+    "gain": 569.42,
+    "tokens": [
+     "ch",
+     "^t",
+     "hh",
+     "1)"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#50",
+    "gain": 438.99,
+    "tokens": [
+     "os",
+     "py",
+     "wa",
+     "t<"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#3873",
+    "gain": 367.18,
+    "tokens": [
+     "c",
+     "$response.responseuri.originalstring",
+     "-name nextrun"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#70",
+    "gain": 351.12,
+    "tokens": [
+     "ex",
+     "^s",
+     "_2"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#5",
+    "gain": 340.58,
+    "tokens": [
+     "t.",
+     "on",
+     ".c",
+     "n_"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path#464",
+    "gain": 336.94,
+    "tokens": [
+     "program_files_dir"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#178",
+    "gain": 261.25,
+    "tokens": [
+     "la"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#86",
+    "gain": 243.41,
+    "tokens": [
+     "au"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#3007",
+    "gain": 237.81,
+    "tokens": [
+     "<user>",
+     "32",
+     "path ds_computer",
+     "iso"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#232",
+    "gain": 234.07,
+    "tokens": [
+     "s.",
+     "cl",
+     "a3"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#2328",
+    "gain": 191.69,
+    "tokens": [
+     "<user> <user>",
+     "- 0-9",
+     "bin feeltheburn.iso",
+     "byval"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_special_char_ratio",
+    "gain": 187.07,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#191",
+    "gain": 183.31,
+    "tokens": [
+     "d.",
+     "ab",
+     "io"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path#996",
+    "gain": 177.42,
+    "tokens": [
+     "git",
+     "tor.exe"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_entropy",
+    "gain": 176.97,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#1712",
+    "gain": 175.47,
+    "tokens": [
+     "systemroot",
+     "system sc",
+     "5kmmoy1a",
+     "--windows-service"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path_depth",
+    "gain": 168.85,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#97",
+    "gain": 164.3,
+    "tokens": [
+     "st",
+     "ol",
+     "no",
+     "du"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#37",
+    "gain": 139.59,
+    "tokens": [
+     "md",
+     "ew",
+     "ga",
+     ".8"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#223",
+    "gain": 137.92,
+    "tokens": [
+     "ho",
+     "to",
+     "pn",
+     "n6"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#172",
+    "gain": 136.56,
+    "tokens": [
+     "xe",
+     "or",
+     "ce"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#233",
+    "gain": 119.15,
+    "tokens": [
+     "de",
+     "n>",
+     "59",
+     ".3"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#2969",
+    "gain": 109.84,
+    "tokens": [
+     "panopticon",
+     "ve t",
+     "services inc.",
+     "2 nlzzalt.tmp"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "user_category=system",
+    "gain": 109.68,
+    "tokens": [],
+    "harness_token": false
+   }
+  ],
+  "top_features_B": [
+   {
+    "feature": "integrity=missing",
+    "gain": 10966.52,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=high",
+    "gain": 1990.87,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=system",
+    "gain": 1215.86,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#70",
+    "gain": 808.23,
+    "tokens": [
+     "ex",
+     "^s",
+     "_2"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name_length",
+    "gain": 409.83,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_quote_count",
+    "gain": 340.98,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#13",
+    "gain": 246.7,
+    "tokens": [
+     "ch",
+     "^t",
+     "hh",
+     "1)"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#210",
+    "gain": 191.97,
+    "tokens": [
+     "l.",
+     "^r"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#223",
+    "gain": 152.27,
+    "tokens": [
+     "ho",
+     "to",
+     "pn",
+     "n6"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#1345",
+    "gain": 150.61,
+    "tokens": [
+     "cmd c",
+     "localmachine root",
+     "bloodhound <hex>",
+     "<hex> updates"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "integrity=medium",
+    "gain": 145.93,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd#1712",
+    "gain": 142.65,
+    "tokens": [
+     "systemroot",
+     "system sc",
+     "5kmmoy1a",
+     "--windows-service"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_length",
+    "gain": 139.58,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#97",
+    "gain": 115.26,
+    "tokens": [
+     "st",
+     "ol",
+     "no",
+     "du"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "user_category=system",
+    "gain": 97.63,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "user_category=user",
+    "gain": 95.46,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#83",
+    "gain": 82.34,
+    "tokens": [
+     "st",
+     "hi",
+     "3a"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_special_char_ratio",
+    "gain": 74.24,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "path#464",
+    "gain": 72.71,
+    "tokens": [
+     "program_files_dir"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_entropy",
+    "gain": 70.53,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#47",
+    "gain": 69.14,
+    "tokens": [
+     "c.",
+     "gi",
+     "rv",
+     "-w"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path_depth",
+    "gain": 68.96,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#172",
+    "gain": 68.63,
+    "tokens": [
+     "xe",
+     "or",
+     "ce"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#50",
+    "gain": 57.23,
+    "tokens": [
+     "os",
+     "py",
+     "wa",
+     "t<"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#129",
+    "gain": 57.14,
+    "tokens": [
+     "en",
+     "og"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "cmd_token_count",
+    "gain": 55.39,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "parent#146",
+    "gain": 45.06,
+    "tokens": [
+     "sv",
+     "dg",
+     "^d",
+     "di"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "path_class=system",
+    "gain": 43.61,
+    "tokens": [],
+    "harness_token": false
+   },
+   {
+    "feature": "name#3",
+    "gain": 43.5,
+    "tokens": [
+     "ll",
+     "ai",
+     "1)",
+     "nj"
+    ],
+    "harness_token": false
+   },
+   {
+    "feature": "name#69",
+    "gain": 42.93,
+    "tokens": [
+     "ts",
+     "u.",
+     "(1",
+     "cg"
+    ],
+    "harness_token": false
+   }
+  ],
+  "train_test_duplicate_keys": 0
+ },
+ "export": {
+  "model_id": "panopticon-process-start-lgbm",
+  "featurizer_version": 2,
+  "params": {
+   "objective": "binary",
+   "learning_rate": 0.05,
+   "feature_fraction": 0.8,
+   "bagging_fraction": 0.8,
+   "bagging_freq": 1,
+   "lambda_l2": 1.0,
+   "verbose": -1,
+   "deterministic": true,
+   "num_threads": 1,
+   "seed": 20261023,
+   "zero_as_missing": false,
+   "force_col_wise": true,
+   "num_leaves": 15,
+   "min_data_in_leaf": 20
+  },
+  "engine_git_sha": "7a1acbe24cce500d719b2e3121b2981b93f227a7+dirty",
+  "versions": {
+   "lightgbm": "4.7.0",
+   "scikit_learn": "1.9.1",
+   "numpy": "2.5.4",
+   "python": "3.12.12"
+  },
+  "pins_sha256": "56cb9ac34110607a35663583f0996689c1ccc8a05c6daea0b82a722461d3bf80",
+  "labels_sha256": "61f86bd6709c39a2dd8b2c656ad7180e3af03a93ac31e9119468e49f141554cf",
+  "pool_rows": 4972,
+  "files": {
+   "A": {
+    "model.json": "d8c346d5d9eaf8cc4064ea63da3fd6c280c632cb78a0518efe0b1138898338c0",
+    "features.json": "59f32516dfcaba19e62da1397ae5f0f5c31327344dad99931bc7e0fa12519600",
+    "calibration.json": "aaee0dd1ed981acc722a4337657c109a03272c916d34de2e73fc023831560e67",
+    "thresholds.json": "4d300d8a3b52e9506601eee8402efb82596bab8bf1559723bc7e9afcbf51f25c",
+    "golden.json": "e8acef535a3efee90726c3f3edba69ec819f08e7d43583d9dabda6463c27a15c",
+    "golden_max_abs_error": 0.0,
+    "rounds": 29
+   },
+   "B": {
+    "model.json": "31030616c7d12e316d9ddbc6b45d0f039eb1591bf18e4a0779099ab8ea10604c",
+    "features.json": "30bf9792645df57395556707f174c7691bafa5994836cba8006b0919edf03197",
+    "calibration.json": "36259484b1dc4bca10edbc303a63663c693a9e52529c0448ce48893bb29f032e",
+    "thresholds.json": "3ad20ff316b94514394934f83c3116c1faee65a99b921b6ba57a2f4a6b26be50",
+    "golden.json": "6d90bf55b2fe85f2b51efd8ba3e96f5af634d8660e491bed8ac4777aa98e28ab",
+    "golden_max_abs_error": 0.0,
+    "rounds": 26
+   }
+  }
+ }
+}

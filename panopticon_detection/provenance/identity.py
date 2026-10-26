@@ -106,6 +106,12 @@ def derive_node_id(host_id: str, pid: int, start_time: datetime) -> str:
     return "proc_" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
+# How far apart two reports of one process creation may be stamped. ETW's
+# CreateTime and Sysmon's UtcTime describe the same instant; the window only
+# absorbs rounding and clock-source jitter, far below any PID-reuse interval.
+DUPLICATE_START_WINDOW = timedelta(seconds=1)
+
+
 @dataclass
 class ProcessIncarnation:
     """One live run of one PID on one host, over ``[start_time, end_time)``."""
@@ -143,6 +149,11 @@ class ProcessIncarnation:
     # already-running machine never sees the creation of existing processes, so
     # without inference every lineage would stop at the first such process.
     inferred: bool = False
+
+    # True when end_time came from an observed stop event (schema 0.5), not
+    # from a later process reusing the PID. Only an observed end measures how
+    # long the process actually ran.
+    end_observed: bool = False
 
     def covers(self, when: datetime, max_lifetime: timedelta) -> bool:
         """Whether this incarnation was live at ``when``."""
@@ -190,6 +201,17 @@ class ProcessRegistry:
 
         parent = event.get("parent") or {}
         parent_pid = parent.get("pid")
+
+        # The agent reports one process creation twice -- ETW Kernel-Process
+        # (with start_time_ticks, no command line) and Sysmon EID 1 (command
+        # line and hash, no ticks) -- stamped with the same creation instant.
+        # They are one incarnation: fill in what the earlier report lacked
+        # rather than letting the later one replace it, which would drop the
+        # ticks a kill recommendation needs and split the process in two.
+        duplicate = self._same_creation(host_id, pid, start, proc, parent_pid)
+        if duplicate is not None:
+            _fill_missing(duplicate, proc, parent_pid)
+            return duplicate
 
         incarnation = ProcessIncarnation(
             node_id=derive_node_id(host_id, pid, start),
@@ -247,12 +269,64 @@ class ProcessRegistry:
         self._insert(placeholder)
         return placeholder
 
+    def observe_context(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
+        """Resolve the acting process of a non-process event, inferring it if unseen.
+
+        An agent that starts on a running machine never sees existing processes
+        being created, and a buffered create can arrive after the process's first
+        network or file event. Without inference those processes have no node, so
+        their detections cannot join any incident. The inferred incarnation
+        starts at this first sighting, carries the name/image/command line the
+        event reports, links to its parent the same way ``observe_start`` does,
+        and is flagged ``inferred=True``. It never carries ``start_time_ticks``:
+        that token was not observed, and inventing one would defeat the PID-reuse
+        guard on ``KILL_PROCESS``.
+        """
+        existing = self.resolve_event(event)
+        if existing is not None:
+            return existing
+
+        proc = event.get("process") or {}
+        pid = proc.get("pid")
+        host_id = event.get("host_id") or "UNKNOWN_HOST"
+        when = parse_timestamp(event.get("timestamp"))
+        if not isinstance(pid, int) or isinstance(pid, bool) or when == UNKNOWN_TIME:
+            return None
+
+        start = when - timedelta(microseconds=1)
+        incarnation = ProcessIncarnation(
+            node_id=derive_node_id(host_id, pid, start),
+            host_id=host_id,
+            pid=pid,
+            start_time=start,
+            name=(proc.get("name") or "").lower(),
+            executable=proc.get("executable") or "",
+            command_line=proc.get("command_line") or "",
+            user=proc.get("user") or "",
+            sha256=proc.get("sha256") or proc.get("file_hash"),
+            entity_id=proc.get("entity_id"),
+            inferred=True,
+        )
+        parent = event.get("parent") or {}
+        parent_pid = parent.get("pid")
+        if isinstance(parent_pid, int) and not isinstance(parent_pid, bool):
+            incarnation.parent_pid = parent_pid
+            parent_inc = self.resolve(host_id, parent_pid, start) or self._infer_parent(
+                host_id, parent_pid, parent.get("name"), start
+            )
+            if parent_inc is not None:
+                incarnation.parent_node_id = parent_inc.node_id
+
+        self._insert(incarnation)
+        return incarnation
+
     def observe_stop(self, event: Dict[str, Any]) -> Optional[ProcessIncarnation]:
         """Record a process-termination event, closing the live incarnation.
 
-        No Panopticon agent emits this yet -- the schema's process family admits
-        only ``event.type: "start"``. Implemented now so that adding the ``stop``
-        event upstream needs no change here.
+        Schema 0.5's ``process``/``stop`` event (Sysmon EventID 5). A stop for a
+        process never seen starting is ignored: there is nothing to close, and
+        inventing an incarnation only to end it would add a node with no
+        observed behaviour.
         """
         proc = event.get("process") or {}
         pid = proc.get("pid")
@@ -265,6 +339,37 @@ class ProcessRegistry:
         if incarnation is None:
             return None
         incarnation.end_time = when
+        incarnation.end_observed = True
+        return incarnation
+
+    def observe_reference(
+        self, host_id: str, pid: Any, executable: Optional[str], when: datetime
+    ) -> Optional[ProcessIncarnation]:
+        """Resolve the *other* process a cross-process event names, inferring it if unseen.
+
+        A process-access or remote-thread event names a target by PID and image.
+        The target is usually long-lived (``lsass.exe``, ``explorer.exe``) and its
+        start predates the agent, so when no incarnation covers ``when`` one is
+        inferred exactly as :meth:`observe_context` infers an unseen actor: it
+        starts at this first sighting and is flagged ``inferred=True``.
+        """
+        if not isinstance(pid, int) or isinstance(pid, bool) or when == UNKNOWN_TIME:
+            return None
+        existing = self.resolve(host_id, pid, when)
+        if existing is not None:
+            return existing
+        start = when - timedelta(microseconds=1)
+        image = executable or ""
+        incarnation = ProcessIncarnation(
+            node_id=derive_node_id(host_id, pid, start),
+            host_id=host_id,
+            pid=pid,
+            start_time=start,
+            name=image.replace("\\", "/").rsplit("/", 1)[-1].lower(),
+            executable=image,
+            inferred=True,
+        )
+        self._insert(incarnation)
         return incarnation
 
     # ------------------------------------------------------------------
@@ -372,6 +477,32 @@ class ProcessRegistry:
         return iter(self._by_node_id.values())
 
     # ------------------------------------------------------------------
+    def _same_creation(
+        self,
+        host_id: str,
+        pid: int,
+        start: datetime,
+        proc: Dict[str, Any],
+        parent_pid: Any,
+    ) -> Optional[ProcessIncarnation]:
+        """An already-recorded observed incarnation this start event re-reports.
+
+        Same host and PID, a creation time within ``DUPLICATE_START_WINDOW``, the
+        same parent PID when both are known, and the same image name when both
+        are known. Anything less is a different process reusing the PID.
+        """
+        name = _image_name(proc.get("name"), proc.get("executable") or proc.get("executable_path"))
+        for inc in self._timeline.get((host_id, pid), ()):
+            if inc.inferred or abs(inc.start_time - start) > DUPLICATE_START_WINDOW:
+                continue
+            if isinstance(parent_pid, int) and inc.parent_pid is not None and inc.parent_pid != parent_pid:
+                continue
+            known = _image_name(inc.name, inc.executable)
+            if name and known and name != known:
+                continue
+            return inc
+        return None
+
     def _insert(self, incarnation: ProcessIncarnation) -> None:
         key = (incarnation.host_id, incarnation.pid)
         timeline = self._timeline.setdefault(key, [])
@@ -391,6 +522,39 @@ class ProcessRegistry:
 
         timeline.insert(idx, incarnation)
         self._by_node_id[incarnation.node_id] = incarnation
+
+
+def _image_name(name: Any, executable: Any) -> str:
+    """Lower-case image file name from a name or a (possibly device) path."""
+    for value in (name, executable):
+        if isinstance(value, str) and value:
+            return value.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+    return ""
+
+
+def _fill_missing(inc: ProcessIncarnation, proc: Dict[str, Any], parent_pid: Any) -> None:
+    """Copy fields a duplicate creation report carries and ``inc`` lacks.
+
+    Never overwrites: each field keeps the first value observed. That applies
+    to ``start_time_ticks`` too -- it is passed through as reported, never
+    chosen between or derived.
+    """
+    if not inc.name and proc.get("name"):
+        inc.name = proc["name"].lower()
+    if not inc.executable:
+        inc.executable = proc.get("executable") or proc.get("executable_path") or ""
+    if not inc.command_line and proc.get("command_line"):
+        inc.command_line = proc["command_line"]
+    if not inc.user and proc.get("user"):
+        inc.user = proc["user"]
+    if not inc.sha256:
+        inc.sha256 = proc.get("sha256") or proc.get("file_hash")
+    if inc.start_time_ticks is None:
+        inc.start_time_ticks = _coerce_ticks(proc.get("start_time_ticks"))
+    if inc.entity_id is None and proc.get("entity_id"):
+        inc.entity_id = proc["entity_id"]
+    if inc.parent_pid is None and isinstance(parent_pid, int):
+        inc.parent_pid = parent_pid
 
 
 def _coerce_ticks(value: Any) -> Optional[int]:
