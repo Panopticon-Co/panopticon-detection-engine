@@ -298,6 +298,10 @@ class ProcessRegistry:
         that token was not observed, and inventing one would defeat the PID-reuse
         guard on ``KILL_PROCESS``.
         """
+        if event.get("identity_model") == "endpoint_record_v1":
+            # Canonical records never infer an actor from PID/time: exact or
+            # source-scoped references only, and unresolved stays unresolved.
+            return self._observe_canonical(event)
         existing = self.resolve_event(event)
         if existing is not None:
             return existing

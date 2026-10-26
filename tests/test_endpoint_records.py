@@ -219,3 +219,14 @@ def test_canonical_stop_closes_the_same_exact_instance():
     instance = run.graph_builder.registry.get(stop["subject"]["entity_id"])
     assert instance.end_observed and instance.end_time > instance.start_time
     assert not instance.inferred
+
+
+def test_unresolved_canonical_activity_never_infers_an_actor():
+    """main's observe_context infers placeholder actors for legacy telemetry;
+    a canonical record with an unresolved reference must not get one."""
+    run, context = build_detection_run(Path(__file__).resolve().parents[1] / "rules")
+    unresolved = [r for r in records() if r["subject"] and r["subject"]["resolution"] == "unresolved"]
+    assert unresolved
+    for record in unresolved:
+        run.process_event(EndpointIngestionAdapter.transform(record))
+    assert len(context.registry) == 0
