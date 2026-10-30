@@ -12,7 +12,51 @@ Structure follows Mitchell et al., *Model Cards for Model Reporting*.
 > - See [EVAL_REPORT.md](EVAL_REPORT.md) (Verdict v7, Addendum 4). Bundle: `data/models/v7/`,
 >   manifest in [`results/bundle_manifest_v7.json`](results/bundle_manifest_v7.json).
 
-## v7 bundle (current)
+## v7_v5 bundle (served by the engine since 2026-10-30)
+
+The engine's ML stage (`panopticon_detection/ml/stage.py`, ADR 001-003) serves
+`data/models/v7_v5/`. That is the v7 recipe rebuilt under **featurizer v5** (profile-name
+normalisation only) after a 37-row relabel (D24): 228 trees, serving thresholds alert 3.4809 /
+high 4.2005. Its `model.json` sha256 is `a4f711360ba88aeb...`; the LOEO re-run below rebuilt an
+identical model. It is served as a **triage aid**, never as a detector of record.
+
+**LOEO re-run** (`pdtrain v7 --version v7_v5_loeo`, 84 s, results in
+[`results/v7_v5.json`](results/v7_v5.json)). Fold thresholds are chosen without the held-out
+environment, so they differ from the serving thresholds.
+
+| Held-out env | Host-hours | Fold alert threshold | FP events | FP / host-hour | Recall (unique attacks) | Rules' FP / host-hour |
+|---|---|---|---|---|---|---|
+| attack_range | 194.21 | 3.521 | 0 | 0.0 | 0.0 | 13.264 |
+| mordor | 5.59 | 3.745 | 0 | 0.0 | 0.0 | 30.9565 |
+| botsv1 | 8.65 | 4.580 | 1 | 0.1156 | 0.0196 | 6.8206 |
+| officer_vm | 4.48 | 5.802 | 0 | 0.0 | benign only | 9.825 |
+| optc | 818.6 | 4.343 | 0 | 0.0 | benign only | 79.2747 |
+| atlasv2 | 512.64 | 4.386 | 6 | 0.0117 | 0.3158 | 0.5833 |
+
+- **Macro recall:** model **0.0838** vs rules 0.2952. The difference is **-0.2113**, 95% CI
+  -0.265 to -0.137.
+- **Against the command-line heuristic:** +0.053, CI 0.013 to 0.085.
+- **Criteria:**
+  - S1 (FP budget everywhere): pass.
+  - **S2** (beat rules): **fail**.
+  - S3: pass.
+  - **S4** (environment fingerprint): **fail**, benign-environment macro AUC 0.840.
+  - S5: pass.
+  - S6: golden error 0.0.
+- **Compared with v7** (`results/v7.json`): BOTSv1 FP fell from 10 events (1.156/h) to 1
+  event (0.1156/h), because the fold threshold rose (4.58 vs 3.67). The price was BOTSv1
+  recall falling from 0.078 to 0.020.
+- **Reading:** it is quiet (7 FP events over about 1,544 held-out host-hours) but finds about 8%
+  of attack units against the rules' about 30%. Three environments have under 10 host-hours,
+  so "0 FP" there is weak evidence.
+- **Serving limitations:**
+  - It only scores starts with a command line.
+  - Training scrubs Atomic Red Team paths, `t1xxx` ids and lab domains; serving does not. Lab
+    VMs running Atomics therefore get biased scores.
+  - The probability is fitted at training prevalence. Show the raw score and band.
+  - The sealed agent recording was never collected.
+
+## v7 bundle (superseded by v7_v5 for serving)
 
 - **Recipe `v7_lgb_no_stats`:** LightGBM, `num_leaves` 15, `max_depth` 4, `min_data_in_leaf`
   50, learning rate 0.05, 170 trees, monotone (+1) on the 43 indicators and the obfuscation,

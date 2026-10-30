@@ -101,7 +101,7 @@ Keep these properties:
   `active_response`, stay out of the risk meter and cannot open or root an
   incident (`tagging.is_soft`).
 - The served model (v7_v5) is weak and disclosed as such:
-  `docs/ml/MODEL_CARD_v7_v5.md`.
+  `docs/ml/MODEL_CARD.md`.
 
 ### The provenance layer
 
