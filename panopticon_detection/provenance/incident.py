@@ -58,7 +58,7 @@ from panopticon_detection.provenance.graph import (
     actor_of,
 )
 from panopticon_detection.provenance.identity import ProcessRegistry
-from panopticon_detection.provenance.tagging import DEFAULT_ANCHOR_MIN_LEVEL, Tag
+from panopticon_detection.provenance.tagging import DEFAULT_ANCHOR_MIN_LEVEL, Tag, is_soft
 
 INCIDENT_RULE_ID = "PROV-CAMPAIGN"
 
@@ -84,6 +84,9 @@ _CONTEXT = {
     "user_writable_execution": (0.08, "a process in the chain ran from a user-writable or temp path"),
     "external_network": (0.07, "a process in the chain connected to a public address"),
     "obfuscated_command": (0.05, "a process in the chain ran an obfuscated command line"),
+    # Only ever added to an incident that rules already anchored (the ML alert has no
+    # tactic, so it cannot open one); bounded by _CONTEXT_CAP like every other factor.
+    "ml_high_confidence_process": (0.08, "the ML triage model scored a process in the chain above its high threshold"),
 }
 _CONTEXT_CAP = 0.25
 
@@ -346,9 +349,12 @@ class IncidentTracker:
         processes = [p for p in processes if p is not None]
         if not incident.stages:
             return
-        earliest = self.registry.get(incident.stages[0].actor_node_id)
+        # The incident starts where its first *detection* ran. A model or rarity signal
+        # on an earlier, possibly benign, process is context, not a reason to re-root.
+        first = next((s for s in incident.stages if not is_soft(s.rule_id, s.tactic)), incident.stages[0])
+        earliest = self.registry.get(first.actor_node_id)
         root = tree_root(self.registry, earliest) if earliest else None
-        incident.root_node_id = root.node_id if root else incident.stages[0].actor_node_id
+        incident.root_node_id = root.node_id if root else first.actor_node_id
         non_boundary = [p for p in processes if (p.name or "").lower() not in self.boundary]
         origin = min(non_boundary, key=lambda p: (p.start_time, p.node_id), default=None)
         incident.origin_node_id = origin.node_id if origin else incident.root_node_id
@@ -372,6 +378,9 @@ class IncidentTracker:
             factors["external_network"] = _CONTEXT["external_network"][0]
         if any(CommandDeobfuscator.deobfuscate(p.command_line)["is_obfuscated"] for p in in_scope):
             factors["obfuscated_command"] = _CONTEXT["obfuscated_command"][0]
+
+        if any(s.rule_id == "ML-PROC-002" for s in incident.stages):
+            factors["ml_high_confidence_process"] = _CONTEXT["ml_high_confidence_process"][0]
 
         context = round(min(sum(factors.values()), _CONTEXT_CAP), 3)
         incident.score = round(severity + breadth + context, 3)

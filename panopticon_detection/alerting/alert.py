@@ -54,6 +54,11 @@ class Alert:
     # Set on incident alerts: stable across an incident's revisions, while
     # alert_id changes with each one.
     incident_id: Optional[str] = None
+    # Set by the ML stage (docs/adr/002): the model's score for the event this
+    # alert came from. Kept out of ``evidence`` -- the stable alert id hashes
+    # evidence keys -- and omitted from ``to_dict`` when absent, so rules-only
+    # output is byte-identical to what it was before the stage existed.
+    ml: Optional[Dict[str, Any]] = None
     # Which layer produced this alert: "rule" (single-event rule), "stateful"
     # (sequence / threshold / value_count rule), "behavioral" (beaconing,
     # rarity -- evidence, never a verdict) or "correlation" (incident, host
@@ -101,4 +106,7 @@ class Alert:
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        if data.get("ml") is None:
+            del data["ml"]
+        return data

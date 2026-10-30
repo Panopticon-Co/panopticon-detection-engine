@@ -45,7 +45,7 @@ normalizer).
 |---|---|---|
 | `alert_id` | str | Deterministic. Rule alerts `ALT-<sha1>` of (rule, event, host, ts, evidence keys); incident revisions `INC-…-R<n>`; host risk `RISK-…`; beacons `ALT-BCN-…`. Replaying an event yields the same id. |
 | `rule_id` | str | YAML rule id, `PROV-CAMPAIGN` (incident), `CORR-RISK-001` (host risk), behavioural detector id. |
-| `detection_source` | str | **New.** `rule` \| `stateful` \| `behavioral` \| `correlation`. |
+| `detection_source` | str | **New.** `rule` \| `stateful` \| `behavioral` \| `correlation` \| `ml` (optional ML stage, `ML-PROC-001/002`; never carries `active_response` or a tactic). |
 | `title`, `description` | str | From the rule, or derived from the incident. |
 | `level` | int 0–16 | Wazuh-style. |
 | `severity` | str | `low` \| `medium` \| `high` \| `critical`. |
@@ -56,6 +56,7 @@ normalizer).
 | `mitre_tactic`, `mitre_technique` | str \| null | ATT&CK mapping. |
 | `incident_id` | str \| null | Set only on incident alerts; stable across revisions. |
 | `tags`, `compliance` | list[str] | |
+| `ml` | object, **optional** | **Additive; absent when no model is loaded or the event was not scored.** `{model_id, model_version, artifact_sha256, featurizer_version, mode, raw_score, band (null\|alert\|high), thresholds{alert,high}, training_prevalence_probability}`. On rule alerts it is an annotation and never changes level, response or id; absence means "not scored", never "benign". `training_prevalence_probability` is not a deployment probability. |
 
 ### Alert, incident, campaign: definitions
 

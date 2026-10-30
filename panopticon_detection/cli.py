@@ -108,6 +108,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print provenance graph size after the run",
     )
 
+    ml = parser.add_argument_group("ML triage stage (docs/adr/002)")
+    ml.add_argument(
+        "--ml-model",
+        default=None,
+        help="Exported model bundle directory (default: $PANOPTICON_MODEL_PATH; none = rules-only)",
+    )
+    ml.add_argument(
+        "--ml-mode",
+        choices=("shadow", "active"),
+        default=None,
+        help="shadow: annotate rule alerts with the ML score. active: also emit ML-PROC-001/002 "
+        "evidence alerts (default: $PANOPTICON_ML_MODE, else shadow)",
+    )
+
     behavioral = parser.add_argument_group("behavioral rarity baseline (batch mode)")
     behavioral.add_argument(
         "--export-features",
@@ -246,6 +260,8 @@ def main() -> None:
                 alert, args.output_format, story_mode=args.story
             ),
             behavioral_detectors=detectors,
+            ml_model_path=args.ml_model,
+            ml_mode=args.ml_mode,
         )
     except Exception as exc:
         print(f"[ERROR] Failed to load rules: {exc}")
@@ -258,6 +274,12 @@ def main() -> None:
     print(f"[*] Telemetry source: {stream_name}")
     for detector in detectors:
         print(f"[*] {_baseline_status(detector.baseline)}")
+    ml_stats = context.stats()
+    if "ml_state" in ml_stats:
+        if ml_stats["ml_state"] == "enabled":
+            print(f"[*] ML stage {ml_stats['ml_mode']}: {ml_stats['ml_model_version']}")
+        else:
+            print(f"[WARN] ML stage disabled, rules-only: {ml_stats.get('ml_error')}")
     print()
 
     if args.reliable:

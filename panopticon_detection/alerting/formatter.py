@@ -17,6 +17,15 @@ _LABEL = 14
 _BODY = _WIDTH - 4 - _LABEL - 3
 
 
+def _ml_text(alert: Alert) -> str:
+    """One line for a rule alert the ML stage annotated; nothing for ML's own alerts."""
+    ml = getattr(alert, "ml", None)
+    if not ml or alert.rule_id.startswith("ML-"):
+        return ""
+    band = ml.get("band") or "below threshold"
+    return f"score {ml['raw_score']:.2f} ({band}); a triage aid, not a verdict"
+
+
 class AlertFormatter:
     """Formats alerts for display."""
 
@@ -41,6 +50,7 @@ class AlertFormatter:
             ("Observed", alert.description),
             ("ATT&CK", technique),
             ("Severity", f"level {level}/16 ({sev}), confidence {alert.confidence * 100:.0f}%"),
+            ("ML triage", _ml_text(alert)),
             ("Recommended", recommendation_text(alert)),
         ]
 
