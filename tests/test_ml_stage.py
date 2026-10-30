@@ -282,3 +282,28 @@ def test_latency_is_measured(high):
     alerts, context = replay("download_execute_lsass_dump", ml_model_path=high, ml_mode="active")
     stats = context.stats()
     assert stats["ml_scored"] > 0 and stats["ml_latency_max_ms"] >= stats["ml_latency_mean_ms"] > 0
+
+
+# --- canonical endpoint record 1.0 (the live agent's wire) ----------------------
+def _canonical_alerts(**ml):
+    from panopticon_detection.ingestion.endpoint_adapter import EndpointIngestionAdapter
+    records = json.loads((Path(__file__).parent / "fixtures" / "endpoint-record-1.0.json").read_text())
+    run, context = build_detection_run(ROOT / "rules", **ml)
+    alerts = []
+    for record in records:
+        alerts += run.process_event(EndpointIngestionAdapter.transform(record))
+    return alerts, context
+
+
+def test_canonical_records_are_scored_and_ml_stays_bounded(high):
+    plain, _ = _canonical_alerts()
+    alerts, context = _canonical_alerts(ml_model_path=high, ml_mode="active")
+    rules = [a for a in alerts if a.detection_source != "ml"]
+    strip = lambda a: {k: v for k, v in a.to_dict().items() if k != "ml"}  # noqa: E731
+    assert [strip(a) for a in rules] == [strip(a) for a in plain]           # rules unchanged
+    ml = [a for a in alerts if a.detection_source == "ml"]
+    assert ml and context.stats()["ml_scored"] >= 1
+    for a in ml:
+        assert a.rule_id == "ML-PROC-002" and a.active_response is None and a.mitre_tactic is None
+        assert a.endpoint_context["kind"] == "observation"                 # record provenance kept
+    assert any(a.ml for a in rules)                                          # whoami /priv rule annotated
