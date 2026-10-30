@@ -35,6 +35,16 @@ TERMINAL_TACTICS = frozenset(
 DEFAULT_ANCHOR_MIN_LEVEL = 10
 
 
+#: Rule-id prefixes of evidence-only detections: the ML stage ("ML-") and the rarity
+#: baseline ("BHV-"). They carry no tactic, so they join an incident but never open one.
+SOFT_RULE_PREFIXES = ("ML-", "BHV-")
+
+
+def is_soft(rule_id: str, tactic: Optional[str]) -> bool:
+    """Evidence-only: a model or rarity signal. It must not decide where an incident is rooted."""
+    return not tactic and rule_id.startswith(SOFT_RULE_PREFIXES)
+
+
 def normalise_tactic(tactic: Optional[str]) -> str:
     """``"Command and Control"`` -> ``"commandandcontrol"``."""
     if not tactic:

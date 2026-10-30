@@ -85,6 +85,24 @@ Keep these properties:
 - Say "previously unseen behavior", never "zero-day detection".
 - Details and limitations: `docs/behavioral-intelligence.md`.
 
+### The ML scoring stage (optional, off by default)
+
+`build_detection_run(..., ml_model_path=None, ml_mode=None)` or
+`PANOPTICON_MODEL_PATH` / `PANOPTICON_ML_MODE` (`shadow` default, `active`) /
+`PANOPTICON_MODEL_SHA256` loads a process-start model bundle
+(`ml/artifact.py`) into `ml/stage.py`. Keep these properties (docs/adr/001-003):
+
+- **Fail open.** A missing or invalid bundle logs `ML stage DISABLED` and runs
+  rules-only; `score()` never raises. Rules never read ML output.
+- **One featurizer.** Serving calls `ml/featurizer.featurize`, the function
+  training used; the loader rejects a bundle with another featurizer version.
+- **Evidence, not a verdict.** Rule alerts get an `ml` annotation that changes
+  nothing else. `ML-PROC-001/002` (active mode only) carry no tactic and no
+  `active_response`, stay out of the risk meter and cannot open or root an
+  incident (`tagging.is_soft`).
+- The served model (v7_v5) is weak and disclosed as such:
+  `docs/ml/MODEL_CARD_v7_v5.md`.
+
 ### The provenance layer
 
 - **`provenance/identity.py` (L1)** — the linchpin. The agent derives

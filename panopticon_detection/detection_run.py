@@ -50,6 +50,7 @@ _SOURCE_OF_KIND = {
     "stateful": "stateful",
     "beacon": "behavioral",
     "behavioral": "behavioral",
+    "ml": "ml",
 }
 
 
@@ -79,6 +80,7 @@ class DetectionRun:
         emit: Optional[Callable[[Alert], None]] = None,
         dedup_ttl_seconds: float = 600.0,
         behavioral_detectors: Sequence[Any] = (),
+        ml_stage: Any = None,
     ) -> None:
         self.graph_builder = graph_builder
         self.evaluator = evaluator
@@ -93,6 +95,8 @@ class DetectionRun:
         # --export-features and --learn-baseline compute them.
         self.behavioral_detectors = list(behavioral_detectors)
         self.feature_extractor = FeatureExtractor(graph_builder.registry, graph_builder.graph)
+        # Optional ML scoring stage (ml/stage.py); None = rules-only, as before.
+        self.ml_stage = ml_stage
 
         self._emit_cb = emit or (lambda _alert: None)
         # (rule, host, actor) -> event time of the last emitted alert.
@@ -106,6 +110,7 @@ class DetectionRun:
         self.stateful_alerts_count = 0
         self.beacon_alerts_count = 0
         self.behavioral_signals_count = 0
+        self.ml_alerts_count = 0
         self.incident_alerts_count = 0
         self.risk_breach_alerts_count = 0
         self.suppressed_duplicates = 0
@@ -128,6 +133,7 @@ class DetectionRun:
         enrichment.reset(event)
 
         edge = self.graph_builder.apply(event)
+        ml_result = self.ml_stage.score(event) if self.ml_stage is not None else None
 
         detections: List[Tuple[Alert, Tag, str]] = []
         for result in self.evaluator.evaluate_event(event):
@@ -145,6 +151,16 @@ class DetectionRun:
                 alert = signal.to_alert()
                 detections.append((alert, tag_from_alert(alert), "behavioral"))
 
+        if ml_result is not None:
+            note = self.ml_stage.annotation(ml_result)
+            for alert, _tag, kind in detections:
+                if kind in ("rule", "stateful"):
+                    alert.ml = note  # annotate, never re-level (docs/adr/002)
+            if ml_result.band is not None and self.ml_stage.mode == "active":
+                node = actor_of(edge) if edge is not None else None
+                ml_alert = self.ml_stage.to_alert(ml_result, event, node)
+                detections.append((ml_alert, tag_from_alert(ml_alert), "ml"))
+
         # Emit (or suppress) each detection, then tag them all onto the edge
         # before correlating, so an incident opened by one detection on this
         # event already includes the others.
@@ -160,12 +176,12 @@ class DetectionRun:
             self._count(kind)
             self._emit(alert, produced)
             tags.append(dataclasses.replace(tag, alert_id=alert.alert_id))
-            if kind != "behavioral":
+            if kind not in ("behavioral", "ml"):
                 evidential.append(alert)
 
         # One event is one piece of evidence toward a host's risk, however many
         # overlapping rules describe it: feed the meter once, with the event's
-        # strongest detection. Behavioral signals are left out: "never seen
+        # strongest detection. ML and behavioral signals are left out: "never seen
         # here before" is context for an analyst, not evidence of compromise,
         # and must not push a host toward an isolation recommendation.
         if evidential:
@@ -236,6 +252,8 @@ class DetectionRun:
             self.beacon_alerts_count += 1
         elif kind == "behavioral":
             self.behavioral_signals_count += 1
+        elif kind == "ml":
+            self.ml_alerts_count += 1
 
     def _emit(self, alert: Alert, produced: List[Alert]) -> None:
         if self._endpoint_context is not None:
