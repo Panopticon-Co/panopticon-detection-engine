@@ -4,6 +4,18 @@ Status: **plan only, not implemented**. Written 2026-10-30 from three parallel r
 investigations: model evidence, engine/manager/console integration, and demo scenarios.
 Every claim cites a file. "n/m" means not measured.
 
+
+> **Update 2026-10-30, Phase 2 done.** LOEO was re-run for the shipped v7_v5 model (identical `model.json`).
+>
+> | Measure | Value |
+> |---|---|
+> | Macro recall | 0.0838 |
+> | Difference vs rules | −0.211 |
+> | Worst held-out FP/h | 0.1156 (BOTSv1, 1 event) |
+> | Criteria | S1/S3/S5 pass; S2/S4 fail |
+>
+> Where §C says the shipped rebuild is unevaluated, use `docs/ml/MODEL_CARD.md` and `docs/ml/results/v7_v5.json` instead.
+
 Windows-only checks are in `docs/capstone/WINDOWS_HANDOFF.md`.
 
 ---
@@ -188,7 +200,7 @@ presented as a negative. The reason is visible in stats.
   - tests;
   - `docs/adr/001-003`, `CLAUDE.md` (ML stage paragraph), `docs/integration/CONTRACT.md`
     (`ml`, `"ml"` source);
-  - a model card at `docs/ml/MODEL_CARD_v7_v5.md`.
+  - a model card at `docs/ml/MODEL_CARD.md`.
 - **Manager:**
   - `vendor/eyedetect` (pin);
   - `manager/routers/alerts.py:67`;

@@ -80,4 +80,4 @@ Trees are compiled to flat arrays when loaded.
 
 ## Amendment 2026-10-30 (implementation)
 
-Implemented as `panopticon_detection/ml/artifact.py` and `factory.build_ml_stage`. The served bundle is `data/models/v7_v5` (featurizer 5, 228 trees, golden max error 4e-15), shipped out of band because `data/` is git-ignored. Selection and limitations: `docs/ml/MODEL_CARD_v7_v5.md`.
+Implemented as `panopticon_detection/ml/artifact.py` and `factory.build_ml_stage`. The served bundle is `data/models/v7_v5` (featurizer 5, 228 trees, golden max error 4e-15), shipped out of band because `data/` is git-ignored. Selection and limitations: `docs/ml/MODEL_CARD.md`.
